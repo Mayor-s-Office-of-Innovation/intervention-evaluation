@@ -1,0 +1,16 @@
+{
+  "name": "hypothesis-tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-serve tool: \"Does the data support my hypothesis?\" — check whether an SF neighborhood intervention had its intended effect using live SF OpenData. See PLAN.md.",
+  "scripts": {
+    "dev": "http-server . -p 8090 -c-1",
+    "serve": "http-server . -p 8090 -c-1 -o /index.html",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "http-server": "^14.1.1"
+  }
+}

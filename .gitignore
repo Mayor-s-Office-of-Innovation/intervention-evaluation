@@ -1,3 +1,11 @@
+*.bak
+.DS_Store
+.vscode/
+.idea/
+playwright-report/
+test-results/
+_site/
+
 # Logs
 logs
 *.log
