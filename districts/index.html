@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SF Encampment Reports by District — trends over time</title>
+
+  <!-- Respect the OS light/dark setting (Web Awesome reads .wa-dark / .wa-light on <html>) -->
+  <script>
+    (function () {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      function apply() {
+        document.documentElement.classList.toggle('wa-dark', mq.matches);
+        document.documentElement.classList.toggle('wa-light', !mq.matches);
+      }
+      apply();
+      mq.addEventListener('change', apply);
+    })();
+  </script>
+
+  <!-- Web Awesome (autoloader: components load on demand) -->
+  <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.7.0/styles/webawesome.css" />
+  <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"></script>
+
+  <!-- Leaflet + heat plugin -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <span class="app-header__eyebrow">San Francisco · OpenData</span>
+      <h1>Encampment reports by district</h1>
+      <p class="app-header__sub">
+        How community-reported encampment &amp; homelessness activity is changing across four police
+        districts — Central, Northern, Mission, and Tenderloin — measured against citywide totals and
+        the same season a year earlier.
+      </p>
+    </div>
+  </header>
+
+  <main class="app-main wa-stack wa-gap-xl">
+
+    <!-- Signal selector (Stage 3 adds more; Encampment is the default) -->
+    <div class="toolbar">
+      <div class="wa-stack wa-gap-2xs">
+        <label class="field-label" for="signal-select">Signal</label>
+        <wa-select id="signal-select" value="encampment"></wa-select>
+      </div>
+      <small id="data-asof" class="field-hint"></small>
+    </div>
+
+    <!-- Global time window — drives the cards, chart highlight, and map together -->
+    <div class="timebar">
+      <button id="play-btn" class="play-btn" aria-label="Play through time">
+        <wa-icon id="play-icon" name="play"></wa-icon><span id="play-label">Play</span>
+      </button>
+      <div class="timebar__slider">
+        <wa-slider id="time-range" range size="s" with-tooltip
+                   min="0" max="100" min-value="0" max-value="100"
+                   label="Time window — drag the handles (cards, chart &amp; map all follow)"></wa-slider>
+        <div id="time-readout" class="range-readout"></div>
+      </div>
+    </div>
+
+    <!-- District + citywide rollup cards -->
+    <section class="wa-stack wa-gap-s">
+      <h2 class="section-title">District rollup <small id="rollup-month" class="section-sub"></small></h2>
+      <div class="wa-grid wa-gap-l" id="cards" style="--min-column-size: 12rem;"></div>
+      <small class="repro-note">
+        “vs last year” compares the latest complete month to the same month a year earlier (same
+        season). “12-mo trend” is the direction of the trailing-12-month average — seasonality removed.
+      </small>
+    </section>
+
+    <!-- Trend chart -->
+    <wa-card class="panel">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title" id="chart-title">Reports over time</h2>
+        <div class="focus-tabs" id="focus-tabs" role="tablist"></div>
+      </div>
+      <div class="chart-overlays" id="chart-overlays"></div>
+      <div id="chart-host" class="chart-host"></div>
+      <small id="chart-note" class="repro-note"></small>
+    </wa-card>
+
+    <!-- Map -->
+    <wa-card class="panel">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title">Where the reports are</h2>
+        <div class="map-modes" id="map-modes"></div>
+      </div>
+      <div id="map" class="events-map"></div>
+      <small id="map-note" class="repro-note">Heatmap shows clusters; switch to dots to read individual reports.</small>
+    </wa-card>
+
+    <div id="status" class="status" hidden></div>
+
+    <section id="methodology" class="methodology">
+      <h2 class="methodology__title">How this is measured — data &amp; method</h2>
+      <div id="methodology-body"></div>
+    </section>
+
+    <footer class="app-footer">
+      <small>
+        Source: SF 311 Cases (<a href="https://data.sfgov.org/d/vw6y-z8j6" target="_blank" rel="noopener">vw6y-z8j6</a>),
+        district boundaries SFPD Current Police Districts (<a href="https://data.sfgov.org/d/qgnn-b9vv" target="_blank" rel="noopener">qgnn-b9vv</a>).
+        Observational, not a causal claim.
+      </small>
+    </footer>
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+/* ──────────────────────────────────────────────────────────────────────
+   Design tokens — reused from the root intervention tool (resultsfor.sf.gov
+   values). Plain CSS, no framework, layered alongside Web Awesome tokens.
+   ────────────────────────────────────────────────────────────────────── */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --c-blue:   #3b82f6;
+  --c-amber:  #f59e0b;
+  --c-orange: #f97316;
+  --c-purple: #a855f7;
+  --c-green:  #22c55e;
+  --c-red:    #ef4444;
+  --c-red-dk: #b91c1c;
+  --c-slate:  #1f2937;
+  --c-gray:   #6b7280;
+  --c-gray-2: #9ca3af;
+  --c-line:   #e5e7eb;
+  --c-ink:    #0f172a;   /* high-contrast line over coloured bars */
+
+  --bg:       #f4f4f6;
+  --surface:  #ffffff;
+  --text:     var(--c-slate);
+  --muted:    var(--c-gray);
+
+  --radius:   12px;
+  --shadow:   0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
+
+  /* Per-district accent (consistent across cards, chart tabs, map boundaries) */
+  --d-central:    #3b82f6;
+  --d-northern:   #a855f7;
+  --d-mission:    #f97316;
+  --d-tenderloin: #ef4444;
+  --d-citywide:   #6b7280;
+
+  --wa-color-brand-fill-loud: var(--c-blue);
+  --wa-color-brand-fill-normal: var(--c-blue);
+}
+
+html.wa-dark {
+  --text:     #e2e8f0;
+  --muted:    #94a3b8;
+  --c-gray:   #94a3b8;
+  --c-gray-2: #64748b;
+  --c-line:   #334155;
+  --c-ink:    #f1f5f9;   /* light line over dark bars */
+  --bg:       #0f172a;
+  --surface:  #1e293b;
+  --d-citywide: #94a3b8;
+  --shadow:   0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.5);
+}
+html.wa-dark .status--loading { background: #172554; color: #bfdbfe; border-color: #1e3a8a; }
+html.wa-dark .status--error { background: #450a0a; color: #fecaca; border-color: #7f1d1d; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text);
+  background: var(--bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--c-blue); }
+
+/* ───────────── Header ───────────── */
+.app-header { background: var(--c-slate); color: #fff; padding: 2rem 1.25rem; }
+.app-header__inner { max-width: 1040px; margin: 0 auto; }
+.app-header__eyebrow {
+  text-transform: uppercase; letter-spacing: .08em;
+  font-size: .72rem; font-weight: 600; color: var(--c-blue);
+}
+.app-header h1 { margin: .35rem 0 .25rem; font-size: 1.6rem; font-weight: 700; }
+.app-header__sub { margin: 0; color: #cbd5e1; max-width: 70ch; }
+
+/* ───────────── Layout ───────────── */
+.app-main { max-width: 1040px; margin: 0 auto; padding: 1.75rem 1.25rem 3rem; }
+
+.toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.toolbar wa-select { min-width: 20rem; }
+
+/* ───────────── Global time bar ───────────── */
+.timebar {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--surface); border: 1px solid var(--c-line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .75rem 1rem;
+}
+.timebar__slider { flex: 1; min-width: 0; }
+.play-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font: inherit; font-size: .85rem; font-weight: 600;
+  color: #fff; background: var(--c-blue); border: none;
+  padding: .45rem .9rem; border-radius: 999px; cursor: pointer; white-space: nowrap;
+}
+.play-btn:hover { filter: brightness(1.05); }
+.play-btn:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.play-btn[aria-pressed="true"] { background: var(--c-slate); }
+
+.section-title { margin: 0; font-size: 1.15rem; font-weight: 700; }
+.section-sub { font-weight: 500; color: var(--muted); font-size: .9rem; margin-left: .35rem; }
+
+.panel { --spacing: 1.25rem; box-shadow: var(--shadow); border-radius: var(--radius); }
+.panel__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; width: 100%; }
+.panel__title { margin: 0; font-size: 1.05rem; font-weight: 650; }
+
+.field-label { font-weight: 600; font-size: .9rem; }
+.field-hint { color: var(--muted); font-weight: 400; font-size: .82rem; }
+
+/* ───────────── Rollup cards ───────────── */
+.card {
+  display: flex; flex-direction: column; gap: .25rem;
+  background: var(--surface);
+  border: 1px solid var(--c-line);
+  border-left: 4px solid var(--accent, var(--c-gray));
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow);
+}
+.card--citywide { border-style: dashed; }
+.card__name { font-size: .82rem; font-weight: 700; color: var(--accent, var(--text)); text-transform: uppercase; letter-spacing: .03em; }
+.card__value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.card__value small { font-size: .8rem; font-weight: 500; color: var(--muted); }
+.card__row { display: flex; align-items: baseline; gap: .4rem; font-size: .85rem; }
+.card__delta { font-weight: 700; }
+.delta-up   { color: var(--c-red); }     /* more reports = worse */
+.delta-down { color: var(--c-green); }    /* fewer reports = better */
+.delta-flat { color: var(--muted); }
+.card__sub { font-size: .8rem; color: var(--muted); }
+
+/* ───────────── Focus tabs (district selector for the chart) ───────────── */
+.focus-tabs, .map-modes { display: flex; gap: .3rem; flex-wrap: wrap; }
+.tab {
+  font: inherit; font-size: .82rem; font-weight: 600;
+  border: 1px solid var(--c-line); background: var(--surface); color: var(--muted);
+  padding: .28rem .7rem; border-radius: 999px; cursor: pointer;
+}
+.tab[aria-selected="true"] { color: #fff; background: var(--accent, var(--c-slate)); border-color: transparent; }
+.tab:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+
+/* ───────────── Chart ───────────── */
+.chart-overlays { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: .6rem; font-size: .82rem; color: var(--muted); }
+.chart-overlays label { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; }
+.chart-overlays .swatch { width: 1.4rem; height: 0; border-top-width: 2px; border-top-style: solid; display: inline-block; }
+.chart-host { position: relative; width: 100%; }
+.chart-host svg { display: block; width: 100%; }
+.chart-grid line { stroke: var(--c-line); stroke-dasharray: 3 3; }
+.chart-axis text { fill: var(--c-gray); font-size: 11px; }
+.chart-window { fill: var(--c-blue); opacity: .08; }
+.chart-window-edge { stroke: var(--c-blue); stroke-width: 1; opacity: .45; }
+.chart-bar { fill: var(--accent, var(--c-blue)); }
+.chart-bar--partial { opacity: .4; }
+.chart-bar--dim { opacity: .35; }
+/* white/surface casing drawn under every overlay line so it reads over the bars */
+.line-casing { fill: none; stroke: var(--surface); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; opacity: .92; }
+.line-trend { fill: none; stroke: var(--c-ink); stroke-width: 2.75; }
+.line-prioryear { fill: none; stroke: #0d9488; stroke-width: 2.25; stroke-dasharray: 6 4; }
+.line-citywide { fill: none; stroke: #db2777; stroke-width: 2.25; stroke-dasharray: 2 4; }
+.chart-break { stroke: var(--c-amber); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.chart-break-label { fill: var(--c-amber); font-size: 11px; font-weight: 600; }
+.chart-tip {
+  position: absolute; pointer-events: none; z-index: 5;
+  transform: translate(-50%, -100%);
+  background: var(--surface); color: var(--text); border: 1px solid var(--c-line); border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(16,24,40,.12);
+  padding: .4rem .6rem; font-size: .8rem; white-space: nowrap;
+}
+.chart-tip strong { display: block; }
+
+/* ───────────── Map ───────────── */
+.events-map { height: 560px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
+.leaflet-container { font-family: var(--font-sans); }
+.range-readout { margin-top: .4rem; font-size: .8rem; color: var(--muted); }
+.chart-controls { margin-bottom: .75rem; }
+.district-label {
+  background: transparent; border: none; box-shadow: none;
+  font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text); text-shadow: 0 0 3px var(--surface), 0 0 3px var(--surface);
+}
+
+/* ───────────── Methodology ───────────── */
+.methodology { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--c-line); }
+.methodology__title { font-size: 1.05rem; font-weight: 650; margin: 0 0 .5rem; }
+.method-body { color: var(--text); font-size: .9rem; }
+.method-body p { margin: .4rem 0; }
+.method-filter {
+  display: block; font-family: var(--font-mono); font-size: .78rem;
+  background: var(--surface); border: 1px solid var(--c-line); border-radius: 6px;
+  padding: .5rem .6rem; margin: .4rem 0; white-space: pre-wrap; word-break: break-word; color: var(--c-gray);
+}
+.method-warn {
+  font-size: .85rem; color: #92400e; background: #fffbeb;
+  border: 1px solid #fde68a; border-radius: 8px; padding: .6rem .7rem; margin: .6rem 0;
+}
+html.wa-dark .method-warn { color: #fcd34d; background: #422006; border-color: #854d0e; }
+
+/* ───────────── Misc ───────────── */
+.repro-note { color: var(--muted); font-size: .78rem; }
+.status { max-width: 1040px; margin: .5rem auto; padding: .8rem 1rem; border-radius: var(--radius); font-size: .9rem; }
+.status--loading { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+.status--error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+.app-footer { margin-top: 1rem; color: var(--muted); }

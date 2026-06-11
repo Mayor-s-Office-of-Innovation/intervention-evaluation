@@ -493,6 +493,16 @@ The registry mechanism (D9) is **built**; 8 data points across 3 themes are live
    reads as a false success. Unlike the wording migration (#5), `LIKE` normalization can't fix a
    volume break. **General lesson:** a signal may be an automated/sensor feed, not resident reports —
    vet whether a data point is human- or machine-generated before trusting its trend.
+8. **⚠ Encampment category reroute (June 2025) — affects `homeless_presence`.** Discovered while
+   building the `districts/` dashboard (see `districts/plan.md` §3): SF largely retired the dedicated
+   311 `Encampment` `service_name` around June 2025 and rerouted those reports to
+   `service_name='General Request'` + `service_subtype='homelessness_and_supportive_housing'`. Our
+   `homeless_presence` 311 source filters `service_name IN ('Encampment','Encampments')` (§7), so it
+   **undercounts encampments by ~2,000–2,600/mo citywide after mid-2025** — a `homeless_presence`
+   before/after that straddles June 2025 understates the "after." **Fix:** union the reroute path into
+   that source: `... OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%')`,
+   dedup by `service_request_id`. (The districts dashboard already does this; verified the union
+   restores the expected seasonal shape — Aug 2025 ≈ Aug 2024.) **TODO: apply here.**
 
 Framing everywhere: **observational, not causal.**
 

@@ -1,0 +1,9 @@
+# Build artifacts — regenerable, not source. Do NOT commit (large raw pulls).
+build/cache/
+build/__pycache__/
+__pycache__/
+*.pyc
+
+# Local test output
+test-results/
+playwright-report/
