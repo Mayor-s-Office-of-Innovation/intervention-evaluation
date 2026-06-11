@@ -34,6 +34,11 @@ jobs:
           mkdir -p _site/js
           cp index.html styles.css _site/
           cp js/*.js _site/js/
+          # District encampment dashboard at /districts/ (static frontend + pre-baked data JSON)
+          mkdir -p _site/districts/js
+          cp districts/index.html districts/styles.css _site/districts/
+          cp districts/js/*.js _site/districts/js/
+          cp -r districts/data _site/districts/data
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
