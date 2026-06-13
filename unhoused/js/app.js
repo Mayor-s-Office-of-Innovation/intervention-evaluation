@@ -11,10 +11,38 @@ import { renderChart } from './chart.js';
 import {
   monthIndex, prettyMonth, yoy, trailing12, trend12, trailing12Line, priorYearLine, fmtPct,
 } from './rollup.js';
-import { CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers } from './transition-map.js';
+import {
+  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers,
+  onMapState, notifyState, queueRestore, restoreMapView,
+} from './transition-map.js';
 
 const DISTRICTS = ['Northern', 'Mission', 'Tenderloin', 'Central'];
 const $ = sel => document.querySelector(sel);
+
+// ── deep-linkable map state (query string; the district stays in the hash) ──
+// Written with replaceState so panning/zooming/opening cell popups never piles up Back-button history,
+// but the URL is always shareable. Only populated while a block/intersection cell is pinned (emitState).
+let pendingRestore = null;   // a parsed {center,zoom,sig,cell} to apply on first map render
+function parseMapParams() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('z') || !p.has('ll')) return null;
+  const [lat, lng] = (p.get('ll') || '').split(',').map(Number);
+  const zoom = parseInt(p.get('z'), 10);
+  if (![lat, lng, zoom].every(Number.isFinite)) return null;
+  return { center: { lat, lng }, zoom, sig: p.get('sig'), cell: p.get('cl') };
+}
+function writeMapUrl(state) {
+  if (!state) {   // nothing pinned → drop the map params, keep the district hash
+    if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+    return;
+  }
+  const p = new URLSearchParams();
+  p.set('z', String(state.zoom));
+  p.set('ll', `${state.center.lat.toFixed(5)},${state.center.lng.toFixed(5)}`);
+  p.set('sig', mapSignal);
+  if (state.cell) p.set('cl', state.cell);
+  history.replaceState(null, '', `${location.pathname}?${p}${location.hash}`);
+}
 
 let AGG, PROV, TMETA, GEO;
 let active = 'Northern';
@@ -172,6 +200,7 @@ function renderDistrict(name) {
 // ── transition map ──
 async function renderMap() {
   if (!transitionData[mapSignal]) transitionData[mapSignal] = await loadTransitions(mapSignal);
+  if (pendingRestore) queueRestore(pendingRestore.cell);   // so renderCells re-opens the shared cell
   focusDistrict($('#map'), GEO, active);
   const counts = renderCells(transitionData[mapSignal], active, visibleCats);
   setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded on first zoom-in
@@ -199,7 +228,14 @@ async function renderMap() {
     (mapSignal === 'encampment'
       ? 'Encampment spans the June-2025 reroute — the reroute-free “911 calls” view corroborates the pattern. '
       : 'The 911 calls signal has no reporting reroute (a clean pre/post comparison), and uses a lower hotspot threshold because it is lower-volume. ') +
-    '<strong>Click a block</strong> for its monthly trend; <strong>zoom in</strong> to see individual reports (before-Lurie vs since) with full details on hover.';
+    '<strong>Click a block</strong> to pin its intersection + monthly trend and get a shareable link to that spot; <strong>zoom in</strong> to see individual reports (last 3 months vs older) with full details on hover.';
+
+  // Deep-link restore (once): scroll to the map, then re-center/zoom (the queued cell opens as cells draw).
+  if (pendingRestore) {
+    const r = pendingRestore; pendingRestore = null;
+    $('#map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    restoreMapView(r.center, r.zoom);
+  }
 }
 
 // ── map signal toggle (encampment / 911) ──
@@ -208,7 +244,7 @@ function buildMapControls() {
     <button class="seg ${mapSignal === 'encampment' ? 'is-active' : ''}" data-s="encampment">Encampment</button>
     <button class="seg ${mapSignal === 'cfs_presence' ? 'is-active' : ''}" data-s="cfs_presence">911 unhoused calls</button>`;
   $('#map-controls').querySelectorAll('.seg').forEach(b =>
-    b.onclick = () => { mapSignal = b.dataset.s; buildMapControls(); renderMap(); });
+    b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
 }
 
 // ── nav ──
@@ -271,11 +307,18 @@ async function main() {
     $('#data-asof').textContent =
       `Data current to ${AGG.generated} · evaluating ${prettyMonth(AGG.latest_complete_month)} (latest complete month)`;
     setSparkMeta(TMETA.months, TMETA.lurie_month);
+    // Adopt any deep-linked map state before the first render (signal must be set before the map builds).
+    pendingRestore = parseMapParams();
+    if (pendingRestore && (pendingRestore.sig === 'encampment' || pendingRestore.sig === 'cfs_presence')) {
+      mapSignal = pendingRestore.sig;
+    }
+    onMapState(writeMapUrl);
     buildNav();
     buildMapControls();
     renderMethodology();
     $('#enc-only-toggle').addEventListener('change', (e) => { encOnly = e.target.checked; renderFocusChart(); });
-    window.addEventListener('hashchange', routeFromHash);
+    // Manual district navigation abandons any restore + clears stale map params (the new district is zoomed out).
+    window.addEventListener('hashchange', () => { pendingRestore = null; writeMapUrl(null); routeFromHash(); });
     routeFromHash();
   } catch (e) {
     const s = $('#status'); s.hidden = false; s.textContent = 'Failed to load data: ' + e.message;

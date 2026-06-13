@@ -291,6 +291,30 @@ unhoused presence = Sit/Lie Enforcement + Homeless Complaint (SFPD CFS 2zdj-bwza
   overlap (57/84/197, was 94/121/265) without losing the spatial story. Map footnote now states the
   per-signal hotspot threshold; `_meta.json` carries `hot_rate_per_month_by_signal`. The emerged-lean is
   real (the reroute-free 911 signal shows the same broad post-Lurie emergence).
+- **2026-06-13** — **Marker-overlay polish (user nits).** Fixed the hover overlay overflowing its card
+  (Leaflet tooltips default to `white-space:nowrap`; gave `.marker-overlay` a fixed `width:250px` +
+  `overflow-wrap:anywhere` so long values wrap — a plain `max-width` collapses because tooltips are
+  shrink-to-fit). And made the tiny report dots easy to trigger: each dot now sits under a larger
+  **invisible hover halo** (radius-11 circle, `fillOpacity:0` + `pointer-events:all` via `.mk-halo`, since
+  Leaflet only hit-tests painted pixels), with the visible dot drawn `interactive:false` on top.
+- **2026-06-13** — **Cell popups name their intersection; individual dots recolored by recency.** Each
+  hotspot cell now carries a representative location label — the most-reported `intersection_name` (911) /
+  `address` (encampment) among its reports, computed in `04_transitions.py` (`name` field) — shown bold at
+  the top of the cell popup so a shared link reads as a real place (e.g. "GEARY BLVD / VAN NESS AVE",
+  "299 FRANKLIN ST"). Individual report markers are **no longer colored before/since-Lurie** — they're now
+  colored by whether the report falls in the **trailing-3-month "now" window** (the same cutoff the
+  clustering uses): recent = solid red, older = faded. `05_markers.py` emits `now_start_day`; the frontend
+  colors `day >= now_start_day`. Builds re-ran from cache offline (portal down) and reproduced the exact
+  cluster counts (57/84/197, 42/48/108) plus the new fields. e2e adds a cell-name assertion; all 7 pass.
+- **2026-06-13** — **Shareable map deep-links on the block/intersection cells.** The transition map mirrors
+  its state into the URL via `history.replaceState` (no Back-button history pollution): **clicking a
+  classified block cell pins its popup** (the monthly-sparkline trend) and records zoom + center + active
+  signal + a stable `cl` cell id (`lat_lng` of the cell center, rebuild-stable). Loading a shared link
+  scrolls to the map, restores the zoom/center, and re-opens that cell's popup. State is tied to a *pinned
+  cell* — plain loads, district switches, closing the popup, or zooming into the individual-marker view all
+  leave a clean URL. **Individual report markers are deliberately NOT deep-linked** (hover-only, per user).
+  Also bumped the cell→individual-marker zoom threshold 16→17 (user). New e2e test covers the pin →
+  deep-link (asserts `replaceState`, not `pushState`) → shared-link restore round-trip; all 7 pass.
 - **2026-06-13** — **D13: verified no settling lag** (the theft 2-month buffer does NOT apply). 311
   (`vw6y-z8j6`) + CFS (`2zdj-bwza`) are creation-stamped, no approval gate; both fresh to 2026-06-12 and the
   latest complete 311 month (May 2026) was the recent peak, not depressed. So "hot now" excludes only the

@@ -22,9 +22,17 @@ import datetime
 import json
 import os
 import sys
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from signals import SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL
+
+
+def clean_loc(s):
+    """Normalize a report's location label for the cell popup: CFS intersections use a backslash
+    ('BATTERY ST \\ PINE ST' → 'BATTERY ST / PINE ST'); 311 addresses carry a city/state tail we drop
+    ('150 MAIN ST, SAN FRANCISCO, CA …' → '150 MAIN ST')."""
+    s = str(s).strip().replace(" \\ ", " / ").replace("\\", " / ")
+    return s.split(",")[0].strip()
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -100,7 +108,7 @@ def classify(key, latest, nowset, summary):
     # per cell: pre & now counts + a full monthly histogram (for the popup sparkline);
     # track district so we can normalize against the district "tide".
     cells = defaultdict(lambda: {"pre": 0, "now": 0, "lat": 0.0, "lng": 0.0, "n": 0, "dist": None,
-                                 "m": defaultdict(int)})
+                                 "m": defaultdict(int), "names": Counter()})
     dist_pre = defaultdict(int)
     dist_now = defaultdict(int)
     for r in recs:
@@ -108,6 +116,10 @@ def classify(key, latest, nowset, summary):
         cx = round(r["lng"], CELL_DECIMALS)
         c = cells[(cy, cx)]
         c["lat"] += r["lat"]; c["lng"] += r["lng"]; c["n"] += 1; c["dist"] = r["district"]
+        det = r.get("detail") or {}
+        loc = det.get("intersection_name") or det.get("address")
+        if loc:
+            c["names"][clean_loc(loc)] += 1
         ym = r["ym"]
         c["m"][ym] += 1
         if in_pre(ym):
@@ -156,6 +168,7 @@ def classify(key, latest, nowset, summary):
         out.append({
             "lat": round(c["lat"] / c["n"], 5),
             "lng": round(c["lng"] / c["n"], 5),
+            "name": c["names"].most_common(1)[0][0] if c["names"] else None,  # most-reported spot in the cell
             "district": DISTRICT_LABEL[c["dist"]],
             "category": cat,
             "preRate": round(pre_rate, 2),

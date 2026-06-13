@@ -80,6 +80,30 @@ test('block popup shows a monthly sparkline; zooming in reveals individual repor
   await expect(page.locator('.marker-overlay')).toBeVisible();
 });
 
+test('clicking a block cell pins its popup, deep-links the URL (replaceState, no history spam), and a shared link restores it', async ({ page }) => {
+  trackErrors(page);
+  await page.goto(url('mission'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+  const histBefore = await page.evaluate(() => history.length);
+  // click a classified block cell (zoomed-out view) → sparkline popup + a cell id in the URL
+  await page.locator('#map path.leaflet-interactive[fill]:not([fill="none"])').first().click({ force: true });
+  await page.waitForTimeout(300);
+  await expect(page.locator('.leaflet-popup-content .spark')).toBeVisible();
+  await expect(page.locator('.leaflet-popup-content .cell-loc')).toBeVisible();   // intersection/address label
+  await expect(page).toHaveURL(/[?&]cl=/);
+  // replaceState, not pushState — opening cell popups must not grow the back stack
+  expect(await page.evaluate(() => history.length)).toBe(histBefore);
+  const shared = page.url();
+  // a fresh load of the shared URL re-opens the same cell popup
+  await page.goto(shared, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1400);
+  await expect(page.locator('.leaflet-popup-content .spark')).toBeVisible();
+  // closing the popup cleans the map params off the URL
+  await page.evaluate(() => window.__map.closePopup());
+  await page.waitForTimeout(300);
+  await expect(page).not.toHaveURL(/[?&]cl=/);
+});
+
 test('methodology shows runnable queries, HSOC-as-response framing, and the waste/needles exclusions', async ({ page }) => {
   trackErrors(page);
   await page.goto(url('northern'), { waitUntil: 'networkidle' });

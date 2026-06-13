@@ -1,9 +1,9 @@
 """Stage 2 · individual-report markers — the zoom-in drill-down layer.
 
 City leadership wants to inspect specific known-problematic intersections, so above a zoom level the
-transition map swaps its ~block category dots for INDIVIDUAL report markers, period-colored (pre-Lurie
-vs recent) with a hover overlay of the report's helpful detail fields (address/intersection, type,
-status/disposition, etc. — see each signal's `detail` in signals.py).
+transition map swaps its ~block category dots for INDIVIDUAL report markers, colored by recency
+(within the trailing-3-month "now" window vs older — the same cutoff the clustering uses) with a hover
+overlay of the report's helpful detail fields (address/intersection, type, status/disposition, etc.).
 
 Reads  build/cache/<member>_assigned.json   (carries `detail` from 02_assign)
 Writes unhoused/data/markers/<mapkey>.json   for the two map signals (encampment, cfs_presence).
@@ -22,6 +22,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 DATA = os.path.join(os.path.dirname(HERE), "data")
 EPOCH = datetime.date(2023, 1, 1)
+NOW_MONTHS = 3   # keep in sync with 04_transitions.NOW_MONTHS — markers are colored "recent" if they
+                 # fall in the trailing-3-complete-months window (the same cutoff the clustering uses).
+
+
+def now_start_date():
+    """First day of the trailing-NOW_MONTHS complete-month window (the 'recent' cutoff)."""
+    today = datetime.date.today()
+    y, m = today.year, today.month
+    m -= 1                                   # latest *complete* month is the previous one
+    if m == 0:
+        m, y = 12, y - 1
+    for _ in range(NOW_MONTHS - 1):          # step back to the window's first month
+        m -= 1
+        if m == 0:
+            m, y = 12, y - 1
+    return datetime.date(y, m, 1)
 
 MAP_SIGNALS = {
     "encampment": ["encampment"],
@@ -79,6 +95,8 @@ def build(mapkey):
         "epoch": EPOCH.isoformat(),
         "coordScale": 100000,
         "lurie_day": (datetime.date.fromisoformat(LURIE_INAUGURATION) - EPOCH).days,
+        "now_start_day": (now_start_date() - EPOCH).days,   # markers ≥ this day are colored "recent"
+        "now_months": NOW_MONTHS,
         "fields": fields,   # [{label, coded, values}] — frontend decodes coded ints via values[]
         "pts": pts,
     }

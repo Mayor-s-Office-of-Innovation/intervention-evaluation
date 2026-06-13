@@ -15,10 +15,11 @@ const TILE_OPTS = {
   subdomains: 'abcd', maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
 };
-const ZOOM_THRESHOLD = 16;      // at/above this, swap block cells → individual report markers
+const ZOOM_THRESHOLD = 17;      // at/above this, swap block cells → individual report markers
 const MARKER_CAP = 1500;        // safety cap on markers drawn in one viewport
-const PRE_COLOR = '#94a3b8';    // before Lurie (faded)
-const POST_COLOR = '#e11d48';   // since Lurie (solid)
+const HIT_RADIUS = 11;          // invisible hover target around each dot (the visible dot is much smaller)
+const OLDER_COLOR = '#94a3b8';  // report older than the recent window (faded)
+const RECENT_COLOR = '#e11d48'; // report within the trailing-3-month "now" window (solid)
 
 export const CATEGORY = {
   persistent: { label: 'Persistently hot', color: '#dc2626', blurb: 'Hot before and still hot now' },
@@ -34,6 +35,10 @@ let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = nu
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
 let markerKey = null, markerData = null, markerLoader = null, markerLoading = false;
+// Deep-link state: which intersection/block CELL is "expanded" (its popup pinned open), the one
+// queued to re-open on a shared-link load, and the callback that mirrors map state into the URL.
+// (Individual report markers are deliberately NOT deep-linked — only the cluster cells are.)
+let selectedCellId = null, pendingCellId = null, onState = null;
 
 function ensureMap(el) {
   if (map) return;
@@ -46,6 +51,7 @@ function ensureMap(el) {
   el.appendChild(hintEl);
   map.on('zoomend', applyZoomMode);
   map.on('moveend', () => { if (inMarkerMode()) renderMarkers(); });
+  map.on('moveend', emitState);   // while a cell is pinned, keep its zoom/center fresh in the URL
   window.__map = map;   // exposed for e2e tests to drive zoom/center deterministically
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (tile) tile.setUrl(isDark() ? TILE_DARK : TILE_LIGHT);
@@ -54,6 +60,35 @@ function ensureMap(el) {
 }
 
 const inMarkerMode = () => map && map.getZoom() >= ZOOM_THRESHOLD && !!markerData;
+
+// ── URL state sync ──────────────────────────────────────────────────────
+// State is tied to a PINNED CELL: while a block/intersection cell's popup is open we persist its id
+// plus the current zoom/center; with nothing pinned we emit `null` so the orchestrator cleans the URL.
+// So a plain load, a district switch, or zooming into the individual-marker view all leave a clean URL.
+function emitState() {
+  if (!onState || !map) return;
+  if (selectedCellId) {
+    const c = map.getCenter();
+    onState({ zoom: map.getZoom(), center: { lat: c.lat, lng: c.lng }, cell: selectedCellId });
+  } else {
+    onState(null);
+  }
+}
+
+/** Register a callback that receives map state ({zoom,center,cell}) — or null to clear — for the URL. */
+export function onMapState(fn) { onState = fn; }
+
+/** Force a state emit (e.g. after a signal toggle re-rendered the cells without moving the map). */
+export function notifyState() { emitState(); }
+
+/** Queue a cell id to re-open on the next renderCells (call BEFORE renderCells, e.g. on deep-link load). */
+export function queueRestore(cellId) { pendingCellId = cellId || null; }
+
+/** Deep-link restore: re-center/zoom the map (the queued cell opens as renderCells draws it). */
+export function restoreMapView(center, zoom) {
+  if (!map) return;
+  map.setView([center.lat, center.lng], zoom);
+}
 
 /** Draw (or redraw) the boundary for the active district and zoom to it. */
 export function focusDistrict(el, geojson, districtName) {
@@ -64,7 +99,7 @@ export function focusDistrict(el, geojson, districtName) {
   boundary = L.geoJSON({ type: 'FeatureCollection', features: feats }, {
     style: { color: '#64748b', weight: 2, fill: false, opacity: 0.7, dashArray: '4 3' },
   }).addTo(map);
-  if (feats.length) map.fitBounds(boundary.getBounds(), { padding: [16, 16] });
+  if (feats.length) map.fitBounds(boundary.getBounds(), { padding: [16, 16], animate: false });
 }
 
 export function setSparkMeta(months, lurieMonth) {
@@ -112,14 +147,22 @@ export function renderCells(cells, districtName, visible) {
     if (!visible.has(c.category)) continue;
     const meta = CATEGORY[c.category];
     const r = 5 + Math.min(6, Math.sqrt(c.total));
-    L.circleMarker([c.lat, c.lng], {
+    // Stable, shareable cell id from its (rounded) center — survives rebuilds.
+    const cellId = `${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`;
+    const cm = L.circleMarker([c.lat, c.lng], {
       radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
-    }).bindPopup(
+    });
+    cm.bindPopup(
+      (c.name ? `<div class="cell-loc">${esc(c.name)}</div>` : '') +
       `<strong>${meta.label}</strong> · ${esc(titleCase(c.district))}` +
       `<br>Before Lurie: <strong>${c.preRate}</strong>/mo · Now: <strong>${c.nowRate}</strong>/mo` +
       (c.expectedRate != null ? ` <small>(district-tide ${c.expectedRate})</small>` : '') +
-      sparkline(c.monthly), { maxWidth: 230 }
-    ).addTo(cellLayer);
+      sparkline(c.monthly), { maxWidth: 230, autoPan: false }
+    );
+    cm.on('popupopen', () => { selectedCellId = cellId; emitState(); });   // click → pin + shareable URL
+    cm.on('popupclose', () => { if (selectedCellId === cellId) { selectedCellId = null; emitState(); } });
+    cm.addTo(cellLayer);
+    if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }   // deep-link target
   }
   applyZoomMode();
   return counts;
@@ -134,6 +177,7 @@ async function applyZoomMode() {
       try { markerData = await markerLoader(); } finally { markerLoading = false; }
     }
     if (!markerData) return;
+    map.closePopup();   // leaving the cell view → unpin any open cell popup (clears the URL)
     if (map.hasLayer(cellLayer)) map.removeLayer(cellLayer);
     if (!map.hasLayer(markerLayer)) markerLayer.addTo(map);
     renderMarkers();
@@ -148,7 +192,8 @@ async function applyZoomMode() {
 function renderMarkers() {
   if (!markerData) return;
   markerLayer.clearLayers();
-  const { coordScale, lurie_day, fields, pts, epoch } = markerData;
+  const { coordScale, now_start_day, lurie_day, fields, pts, epoch } = markerData;
+  const cutoff = now_start_day != null ? now_start_day : lurie_day;   // "recent" = trailing-3-month window
   const epochMs = new Date(epoch + 'T00:00:00').getTime();
   const b = map.getBounds();
   let shown = 0, inView = 0;
@@ -159,26 +204,32 @@ function renderMarkers() {
     if (shown >= MARKER_CAP) continue;
     shown++;
     const day = p[2];
-    const pre = day < lurie_day;
-    const color = pre ? PRE_COLOR : POST_COLOR;
+    const recent = day >= cutoff;
+    const color = recent ? RECENT_COLOR : OLDER_COLOR;
     const date = new Date(epochMs + day * 86400000).toISOString().slice(0, 10);
     const rows = fields.map((f, i) => {
       const raw = p[3 + i];
       const val = f.coded ? f.values[raw] : raw;
       return val ? `<div class="ov-row"><span>${esc(f.label)}</span>${esc(val)}</div>` : '';
     }).join('');
+    // A larger invisible halo is the hover target (the visible dot is tiny and hard to hit); the dot
+    // itself is non-interactive so events fall through to the halo. Reports stay hover-only (not deep-linked).
     L.circleMarker([lat, lng], {
-      radius: pre ? 3.5 : 4.5, color, weight: 1, fillColor: color, fillOpacity: pre ? 0.45 : 0.8,
+      radius: HIT_RADIUS, stroke: false, fillColor: color, fillOpacity: 0, className: 'mk-halo',
     }).bindTooltip(
-      `<div class="ov-date">${date} · ${pre ? 'before Lurie' : 'since Lurie'}</div>${rows}`,
+      `<div class="ov-date">${date} · ${recent ? 'last 3 months' : 'older'}</div>${rows}`,
       { className: 'marker-overlay', sticky: true, direction: 'top', opacity: 1 }
     ).addTo(markerLayer);
+    L.circleMarker([lat, lng], {
+      radius: recent ? 4.5 : 3.5, color, weight: 1, fillColor: color, fillOpacity: recent ? 0.8 : 0.45,
+      interactive: false,
+    }).addTo(markerLayer);
   }
   if (hintEl) {
     hintEl.style.display = 'block';
     hintEl.innerHTML =
-      `Individual reports · <span class="hint-dot" style="background:${PRE_COLOR}"></span>before Lurie ` +
-      `<span class="hint-dot" style="background:${POST_COLOR}"></span>since · hover for details` +
+      `Individual reports · <span class="hint-dot" style="background:${OLDER_COLOR}"></span>older ` +
+      `<span class="hint-dot" style="background:${RECENT_COLOR}"></span>last 3 months · hover for details` +
       (inView > MARKER_CAP ? ` · showing ${MARKER_CAP} of ${inView}, zoom in` : '');
   }
 }
