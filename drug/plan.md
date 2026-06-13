@@ -242,5 +242,10 @@ drug/
   portal-wide `data.sfgov.org` 503 outage** (§3) — diagnosed as origin-level, not throttling/our request;
   headline needs no live data, the two analyses do. Wrote this scaffold; live pulls deferred to next
   session at the user's request.
+- **2026-06-13** — **Inherit the unhoused chart legend.** `../unhoused/` added a legend under its
+  "Reports over time" chart keying the overlay lines (12-mo trend / a-year-earlier / citywide-scaled) —
+  swatches reuse the chart's stroke/fill classes so they stay in sync. When this project builds its
+  `cfs_drug` trend chart (same hand-rolled `chart.js`), **port that legend with it** — any chart carrying
+  >1 overlaid line needs the key, or readers can't decode the lines.
 </content>
 </invoke>

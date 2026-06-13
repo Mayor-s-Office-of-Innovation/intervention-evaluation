@@ -315,6 +315,16 @@ unhoused presence = Sit/Lie Enforcement + Homeless Complaint (SFPD CFS 2zdj-bwza
   leave a clean URL. **Individual report markers are deliberately NOT deep-linked** (hover-only, per user).
   Also bumped the cell→individual-marker zoom threshold 16→17 (user). New e2e test covers the pin →
   deep-link (asserts `replaceState`, not `pushState`) → shared-link restore round-trip; all 7 pass.
+- **2026-06-13** — **Chart legend for the overlay lines (user nit).** The "Reports over time" chart drew
+  orange monthly bars plus up to three overlay lines (ink solid = 12-mo trailing average/trend, teal dashed
+  = a year earlier, blue dashed = citywide scaled-to-shape) with **no key** — readers couldn't tell the
+  lines apart. Added a legend under the SVG in `chart.js`: each swatch is a tiny inline SVG that **reuses
+  the chart's own stroke/fill classes** (`line-trend`/`line-prioryear`/`line-citywide`/`chart-bar`), so
+  colour + dash pattern stay in sync with the lines automatically and can never drift. Built
+  **conditionally** — only lists overlays actually present in the model. CSS (`.chart-legend`/`.cl-item`/
+  `.cl-sw`) includes a width override so the `100%`-width chart-svg rule doesn't stretch the swatches. e2e:
+  the swatch SVGs made `#chart svg` ambiguous, so the chart-visibility assertion now targets `#chart > svg`
+  (legend swatches are nested) plus a new legend-renders check; all 7 pass.
 - **2026-06-13** — **D13: verified no settling lag** (the theft 2-month buffer does NOT apply). 311
   (`vw6y-z8j6`) + CFS (`2zdj-bwza`) are creation-stamped, no approval gate; both fresh to 2026-06-12 and the
   latest complete 311 month (May 2026) was the recent peak, not depressed. So "hot now" excludes only the

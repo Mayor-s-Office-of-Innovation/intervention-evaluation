@@ -135,6 +135,9 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .line-citywide { fill: none; stroke: #2563eb; stroke-width: 2.25; stroke-dasharray: 2 4; }
 .chart-break { stroke: var(--c-amber); stroke-width: 1.5; stroke-dasharray: 4 3; }
 .chart-break-label { fill: var(--c-amber); font-size: 11px; font-weight: 600; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; margin-top: .55rem; padding-left: 2px; }
+.cl-item { display: inline-flex; align-items: center; gap: .4rem; font-size: .78rem; color: var(--muted); }
+.chart-host svg.cl-sw { width: 22px; flex: none; }
 .chart-tip {
   position: absolute; pointer-events: none; z-index: 5; transform: translate(-50%, -100%);
   background: var(--surface); color: var(--text); border: 1px solid var(--c-line); border-radius: 8px;

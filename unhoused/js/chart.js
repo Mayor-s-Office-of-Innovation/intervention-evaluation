@@ -126,8 +126,19 @@ function paint(host, model) {
     parts.push(`<rect data-i="${i}" x="${x(i)}" y="${M.top}" width="${band}" height="${innerH}" fill="transparent"/>`);
   });
 
+  // legend — only the series actually drawn (bars + whichever overlay lines exist).
+  // Swatches reuse the chart's stroke/fill classes so colour + dash pattern match exactly.
+  const legend = [['bar', `Monthly ${noun}s`]];
+  if (overlays.trend) legend.push(['line-trend', '12-mo average (trend)']);
+  if (overlays.priorYear) legend.push(['line-prioryear', 'A year earlier']);
+  if (overlays.citywideScaled) legend.push(['line-citywide', 'Citywide (scaled)']);
+  const legendHTML =
+    `<div class="chart-legend">${legend.map(([k, lab]) =>
+      `<span class="cl-item">${legendSwatch(k)}<span>${lab}</span></span>`).join('')}</div>`;
+
   host.innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${noun} reports over time">${parts.join('')}</svg>` +
+    legendHTML +
     `<div class="chart-tip" hidden></div>`;
 
   const tip = host.querySelector('.chart-tip');
@@ -145,6 +156,17 @@ function paint(host, model) {
     });
     rect.addEventListener('mouseleave', () => { tip.hidden = true; });
   });
+}
+
+// Tiny legend swatch: a bar pair for the focused series, or a mini line that
+// reuses the matching stroke class (so dashes/colour stay in sync with the chart).
+function legendSwatch(kind) {
+  if (kind === 'bar')
+    return `<svg class="cl-sw" viewBox="0 0 22 12" width="22" height="12" aria-hidden="true">` +
+      `<rect class="chart-bar" x="3" y="3" width="6" height="7" rx="1"/>` +
+      `<rect class="chart-bar" x="13" y="5" width="6" height="5" rx="1"/></svg>`;
+  return `<svg class="cl-sw" viewBox="0 0 22 12" width="22" height="12" aria-hidden="true">` +
+    `<line class="${kind}" x1="1" y1="6" x2="21" y2="6"/></svg>`;
 }
 
 function labelLong(ym) {

@@ -17,7 +17,8 @@ test('four district pages: two success cards, one chart, HSOC response block, ma
     await page.waitForTimeout(500);
     await expect(page.locator('.scard')).toHaveCount(2);                 // Encampments + 911
     await expect(page.locator('.scard__num').first()).not.toBeEmpty();
-    await expect(page.locator('#chart svg')).toBeVisible();              // single focused chart
+    await expect(page.locator('#chart > svg')).toBeVisible();            // single focused chart (legend swatches are nested)
+    await expect(page.locator('#chart .chart-legend .cl-item').first()).toBeVisible();  // overlay-line legend
     await expect(page.locator('#chart-selector .seg')).toHaveCount(3);   // Aggregate · Encampment · 911
     await expect(page.locator('#hsoc-block .rb__num')).not.toBeEmpty();  // response signal below
     await expect(page.locator('.legend-item')).toHaveCount(3);
