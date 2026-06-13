@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Theft from merchants — Northern district</title>
+
+  <!-- Respect the OS light/dark setting (Web Awesome reads .wa-dark / .wa-light on <html>) -->
+  <script>
+    (function () {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      function apply() {
+        document.documentElement.classList.toggle('wa-dark', mq.matches);
+        document.documentElement.classList.toggle('wa-light', !mq.matches);
+      }
+      apply();
+      mq.addEventListener('change', apply);
+    })();
+  </script>
+
+  <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.7.0/styles/webawesome.css" />
+  <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <span class="app-header__eyebrow">San Francisco · OpenData · SFPD incidents</span>
+      <h1>Theft from merchants — Northern district</h1>
+      <p class="app-header__sub">
+        Are San Francisco's efforts reducing theft against Northern-district businesses? Each type is
+        read on two axes: <strong>theft reported by businesses</strong> (we want this down) and
+        <strong>arrests by SFPD</strong> (we want this up). Looking at only one can mislead — pulling
+        enforcement back would shrink arrests <em>and</em> reports, and look like success.
+      </p>
+      <small id="data-asof" class="app-header__asof"></small>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="cards" id="cards"></section>
+
+    <p class="exclusion" id="exclusion-note"></p>
+
+    <section class="methodology">
+      <h2 class="methodology__title">How this is measured — data &amp; method</h2>
+      <ul class="methodology__list">
+        <li><strong>Source:</strong> SFPD Incident Reports 2018→present
+          (<a href="https://data.sfgov.org/d/wg3w-h783" target="_blank" rel="noopener">wg3w-h783</a>),
+          updated daily. We track two merchant-theft types — shoplifting <a class="fnref" href="#fn-shoplifting">[1]</a>
+          and commercial burglary &amp; robbery <a class="fnref" href="#fn-commercial">[2]</a> — and
+          exclude one legacy code <a class="fnref" href="#fn-excluded">[3]</a>. Each footnote explains
+          why and links the exact query used. District from the native <code>police_district</code>
+          field (verified ~99% consistent with point-in-polygon for Northern).</li>
+        <li><strong>The two axes</strong> <a class="fnref" href="#fn-axes">[4]</a>. <em>Reported by
+          businesses</em> = incidents resolved <code>Open or Active</code> (a victim/merchant report, no
+          on-scene arrest) — the success metric, robust to enforcement. <em>Arrests</em> =
+          <code>Cite or Arrest Adult</code> — shown as context, not a target.</li>
+        <li><strong>Enforcement caution.</strong> Shoplifting <em>arrest</em> counts track enforcement
+          intensity, not theft — a 2024 crackdown spiked arrests ~7× while business reports barely moved.
+          That's why arrests are shown beside reports, never as the success metric alone.</li>
+        <li><strong>The dark-figure caveat.</strong> Reported counts depend on businesses choosing to
+          report. A drop could mean less theft <em>or</em> reporting fatigue. Framing is observational,
+          not causal.</li>
+      </ul>
+
+      <aside class="callout" id="reporting-note" aria-label="Why recent months are not final"></aside>
+
+      <h3 class="methodology__subtitle">Data sources &amp; exact queries</h3>
+      <ol class="footnotes" id="footnotes"></ol>
+    </section>
+
+    <footer class="app-footer">
+      <small>
+        Source: SFPD Incident Reports
+        (<a href="https://data.sfgov.org/d/wg3w-h783" target="_blank" rel="noopener">wg3w-h783</a>).
+        Companion to the <a href="../districts/">district encampment dashboard</a>.
+        Observational, not a causal claim.
+      </small>
+    </footer>
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+// Orchestration: render a per-signal card whose PRIMARY stat is theft reported by
+// businesses (latest full month + three reference comparisons + a 12-mo-trend badge),
+// then the chart, then arrests as secondary context. See ../plan.md §7.1 / D10 / D11.
+import { loadAggregates, loadProvenance } from './data.js';
+import {
+  prettyMonth, shortMonth, monthIndex, trailingYoY, trailing12Line,
+  compareMonth, compareToAverage, reportTone, trendVerdict, fmtPct,
+} from './rollup.js';
+import { drawChart } from './chart.js';
+
+const fmtNum = n => (n == null ? '—' : n.toLocaleString('en-US'));
+// chart line colors live in CSS (light/dark aware); read fresh at each draw
+const chartColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+const cardsHost = document.getElementById('cards');
+const asOf = document.getElementById('data-asof');
+const exclHost = document.getElementById('exclusion-note');
+const charts = [];
+
+// one reference-comparison chip (vs last month / a year ago / typical month)
+function chip(label, detail, pct) {
+  const t = reportTone(pct);
+  return `
+    <div class="chip chip--${t}">
+      <span class="chip__delta">${fmtPct(pct)}</span>
+      <span class="chip__label">${label}</span>
+      <span class="chip__detail">${detail}</span>
+    </div>`;
+}
+
+function renderCard(key, sig, agg, idx) {
+  const N = sig.northern;
+  const month = agg.months[idx];
+  const trend = trailingYoY(N.reported, idx);   // de-noised 12-mo trend → badge
+  const v = trendVerdict(trend.pct);
+
+  const vsLast = compareMonth(N.reported, idx, idx - 1);
+  const vsYear = compareMonth(N.reported, idx, idx - 12);
+  const vsAvg = compareToAverage(N.reported, idx);
+  const startYear = agg.months[0].slice(0, 4);
+
+  // arrests context (secondary)
+  const arrMonth = N.arrests[idx];
+  const arrYear = compareMonth(N.arrests, idx, idx - 12);
+
+  const card = document.createElement('wa-card');
+  card.className = 'scorecard';
+  card.innerHTML = `
+    <div slot="header" class="scorecard__header">
+      <h3 class="scorecard__title">${sig.label}</h3>
+      <span class="badge badge--${v.tone}">${v.label}</span>
+    </div>
+    <p class="scorecard__desc">${sig.desc}</p>
+
+    <div class="primary">
+      <div class="primary__eyebrow">Theft reported by businesses</div>
+      <div class="evaluating">Evaluating <strong>${prettyMonth(month)}</strong>
+        <span class="evaluating__tag" title="The most recent month complete enough to trust — see the note below the charts.">latest settled month</span>
+      </div>
+      <div class="primary__figure">
+        <span class="primary__num">${fmtNum(N.reported[idx])}</span>
+        <span class="primary__unit">reports</span>
+        <span class="primary__trend trend--${v.tone}">12-mo trend ${fmtPct(trend.pct)}</span>
+      </div>
+      <p class="verdict verdict--${v.tone}">${v.text}</p>
+      <div class="chips">
+        ${chip('vs last month', `${shortMonth(agg.months[idx - 1])}: ${fmtNum(vsLast.ref)}`, vsLast.pct)}
+        ${chip('vs a year ago', `${shortMonth(agg.months[idx - 12])}: ${fmtNum(vsYear.ref)}`, vsYear.pct)}
+        ${chip('vs typical month', `avg ${Math.round(vsAvg.avg)}/mo since ${startYear}`, vsAvg.pct)}
+      </div>
+    </div>
+
+    <div class="chart-host" id="chart-${key}"></div>
+    <div class="legend">
+      <span class="legend__item"><i style="background:var(--chart-monthly)"></i>Reported (monthly)</span>
+      <span class="legend__item"><i style="background:var(--chart-trend);height:3px"></i>Reported (12-mo avg)</span>
+      <span class="legend__item"><i style="background:var(--chart-arrests)"></i>Arrests (context)</span>
+    </div>
+
+    <div class="context">
+      <div class="context__head">Enforcement — context, not a success target</div>
+      <div class="context__row">
+        <span><strong>${fmtNum(arrMonth)}</strong> SFPD arrests in ${shortMonth(month)}</span>
+        <span class="context__delta">vs a year ago ${fmtPct(arrYear.pct)} <small>(${shortMonth(agg.months[idx - 12])}: ${fmtNum(arrYear.ref)})</small></span>
+      </div>
+      <p class="context__note">
+        We want arrests to rise while theft is high — but if deterrence is working, arrests should
+        eventually fall <em>alongside</em> reports. So read this beside the trend above, not as a
+        target on its own.
+      </p>
+    </div>
+
+    <small class="scorecard__foot">
+      ${key === 'commercial' ? 'Burglary + robbery combined. ' : ''}Single months are noisy at this
+      volume — the 12-month trend and chart show the real direction.
+    </small>`;
+  cardsHost.appendChild(card);
+
+  const avg = s => trailing12Line(s).map(x => (x == null ? null : x / 12));
+  const settledIdx = monthIndex(agg, agg.latest_settled_month);
+  charts.push(() => drawChart(
+    card.querySelector(`#chart-${key}`), agg.months,
+    [
+      { values: avg(N.reported), color: chartColor('--chart-trend'), width: 2.5, label: 'Reported 12mo' },
+      { values: N.arrests, color: chartColor('--chart-arrests'), width: 1.5, opacity: 0.85, label: 'Arrests' },
+      { values: N.reported, color: chartColor('--chart-monthly'), width: 2.25, label: 'Reported monthly' },
+    ],
+    { unsettledFromIdx: settledIdx + 1 },  // shade months still filling in (reporting lag)
+  ));
+}
+
+function renderExclusion(agg) {
+  if (!agg.excluded || !agg.excluded.length) return;
+  exclHost.innerHTML = agg.excluded.map(e =>
+    `<strong>Excluded:</strong> the “${e.code}” incident code. ${e.reason}`).join('<br>');
+}
+
+// Prominent note: why recent months aren't final + which month we evaluate (built from measured lag).
+function renderReportingNote(agg) {
+  const host = document.getElementById('reporting-note');
+  const s = agg.settling;
+  if (!host || !s) return;
+  const settled = prettyMonth(agg.latest_settled_month);
+  const complete = prettyMonth(agg.latest_complete_month);
+  host.innerHTML = `
+    <div class="callout__title">⚠ Recent months aren’t final — that’s why we evaluate ${settled}</div>
+    <p>SFPD reports enter this dataset only after a supervisor approves them, so a month keeps filling in
+    for weeks after it ends. Across a fully-settled period (${s.ref_window}, n=${s.n} reports), the
+    median report lands in ${s.median_days} day${s.median_days === 1 ? '' : 's'} and
+    <strong>${s.within_30_pct}% within 30 days</strong> — but a long tail means ~10% take
+    <strong>${s.p90_days}+ days</strong>. So the most recent month or two (through ${complete}) are
+    still climbing and would read as a false drop.</p>
+    <p><strong>What we do:</strong> the headline evaluates the latest <em>settled</em> month
+    (<strong>${settled}</strong>, ${agg.settle_lag_months} months back); still-filling months are shaded
+    on every chart. And because single months are noisy at this volume, the Improving / Worsening badge
+    follows the de-noised <strong>12-month trend</strong>, not any one month.</p>`;
+}
+
+// Source footnotes: per-signal & per-axis rationale + the exact, runnable Socrata query.
+function renderFootnotes(prov) {
+  const host = document.getElementById('footnotes');
+  if (!host || !prov) return;
+  const link = url => `<a href="${url}" target="_blank" rel="noopener">run the exact query ↗</a>`;
+  const code = s => `<code class="fn-filter">${s}</code>`;
+  const items = [];
+
+  for (const key of ['shoplifting', 'commercial']) {
+    const s = prov.signals[key];
+    if (!s) continue;
+    items.push({ id: `fn-${key}`, title: s.label,
+      body: `${s.why} <span class="fn-meta">Filter: ${code(s.filter)} · ${link(s.query_url)}</span>` });
+  }
+  for (const e of prov.excluded || []) {
+    items.push({ id: 'fn-excluded', title: `Excluded — ${e.code}`,
+      body: `${e.why} <span class="fn-meta">Filter: ${code(e.where)} · ${link(e.query_url)}</span>` });
+  }
+  if (prov.axes) {
+    items.push({ id: 'fn-axes', title: 'The two axes — reported vs. arrests',
+      body: `<strong>Reported by businesses</strong> — ${prov.axes.reported.why} `
+          + `${code(prov.axes.reported.where)}<br>`
+          + `<strong>Arrests by SFPD</strong> — ${prov.axes.arrests.why} `
+          + `${code(prov.axes.arrests.where)}` });
+  }
+  if (prov.settle_note) {
+    items.push({ id: 'fn-settled', title: 'Latest settled month', body: prov.settle_note });
+  }
+
+  host.innerHTML = items.map(it =>
+    `<li id="${it.id}"><strong>${it.title}.</strong> ${it.body}</li>`).join('');
+}
+
+(async function main() {
+  try {
+    const [agg, prov] = await Promise.all([loadAggregates(), loadProvenance().catch(() => null)]);
+    const idx = monthIndex(agg, agg.latest_settled_month);
+    asOf.textContent = `${agg.district} district · latest settled month ${prettyMonth(agg.latest_settled_month)} · built ${agg.generated}`;
+
+    for (const [key, sig] of Object.entries(agg.signals)) renderCard(key, sig, agg, idx);
+    renderExclusion(agg);
+    renderReportingNote(agg);
+    renderFootnotes(prov);
+
+    const draw = () => charts.forEach(fn => fn());
+    draw();
+    let t;
+    window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(draw, 150); });
+    // redraw on OS light/dark switch so the chart colors re-theme
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(draw, 0));
+  } catch (err) {
+    document.getElementById('cards').innerHTML =
+      `<p class="error">Could not load data: ${err.message}</p>`;
+    console.error(err);
+  }
+})();

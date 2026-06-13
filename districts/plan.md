@@ -312,7 +312,30 @@ Framing everywhere: **observational, not causal.**
 
 ---
 
-## 13. Changelog
+## 13. Next steps
+
+**Status (2026-06-12):** Stages 0–3 shipped and **deployed to GitHub Pages at `/districts/`** (cards +
+seasonal chart + heatmap/dots map, 7 signals, full-sync time window + Play). Remaining work:
+
+- **Refresh the data (manual cadence).** Rerun `build/01_pull.py → 02_assign.py → 03_rollup.py` and
+  commit the updated `data/` JSON — no frontend change needed. A **scheduled GitHub Action** that
+  rebuilds + commits fresh JSON is the not-yet-built automation option (§12).
+- **⚠ Cross-project fix — root hypothesis-tool `homeless_presence` reroute (TODO).** Its 311 source
+  still filters the naive `service_name IN ('Encampment','Encampments')`, so it **undercounts
+  ~2,000–2,600/mo after June 2025** (same bug we fixed here via D12). Fix: union the reroute path
+  (`OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%')`), dedup by
+  `service_request_id`. Flagged as a TODO in root `../PLAN.md` §12 (caveat 8).
+- **Stage 4 polish (not yet done).** Methodology footnote with per-signal **live Socrata query links**
+  + build/provenance date; **share-via-URL** (signal + district + window, mirroring root `PLAN.md`
+  §8.4). Dark mode is already inherited.
+- **Optional / on request:**
+  - **HSOC-only "homeless-routed" variant** of a CFS signal — a purer cut (§6.1, §12).
+  - **Force heatmap during Play** for smoothness if dots-mode playback ever feels janky (D14).
+  - **Resident-facing view** (§12) — only if that audience is pursued.
+
+---
+
+## 14. Changelog
 
 - **2026-06-11** — **Built Stages 0–3 + full sync.** Pipeline (pull → point-in-polygon assign → rollup)
   emits committed JSON; frontend (cards + seasonal SVG chart + Leaflet heatmap/dots) reuses the root
@@ -341,7 +364,7 @@ Framing everywhere: **observational, not causal.**
 
 ---
 
-## 14. Reusable lessons & data-source notes (for next time)
+## 15. Reusable lessons & data-source notes (for next time)
 
 Things we learned the hard way this build — skim before extending this dashboard or starting a sibling
 SF-civic project.
