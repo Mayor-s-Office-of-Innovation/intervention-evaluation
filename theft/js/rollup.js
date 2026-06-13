@@ -53,6 +53,20 @@ export function compareToAverage(series, idx) {
   return { cur, avg, pct: avg ? (cur - avg) / avg : null };
 }
 
+/** Northern's share of the citywide total over the trailing 12 months ending at idx. */
+export function shareAt(nSeries, cSeries, idx) {
+  const n = trailing12Sum(nSeries, idx), c = trailing12Sum(cSeries, idx);
+  return (n == null || c == null || !c) ? null : n / c;
+}
+
+/** Northern's all-time share (robust baseline — avoids cherry-picking a distorted year). */
+export function shareAllTime(nSeries, cSeries) {
+  const n = nSeries.reduce((a, b) => a + b, 0), c = cSeries.reduce((a, b) => a + b, 0);
+  return c ? n / c : null;
+}
+
+export const fmtSharePct = x => (x == null ? '—' : `${Math.round(x * 100)}%`);
+
 const THRESH = 0.05; // ±5% — below this we treat a move as "flat" given the noise
 const sign = pct => (pct == null ? 0 : pct <= -THRESH ? -1 : pct >= THRESH ? 1 : 0);
 

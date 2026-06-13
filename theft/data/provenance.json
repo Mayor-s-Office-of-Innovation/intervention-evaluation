@@ -4,7 +4,7 @@
   "domain": "data.sfgov.org",
   "district": "Northern",
   "dataset_url": "https://data.sfgov.org/d/wg3w-h783",
-  "history_start": "2018-01-01",
+  "history_start": "2021-01-01",
   "latest_settled_month": "2026-03",
   "settle_note": "Headline uses the latest settled month (2026-03); the 2 most recent complete months are still accruing late-approved reports and are shown shaded on the charts.",
   "axes": {
@@ -22,17 +22,17 @@
       "label": "Shoplifting",
       "why": "Shoplifting is the most direct measure of theft from retail merchants and the highest-volume merchant-theft category in the data. It is the one type whose totals are heavily enforcement-driven (a 2024 crackdown spiked arrests ~7\u00d7 while business reports barely moved), which is exactly why we track the business-reported portion separately from arrests.",
       "filter": "incident_subcategory = 'Larceny Theft - Shoplifting'",
-      "query_url": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+resolution%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+%3D+%27Larceny+Theft+-+Shoplifting%27%29+AND+police_district%3D%27Northern%27+AND+incident_date+%3E%3D+%272018-01-01%27+GROUP+BY+month%2C+resolution+ORDER+BY+month",
-      "northern_reported_total": 2107,
-      "northern_arrests_total": 798
+      "query_url": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+resolution%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+%3D+%27Larceny+Theft+-+Shoplifting%27%29+AND+police_district%3D%27Northern%27+AND+incident_date+%3E%3D+%272021-01-01%27+GROUP+BY+month%2C+resolution+ORDER+BY+month",
+      "northern_reported_total": 1519,
+      "northern_arrests_total": 687
     },
     "commercial": {
       "label": "Commercial burglary & robbery",
       "why": "These are forcible thefts against business premises \u2014 breaking into a closed store (burglary) or holding up staff (robbery). We combine them because both are almost entirely victim-reported (you cannot file a robbery online), they trend together, and individually each is too low-volume in one district to read month to month. Keeping them together gives a steadier signal; the build retains the subcategory so they can be split back apart on demand.",
       "filter": "incident_subcategory in('Burglary - Commercial','Robbery - Commercial')",
-      "query_url": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+resolution%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+incident_date+%3E%3D+%272018-01-01%27+GROUP+BY+month%2C+resolution+ORDER+BY+month",
-      "northern_reported_total": 1569,
-      "northern_arrests_total": 381
+      "query_url": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+resolution%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+incident_date+%3E%3D+%272021-01-01%27+GROUP+BY+month%2C+resolution+ORDER+BY+month",
+      "northern_reported_total": 872,
+      "northern_arrests_total": 218
     }
   },
   "excluded": [

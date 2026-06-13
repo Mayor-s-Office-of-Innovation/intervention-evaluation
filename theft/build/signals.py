@@ -18,7 +18,10 @@ DATASET = "wg3w-h783"
 DOMAIN = "data.sfgov.org"
 DISTRICT = "Northern"
 DATE_COL = "incident_date"
-HISTORY_START = "2018-01-01"
+# Start in 2021: 2020 (pandemic store closures) distorted both retail theft and the citywide
+# denominators, so it's excluded as an anomalous baseline; 2018–19 dropped with it for a clean,
+# continuous post-pandemic window (../plan.md D13).
+HISTORY_START = "2021-01-01"
 
 # Resolution buckets → the two axes. Other resolutions (Exceptional, Unfounded) are
 # negligible for Northern and intentionally excluded from both axes.

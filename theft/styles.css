@@ -110,6 +110,14 @@ body {
 .chip__label { font-size: .76rem; font-weight: 600; }
 .chip__detail { font-size: .68rem; color: var(--c-flat); }
 
+/* SF context strip — citywide trend + Northern's share over time */
+.sf-context { margin-top: .6rem; padding: .55rem .7rem; border-radius: .5rem; border: 1px solid var(--wa-color-surface-border, #e2e4e9); }
+.sf-context__head { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--c-flat); margin-bottom: .3rem; }
+.sf-context__row { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; font-size: .85rem; padding: .1rem 0; }
+.sf-context__label { color: var(--wa-color-text-quiet, #4b4f58); }
+.sf-context__val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.sf-context__sub { font-weight: 400; font-size: .76rem; color: var(--c-flat); margin-left: .25rem; }
+
 /* Enforcement context (secondary, below the chart) */
 .context {
   margin-top: .6rem; padding: .7rem .8rem; border-radius: .5rem;

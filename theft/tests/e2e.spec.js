@@ -36,6 +36,15 @@ test('renders both scorecards: primary reports stat, three comparisons, chart, v
   expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
 });
 
+test('shows the SF-context strip: citywide trend + Northern share over time', async ({ page }) => {
+  await page.goto('/theft/index.html', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.sf-context')).toHaveCount(2);
+  const first = page.locator('.sf-context').first();
+  await expect(first).toContainText('Citywide 12-mo trend');
+  await expect(first).toContainText('Northern share of SF');
+  await expect(first).toContainText(/vs \d+% all-time avg/); // robust share baseline
+});
+
 test('arrests appear as context below the chart, not as a headline', async ({ page }) => {
   await page.goto('/theft/index.html', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.context__head').first()).toContainText('context, not a success target');

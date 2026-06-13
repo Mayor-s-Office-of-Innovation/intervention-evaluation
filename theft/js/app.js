@@ -5,6 +5,7 @@ import { loadAggregates, loadProvenance } from './data.js';
 import {
   prettyMonth, shortMonth, monthIndex, trailingYoY, trailing12Line,
   compareMonth, compareToAverage, reportTone, trendVerdict, fmtPct,
+  shareAt, shareAllTime, fmtSharePct,
 } from './rollup.js';
 import { drawChart } from './chart.js';
 
@@ -43,6 +44,13 @@ function renderCard(key, sig, agg, idx) {
   const arrMonth = N.arrests[idx];
   const arrYear = compareMonth(N.arrests, idx, idx - 12);
 
+  // SF context: citywide trend (did SF overall move?) + Northern's share over time
+  const cityTrend = trailingYoY(sig.citywide.reported, idx);
+  const shareNow = shareAt(N.reported, sig.citywide.reported, idx);
+  const shareAvg = shareAllTime(N.reported, sig.citywide.reported);  // robust baseline (all years)
+  const dShare = (shareNow != null && shareAvg != null) ? shareNow - shareAvg : null;
+  const shareArrow = dShare == null ? '' : dShare > 0.005 ? '▲' : dShare < -0.005 ? '▼' : '▬';
+
   const card = document.createElement('wa-card');
   card.className = 'scorecard';
   card.innerHTML = `
@@ -75,6 +83,20 @@ function renderCard(key, sig, agg, idx) {
       <span class="legend__item"><i style="background:var(--chart-monthly)"></i>Reported (monthly)</span>
       <span class="legend__item"><i style="background:var(--chart-trend);height:3px"></i>Reported (12-mo avg)</span>
       <span class="legend__item"><i style="background:var(--chart-arrests)"></i>Arrests (context)</span>
+    </div>
+
+    <div class="sf-context">
+      <div class="sf-context__head">In SF context</div>
+      <div class="sf-context__row">
+        <span class="sf-context__label">Citywide 12-mo trend</span>
+        <span class="sf-context__val delta--${reportTone(cityTrend.pct)}">${fmtPct(cityTrend.pct)}</span>
+      </div>
+      <div class="sf-context__row">
+        <span class="sf-context__label">Northern share of SF</span>
+        <span class="sf-context__val">${fmtSharePct(shareNow)}
+          <span class="sf-context__sub">${shareArrow} vs ${fmtSharePct(shareAvg)} all-time avg</span>
+        </span>
+      </div>
     </div>
 
     <div class="context">

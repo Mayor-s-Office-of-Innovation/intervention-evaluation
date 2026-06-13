@@ -396,6 +396,8 @@ rows. 5 Playwright smoke tests.
 | D10 | **Headline = a reported-vs-enforced read per signal**, colored by good/bad with a plain-language verdict; not raw month-over-month. | Directly expresses the effectiveness definition (D7); the de-noised 12-mo trend drives the verdict so low-count noise + recent-month lag don't (§7.1, §5.4). |
 | D11 | **Arrests are secondary context (below the chart), not a co-headline.** Primary stat = theft reported by businesses. | The reported metric already excludes arrests, so it's enforcement-robust on its own; and "more arrests" isn't unconditionally good — if deterrence works arrests should fall *with* reports (user, 2026-06-13). |
 | D12 | **Headline number = the latest *settled* month** (`latest_complete − 2`), with still-settling recent months shaded on the chart; plus three reference comparisons (last month / a year ago / typical month). | The most recent calendar months under-report until late approvals land (§5.4), so they fake a drop. The settled month + explicit comparisons make "down compared to what?" unambiguous (user, 2026-06-13). |
+| D13 | **Analysis window starts 2021** (`HISTORY_START='2021-01-01'`); 2018–2020 excluded. | 2020's pandemic store closures distorted both retail theft and the citywide denominators — an anomalous baseline. Dropping through 2020 gives a clean, continuous post-pandemic window for charts, averages, and shares (user, 2026-06-13). |
+| D14 | **"In SF context" strip per card: citywide 12-mo trend + Northern's share vs. the all-time average** (not a single year). | Answers "did SF overall move?" and "is Northern's slice elevated?" without a second chart. The all-time-avg baseline is robust — a single-year baseline (e.g. a 5-yr lookback) lands in pandemic-distorted 2020–21 and inverts the read (user, 2026-06-13). |
 
 ---
 
@@ -419,6 +421,45 @@ rows. 5 Playwright smoke tests.
 
 ---
 
+## 9.5 Reusable lessons (for next time)
+
+Skim before starting a sibling SF-civic / DataSF analysis.
+
+**Data & method**
+- **Police counts are enforcement-reflexive.** To measure "is the city reducing crime X," use
+  **victim-reported** counts (`resolution='Open or Active'`, excludes arrests) as the success metric;
+  show **arrests as context, not a target** (§3.5, D7/D11). Total/arrest counts fake success when
+  enforcement is cut (SF 2024 shoplifting: arrests ~7×, victim reports flat).
+- **Reporting lag → settled month.** `wg3w-h783` reports appear only after supervisor approval; the lag
+  is right-skewed (median ~0d, ~88% ≤30d, **p90 ~48d**). Recent 1–2 months under-report → headline the
+  latest *settled* month (~2-mo buffer), shade still-filling months, and **measure the lag live** in the
+  build so the note never goes stale (§5, D12).
+- **`wg3w-h783` has a reliable native `police_district`** (~99% vs point-in-polygon) → **no PIP needed**
+  (unlike 311 `vw6y-z8j6`). Dedup by `incident_id` (one incident = multiple code rows). Watch the
+  **2024-04-24 intersection remap** break (§4, §5).
+- **Single recent months are noisy** at district volumes → drive the verdict off the **de-noised 12-mo
+  trend**; show last-month / year-ago / typical-month only as labeled context (D10/D12).
+- **Make exclusions + queries auditable** — a visible exclusion footnote (D9) and per-signal/axis
+  rationale + **runnable Socrata query links generated into `provenance.json`** so the UI can't drift.
+- **Exclude/flag 2020 and use robust baselines** (D13/D14). 2020's pandemic distorted counts *and*
+  share denominators → start the window at 2021. Never baseline against a single year: a "5-years-ago"
+  share lookback landed on pandemic-era 2020–21 and **inverted** the read; use the all-time average (or
+  trailing-12mo) instead. And judge direction by the trailing-12mo trend, not endpoint-vs-endpoint — SF
+  shoplifting dipped 2022–23 then recovered, which an endpoint comparison misreads as "flat/down."
+
+**Build & engineering**
+- **Native district field + aggregates-only (no map) → skip the heavy pipeline.** Fetch pre-aggregated
+  monthly counts via SoQL (`date_trunc_ym` + `count` + `$group`), not raw-row paging + point-in-polygon.
+  `theft/build/build.py` is a fraction of `districts/`'s pull→assign→rollup.
+- **Chart colors from CSS variables**, read via `getComputedStyle` at draw time + redraw on
+  `prefers-color-scheme` change → contrast survives light/dark with no JS color tables.
+- **Socrata MCP gotcha:** `query_dataset` falsely rejects SoQL whose **string literal contains "from"**
+  (e.g. `'Theft from Merchant or Library'`) — match a non-"from" substring with `LIKE`. For big pulls it
+  also dumps results to a file; bypass the MCP and GET the REST endpoint via `httpget` (Socrata handles
+  "from" fine).
+
+---
+
 ## 10. Changelog
 
 - **2026-06-13** — Plan drafted. **Validated `wg3w-h783`** as the source (no better alternative on
@@ -436,6 +477,15 @@ rows. 5 Playwright smoke tests.
   non-arrest). Adopted a **two-axis metric**: victim-reported theft (↓) + arrests (↑), with a
   reporting-fatigue caveat and the `filed_online` early-warning check. Commercial burglary/robbery are
   naturally enforcement-robust (stable ~18–23% arrest share, no 2024 blitz).
+- **2026-06-13** — **SF-context strip + window cut (D13/D14).** Added an "In SF context" strip to each
+  card: **citywide 12-mo trend** + **Northern's share vs. the all-time average**. Found the two signals
+  diverge contextually — shoplifting: citywide recovering (12-mo ▲19%) with Northern's share modestly
+  above its norm (16% vs 13%); commercial: citywide falling hard (▼51%) with Northern's share ~flat
+  (19% vs 16%), i.e. tracking the city's decline. Rejected a single-year share baseline (a 5-yr lookback
+  hit pandemic-distorted 2020–21 and inverted the read) in favor of the all-time average. **Cut the
+  analysis window to 2021+** to drop the anomalous 2020 pandemic period (D13). *(Corrected an earlier
+  chat over-claim that citywide shoplifting was "flat-to-down" — the trailing-12 trend is actually up,
+  recovering off a 2022–23 dip.)*
 - **2026-06-13** — **Reporting-lag transparency.** Added a build step that measures the incident→report
   lag over a fully-settled 12-mo window (median 0d, ~88% ≤30d, p90 ~48d; stored in `aggregates.settling`)
   and a **prominent note above the footnotes** that explains, with those live numbers, why the most
