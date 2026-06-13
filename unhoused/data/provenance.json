@@ -1,0 +1,193 @@
+{
+  "generated": "2026-06-13",
+  "districts_geojson": "qgnn-b9vv",
+  "history_start": "2023-01-01",
+  "note": "Each signal (and each component of a combined one) lists its dataset and a runnable Socrata query so every number on the page ties back to source data (plan D7).",
+  "signals": {
+    "encampment": {
+      "dataset_id": "vw6y-z8j6",
+      "dataset_name": "SF 311 Cases",
+      "filter": "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
+      "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+%28service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+OR+%28service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27%29%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+      "records_pulled": 172587,
+      "dedup_note": "Deduped on service_request_id across both parts of the union.",
+      "components": {
+        "encampment_only": {
+          "filter": "service_name IN ('Encampment','Encampments')",
+          "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month"
+        },
+        "rerouted": {
+          "filter": "service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'",
+          "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month"
+        }
+      },
+      "break_audit": {
+        "encampment_only": {
+          "2023-01": 2386,
+          "2023-02": 2523,
+          "2023-03": 2461,
+          "2023-04": 2736,
+          "2023-05": 2620,
+          "2023-06": 3238,
+          "2023-07": 3519,
+          "2023-08": 3173,
+          "2023-09": 3492,
+          "2023-10": 4393,
+          "2023-11": 3506,
+          "2023-12": 2969,
+          "2024-01": 2990,
+          "2024-02": 2948,
+          "2024-03": 3425,
+          "2024-04": 3437,
+          "2024-05": 3632,
+          "2024-06": 3475,
+          "2024-07": 4183,
+          "2024-08": 5115,
+          "2024-09": 4769,
+          "2024-10": 5076,
+          "2024-11": 4268,
+          "2024-12": 4184,
+          "2025-01": 5074,
+          "2025-02": 4463,
+          "2025-03": 4566,
+          "2025-04": 3948,
+          "2025-05": 4407,
+          "2025-06": 4095,
+          "2025-07": 3913,
+          "2025-08": 3164,
+          "2025-09": 3077,
+          "2025-10": 3004,
+          "2025-11": 2599,
+          "2025-12": 2797,
+          "2026-01": 2940,
+          "2026-02": 2626,
+          "2026-03": 2981,
+          "2026-04": 3042,
+          "2026-05": 3489,
+          "2026-06": 1474
+        },
+        "rerouted": {
+          "2024-06": 34,
+          "2024-07": 70,
+          "2024-08": 72,
+          "2024-09": 78,
+          "2024-10": 73,
+          "2024-11": 63,
+          "2024-12": 53,
+          "2025-01": 57,
+          "2025-02": 73,
+          "2025-03": 56,
+          "2025-04": 71,
+          "2025-05": 98,
+          "2025-06": 470,
+          "2025-07": 1378,
+          "2025-08": 2586,
+          "2025-09": 2569,
+          "2025-10": 2081,
+          "2025-11": 1777,
+          "2025-12": 1693,
+          "2026-01": 1922,
+          "2026-02": 2049,
+          "2026-03": 2602,
+          "2026-04": 2477,
+          "2026-05": 2978,
+          "2026-06": 1030
+        },
+        "union": {
+          "2023-01": 2386,
+          "2023-02": 2523,
+          "2023-03": 2461,
+          "2023-04": 2736,
+          "2023-05": 2620,
+          "2023-06": 3238,
+          "2023-07": 3519,
+          "2023-08": 3173,
+          "2023-09": 3492,
+          "2023-10": 4393,
+          "2023-11": 3506,
+          "2023-12": 2969,
+          "2024-01": 2990,
+          "2024-02": 2948,
+          "2024-03": 3425,
+          "2024-04": 3437,
+          "2024-05": 3632,
+          "2024-06": 3509,
+          "2024-07": 4253,
+          "2024-08": 5187,
+          "2024-09": 4847,
+          "2024-10": 5149,
+          "2024-11": 4331,
+          "2024-12": 4237,
+          "2025-01": 5131,
+          "2025-02": 4536,
+          "2025-03": 4622,
+          "2025-04": 4019,
+          "2025-05": 4505,
+          "2025-06": 4565,
+          "2025-07": 5291,
+          "2025-08": 5750,
+          "2025-09": 5646,
+          "2025-10": 5085,
+          "2025-11": 4376,
+          "2025-12": 4490,
+          "2026-01": 4862,
+          "2026-02": 4675,
+          "2026-03": 5583,
+          "2026-04": 5519,
+          "2026-05": 6467,
+          "2026-06": 2504
+        }
+      }
+    },
+    "encampment_only": {
+      "dataset_id": "vw6y-z8j6",
+      "dataset_name": "SF 311 Cases",
+      "filter": "service_name IN ('Encampment','Encampments')",
+      "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+      "records_pulled": 146177
+    },
+    "cfs_sitlie": {
+      "dataset_id": "2zdj-bwza",
+      "dataset_name": "SFPD Calls for Service (Dispatched)",
+      "filter": "call_type_final_desc = 'SIT/LIE ENFORCEMENT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+      "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27SIT%2FLIE+ENFORCEMENT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+      "records_pulled": 25675
+    },
+    "cfs_homeless": {
+      "dataset_id": "2zdj-bwza",
+      "dataset_name": "SFPD Calls for Service (Dispatched)",
+      "filter": "call_type_final_desc = 'HOMELESS COMPLAINT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+      "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27HOMELESS+COMPLAINT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+      "records_pulled": 16482
+    },
+    "hsoc": {
+      "dataset_id": "2zdj-bwza",
+      "dataset_name": "SFPD Calls for Service (Dispatched)",
+      "filter": "onview_flag='HSOC' AND dup_cad_number IS NULL",
+      "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+onview_flag%3D%27HSOC%27+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+      "records_pulled": 53049
+    }
+  },
+  "groups": {
+    "cfs_presence": {
+      "label": "911 calls about unhoused presence",
+      "note": "Sum of two distinct, non-overlapping SFPD CFS call types (Sit/Lie Enforcement + Homeless Complaint), each deduped per call. Summable because they are different call_type_final_desc values \u2014 unlike HSOC, which re-counts these and is never summed.",
+      "members": {
+        "cfs_sitlie": {
+          "label": "911 Sit/Lie Enforcement",
+          "dataset_id": "2zdj-bwza",
+          "dataset_name": "SFPD Calls for Service (Dispatched)",
+          "filter": "call_type_final_desc = 'SIT/LIE ENFORCEMENT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+          "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27SIT%2FLIE+ENFORCEMENT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month"
+        },
+        "cfs_homeless": {
+          "label": "911 Homeless Complaint",
+          "dataset_id": "2zdj-bwza",
+          "dataset_name": "SFPD Calls for Service (Dispatched)",
+          "filter": "call_type_final_desc = 'HOMELESS COMPLAINT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+          "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27HOMELESS+COMPLAINT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month"
+        }
+      }
+    }
+  }
+}
