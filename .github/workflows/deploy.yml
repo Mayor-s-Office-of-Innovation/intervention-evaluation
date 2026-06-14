@@ -31,14 +31,25 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Stage site files
         run: |
+          # Root landing page
           mkdir -p _site/js
           cp index.html styles.css _site/
           cp js/*.js _site/js/
-          # District encampment dashboard at /districts/ (static frontend + pre-baked data JSON)
-          mkdir -p _site/districts/js
-          cp districts/index.html districts/styles.css _site/districts/
-          cp districts/js/*.js _site/districts/js/
-          cp -r districts/data _site/districts/data
+          # Each dashboard lives in its own subdir with an identical static layout:
+          #   index.html + styles.css + js/*.js + pre-baked data/ JSON (build/ is
+          #   offline Python and is intentionally not shipped). Add a project here
+          #   when it gains an index.html.
+          for project in districts theft unhoused drug; do
+            if [ ! -f "$project/index.html" ]; then
+              echo "Skipping $project (no index.html yet)"
+              continue
+            fi
+            echo "Staging $project"
+            mkdir -p "_site/$project/js"
+            cp "$project/index.html" "$project/styles.css" "_site/$project/"
+            cp "$project"/js/*.js "_site/$project/js/"
+            [ -d "$project/data" ] && cp -r "$project/data" "_site/$project/data"
+          done
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
