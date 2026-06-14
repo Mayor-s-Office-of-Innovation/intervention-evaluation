@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drug activity in San Francisco — by district</title>
+
+  <!-- Respect the OS light/dark setting (Web Awesome reads .wa-dark / .wa-light on <html>) -->
+  <script>
+    (function () {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      function apply() {
+        document.documentElement.classList.toggle('wa-dark', mq.matches);
+        document.documentElement.classList.toggle('wa-light', !mq.matches);
+      }
+      apply();
+      mq.addEventListener('change', apply);
+    })();
+  </script>
+
+  <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.7.0/styles/webawesome.css" />
+  <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <span class="app-header__eyebrow">San Francisco · OpenData</span>
+      <h1>Drug activity by district</h1>
+      <p class="app-header__sub">
+        How drug activity in San Francisco is changing, read on two axes: <strong>community-reported drug
+        activity</strong> (we want this down) and <strong>dealer arrests</strong> (we want this up — given
+        the fentanyl crisis, disrupting supply is a goal, not just context). Each district has its own page;
+        citywide is the comparison baseline. Observational, not a causal claim.
+      </p>
+      <nav class="district-nav" id="district-nav" aria-label="District"></nav>
+    </div>
+  </header>
+
+  <main class="app-main wa-stack wa-gap-l">
+    <small id="data-asof" class="field-hint"></small>
+
+    <!-- Two co-headline cards: drug-activity reports (want DOWN) + dealer arrests (want UP). -->
+    <section class="summary" id="summary-cards" aria-label="Headline metrics"></section>
+
+    <!-- Focused chart with a signal selector -->
+    <wa-card class="panel">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title">Reports &amp; arrests over time</h2>
+        <div class="map-controls" id="chart-selector"></div>
+      </div>
+      <div id="detail-strip" class="detail-strip"></div>
+      <div id="chart" class="chart-host"></div>
+      <small id="chart-note" class="repro-note"></small>
+    </wa-card>
+
+    <!-- The centerpiece: what the drug-arrest volume is actually made of (dealer vs churn). -->
+    <wa-card class="panel">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title">What drug arrests are made of</h2>
+        <div class="map-controls" id="composition-controls"></div>
+      </div>
+      <div id="composition-lead" class="composition-lead"></div>
+      <div id="composition-chart" class="chart-host"></div>
+      <small id="composition-note" class="repro-note"></small>
+    </wa-card>
+
+    <!-- Transition / displacement map (built on community drug-activity reports only) -->
+    <wa-card class="panel">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title">Hotspots: what moved since Lurie</h2>
+        <div class="map-controls" id="map-controls"></div>
+      </div>
+      <div class="map-legend" id="map-legend"></div>
+      <div id="map" class="events-map"></div>
+      <small id="map-note" class="repro-note"></small>
+    </wa-card>
+
+    <div id="status" class="status" hidden></div>
+
+    <section id="methodology" class="methodology">
+      <h2 class="methodology__title">What’s included, what’s left out — and why</h2>
+      <div id="methodology-body"></div>
+    </section>
+
+    <footer class="app-footer">
+      <small>
+        Sources: SFPD Calls for Service (<a href="https://data.sfgov.org/d/2zdj-bwza" target="_blank" rel="noopener">2zdj-bwza</a>),
+        SFPD Incident Reports (<a href="https://data.sfgov.org/d/wg3w-h783" target="_blank" rel="noopener">wg3w-h783</a>),
+        SF 311 Cases (<a href="https://data.sfgov.org/d/vw6y-z8j6" target="_blank" rel="noopener">vw6y-z8j6</a>),
+        district boundaries (<a href="https://data.sfgov.org/d/qgnn-b9vv" target="_blank" rel="noopener">qgnn-b9vv</a>).
+        Observational, not a causal claim.
+      </small>
+    </footer>
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

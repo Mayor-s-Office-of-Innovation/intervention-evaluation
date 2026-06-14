@@ -222,4 +222,21 @@ path.mk-halo { pointer-events: all !important; }
 .repro-note { color: var(--muted); font-size: .78rem; }
 .status { max-width: 1040px; margin: .5rem auto; padding: .8rem 1rem; border-radius: var(--radius); font-size: .9rem; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 .app-footer { margin-top: 1rem; color: var(--muted); }
+
+/* ── drug dashboard additions ── */
+.scard__goal { font-weight: 600; opacity: .7; font-size: .72em; white-space: nowrap; }
+.composition-lead { margin: 0 0 .4rem; font-size: .95rem; line-height: 1.5; }
+.composition-lead p { margin: 0; }
+/* stacked composition bars */
+.chart-stack { shape-rendering: crispEdges; }
+.chart-stack--partial { opacity: .45; }
+/* "still settling" band on the focused chart (report-approval lag months) */
+.chart-unsettled { fill: var(--c-ink, #1a1a1a); opacity: .05; }
+.chart-unsettled-label { fill: var(--muted); font-size: .68rem; font-style: italic; }
+.wa-dark .chart-unsettled { fill: #fff; opacity: .07; }
+/* methodology drug-specific bits */
+.meth-out-lead { margin: .3rem 0 .4rem; color: var(--muted); font-size: .9rem; }
+.meth-caveat { margin: .5rem 0 .8rem; padding: .6rem .8rem; border-left: 3px solid var(--c-amber, #e0a82e);
+  background: color-mix(in srgb, var(--c-amber, #e0a82e) 9%, transparent); border-radius: 6px;
+  font-size: .86rem; line-height: 1.5; }
 .marker-overlay .ov-multi { margin: .25rem 0 .15rem; font-size: .72rem; font-style: italic; opacity: .7; }

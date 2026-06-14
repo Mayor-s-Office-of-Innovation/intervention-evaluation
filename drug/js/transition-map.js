@@ -213,6 +213,8 @@ function renderMarkers() {
     if (p[2] > g.top[2]) g.top = p;        // the most-recent report represents the spot in the overlay
   }
   const inView = groups.size;
+  // spots with no recent activity drawn first (underneath); spots with recent activity drawn last (on top)
+  // and kept first when the cap bites — so a busy viewport never hides where activity is happening now.
   const allG = [...groups.values()];
   const recentG = allG.filter(g => g.recent > 0);
   const olderG = allG.filter(g => g.recent === 0);
@@ -230,6 +232,7 @@ function renderMarkers() {
       ? `${g.total} reports here · ${g.recent} in the last 3 months · most recent ${date}`
       : `${date} · ${recent ? 'last 3 months' : 'older'}`;
     const multi = g.total > 1 ? '<div class="ov-multi">Most recent report:</div>' : '';
+    // dot radius grows with the count (√ scale, capped); halo is the larger hover target.
     const r = Math.min(15, (recent ? 4.5 : 3.5) + Math.sqrt(Math.max(0, g.total - 1)) * 1.8);
     L.circleMarker([g.lat, g.lng], {
       radius: Math.max(HIT_RADIUS, r + 3), stroke: false, fillColor: color, fillOpacity: 0, className: 'mk-halo',

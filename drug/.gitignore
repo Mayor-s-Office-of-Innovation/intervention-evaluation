@@ -1,0 +1,11 @@
+# Build artifacts — regenerable intermediate data, NOT used by the dashboard. Do NOT commit.
+# build/cache/ holds the raw + point-in-polygon-assigned Socrata pulls (~117 MB); the frontend
+# only ever reads the rolled-up JSON in data/. Rebuild with build/01_pull.py → 02_assign.py.
+build/cache/
+build/__pycache__/
+__pycache__/
+*.pyc
+
+# Local test output
+test-results/
+playwright-report/
