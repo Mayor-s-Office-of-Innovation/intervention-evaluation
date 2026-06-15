@@ -206,8 +206,8 @@ function renderFootnotes(prov) {
     draw();
     let t;
     window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(draw, 150); });
-    // redraw on OS light/dark switch so the chart colors re-theme
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => setTimeout(draw, 0));
+    // redraw on light/dark switch (OS change or manual toggle) so the chart colors re-theme
+    window.addEventListener('themechange', () => setTimeout(draw, 0));
   } catch (err) {
     document.getElementById('cards').innerHTML =
       `<p class="error">Could not load data: ${err.message}</p>`;

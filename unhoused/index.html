@@ -5,16 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Unhoused presence in San Francisco — by district</title>
 
-  <!-- Respect the OS light/dark setting (Web Awesome reads .wa-dark / .wa-light on <html>) -->
+  <!-- Light/dark: follow the OS by default; a small toggle (bottom-right) overrides it for QA. -->
   <script>
     (function () {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
-      function apply() {
-        document.documentElement.classList.toggle('wa-dark', mq.matches);
-        document.documentElement.classList.toggle('wa-light', !mq.matches);
+      var KEY = 'theme-override';   // 'dark' | 'light' | null → follow OS
+      function override() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+      function isDark() { var o = override(); return o ? o === 'dark' : mq.matches; }
+      function syncBtn(dark) {
+        var b = document.getElementById('theme-toggle');
+        if (!b) return;
+        b.textContent = dark ? '☀' : '☾';
+        var lbl = (dark ? 'Switch to light mode' : 'Switch to dark mode') +
+                  (override() ? '' : ' (following OS)');
+        b.title = lbl; b.setAttribute('aria-label', lbl);
       }
+      function apply() {
+        var dark = isDark(), el = document.documentElement;
+        el.classList.toggle('wa-dark', dark);
+        el.classList.toggle('wa-light', !dark);
+        syncBtn(dark);
+        window.dispatchEvent(new CustomEvent('themechange'));
+      }
+      window.__toggleTheme = function () {
+        try { localStorage.setItem(KEY, isDark() ? 'light' : 'dark'); } catch (e) {}
+        apply();
+      };
       apply();
-      mq.addEventListener('change', apply);
+      mq.addEventListener('change', function () { if (!override()) apply(); });
+      document.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('button');
+        b.id = 'theme-toggle'; b.className = 'theme-toggle'; b.type = 'button';
+        b.addEventListener('click', window.__toggleTheme);
+        document.body.appendChild(b);
+        syncBtn(isDark());
+      });
     })();
   </script>
 
@@ -31,13 +56,17 @@
 <body>
   <header class="app-header">
     <div class="app-header__inner">
-      <span class="app-header__eyebrow">San Francisco · OpenData</span>
-      <h1>Unhoused presence by district</h1>
-      <p class="app-header__sub">
-        How community-reported unhoused presence is changing across four SF police districts.
-        Each district has its own page; citywide is the comparison baseline. Observational, not a
-        causal claim.
-      </p>
+      <span class="app-header__eyebrow">San Francisco · OKR candidate · Unhoused presence by district</span>
+      <h1>Reduce unsheltered homelessness</h1>
+      <p class="okr-kr-label">Key Results</p>
+      <ul class="okr-krs" aria-label="Key results">
+        <li class="okr-kr okr-kr--down"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+          <span class="okr-kr__text"><strong>Reduce</strong> encampments</span></li>
+        <li class="okr-kr okr-kr--down"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+          <span class="okr-kr__text"><strong>Reduce</strong> 911 unhoused-presence calls</span></li>
+      </ul>
+      <p class="okr-caveat">Both must fall together — encampments down while calls hold steady is
+        displacement, not people housed.</p>
       <nav class="district-nav" id="district-nav" aria-label="District"></nav>
     </div>
   </header>

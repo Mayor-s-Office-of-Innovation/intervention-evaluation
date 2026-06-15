@@ -49,6 +49,28 @@ a { color: var(--c-blue); }
 .app-header__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 600; color: var(--c-blue); }
 .app-header h1 { margin: .35rem 0 .25rem; font-size: 1.6rem; font-weight: 700; }
 .app-header__sub { margin: 0 0 1rem; color: #cbd5e1; max-width: 72ch; }
+/* Light/dark QA toggle — subtle, fixed bottom-right */
+.theme-toggle {
+  position: fixed; bottom: 1rem; right: 1rem; z-index: 1200;
+  width: 2.25rem; height: 2.25rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.05rem; line-height: 1; cursor: pointer;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--c-line); box-shadow: var(--shadow);
+  opacity: .55; transition: opacity .15s ease, transform .15s ease;
+}
+.theme-toggle:hover { opacity: 1; transform: translateY(-1px); }
+.theme-toggle:focus-visible { opacity: 1; outline: 2px solid var(--c-blue); outline-offset: 2px; }
+
+/* OKR key-results checklist (header) */
+.okr-kr-label { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 700; color: #94a3b8; margin: .15rem 0 .55rem; }
+.okr-krs { list-style: none; margin: 0 0 1.1rem; padding: 0; display: flex; flex-direction: column; gap: .4rem; max-width: 72ch; }
+.okr-kr { display: flex; align-items: baseline; gap: .6rem; color: #e2e8f0; font-size: .98rem; }
+.okr-kr__dir { flex: none; width: 1.4rem; height: 1.4rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; line-height: 1; color: #fff; }
+.okr-kr--down .okr-kr__dir { background: var(--c-green); }
+.okr-kr--up   .okr-kr__dir { background: var(--c-green); }
+.okr-kr__text strong { color: #fff; font-weight: 700; }
+
 .district-nav { display: flex; gap: .25rem; flex-wrap: wrap; }
 .district-nav a {
   color: #cbd5e1; text-decoration: none; font-weight: 600; font-size: .92rem;

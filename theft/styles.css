@@ -46,6 +46,26 @@ body {
 }
 .app-header h1 { margin: .35rem 0 .5rem; font-size: 1.6rem; }
 .app-header__sub { margin: 0; max-width: 46rem; color: var(--wa-color-text-quiet, #4b4f58); }
+
+/* Light/dark QA toggle — subtle, fixed bottom-right */
+.theme-toggle {
+  position: fixed; bottom: 1rem; right: 1rem; z-index: 1200;
+  width: 2.25rem; height: 2.25rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.05rem; line-height: 1; cursor: pointer;
+  background: var(--wa-color-surface-raised, #fff); color: var(--wa-color-text-normal, #1c1c1e);
+  border: 1px solid var(--wa-color-surface-border, #e2e4e9); box-shadow: 0 1px 3px rgba(16,24,40,.14);
+  opacity: .55; transition: opacity .15s ease, transform .15s ease;
+}
+.theme-toggle:hover { opacity: 1; transform: translateY(-1px); }
+.theme-toggle:focus-visible { opacity: 1; outline: 2px solid var(--c-reported); outline-offset: 2px; }
+
+/* OKR key-results checklist (header) */
+.okr-kr-label { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 700; color: var(--c-flat); margin: .15rem 0 .55rem; }
+.okr-krs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; max-width: 46rem; }
+.okr-kr { display: flex; align-items: baseline; gap: .6rem; font-size: .98rem; color: var(--wa-color-text-normal, #1c1c1e); }
+.okr-kr__dir { flex: none; width: 1.4rem; height: 1.4rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; line-height: 1; color: #fff; background: var(--c-good); }
+.okr-kr__text strong { font-weight: 700; }
 .app-header__asof { display: block; margin-top: .75rem; color: var(--c-flat); font-size: .8rem; }
 
 .app-main { max-width: var(--maxw); margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }

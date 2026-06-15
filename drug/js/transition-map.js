@@ -53,7 +53,7 @@ function ensureMap(el) {
   map.on('moveend', () => { if (inMarkerMode()) renderMarkers(); });
   map.on('moveend', emitState);   // while a cell is pinned, keep its zoom/center fresh in the URL
   window.__map = map;   // exposed for e2e tests to drive zoom/center deterministically
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  window.addEventListener('themechange', () => {
     if (tile) tile.setUrl(isDark() ? TILE_DARK : TILE_LIGHT);
   });
   setTimeout(() => map.invalidateSize(), 0);
