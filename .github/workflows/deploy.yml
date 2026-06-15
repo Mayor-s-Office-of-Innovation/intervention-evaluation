@@ -39,7 +39,7 @@ jobs:
           #   index.html + styles.css + js/*.js + pre-baked data/ JSON (build/ is
           #   offline Python and is intentionally not shipped). Add a project here
           #   when it gains an index.html.
-          for project in districts theft unhoused drug; do
+          for project in districts theft unhoused drug okr-map; do
             if [ ! -f "$project/index.html" ]; then
               echo "Skipping $project (no index.html yet)"
               continue
