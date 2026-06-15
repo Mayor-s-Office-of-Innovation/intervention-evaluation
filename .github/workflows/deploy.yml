@@ -48,7 +48,12 @@ jobs:
             mkdir -p "_site/$project/js"
             cp "$project/index.html" "$project/styles.css" "_site/$project/"
             cp "$project"/js/*.js "_site/$project/js/"
-            [ -d "$project/data" ] && cp -r "$project/data" "_site/$project/data"
+            # Not every project ships pre-baked data (e.g. okr-map). Guard with an
+            # if-block: a bare `[ -d ] && cp` returns 1 when absent, which is fatal
+            # under `set -e` (bash -e) on the runner.
+            if [ -d "$project/data" ]; then
+              cp -r "$project/data" "_site/$project/data"
+            fi
           done
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
