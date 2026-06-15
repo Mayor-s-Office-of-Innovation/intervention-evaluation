@@ -1,0 +1,111 @@
+/* ──────────────────────────────────────────────────────────────────────
+   OKR mapping diagram — hand-rolled SVG bezier wires, no framework.
+   Shares the dashboard-family design tokens + .wa-dark theming.
+   ────────────────────────────────────────────────────────────────────── */
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+  --c-blue:   #3b82f6;
+  --c-slate:  #1f2937;
+  --c-gray:   #6b7280;
+  --c-line:   #e5e7eb;
+
+  --bg:       #f4f4f6;
+  --surface:  #ffffff;
+  --text:     var(--c-slate);
+  --muted:    var(--c-gray);
+
+  --radius:   12px;
+  --shadow:   0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
+
+  /* one accent per dashboard OKR — wires inherit these */
+  --okr-drug:     #7c3aed;   /* violet */
+  --okr-unhoused: #2563eb;   /* blue   */
+  --okr-merchant: #d97706;   /* amber  */
+}
+html.wa-dark {
+  --text: #e2e8f0; --muted: #94a3b8; --c-gray: #94a3b8; --c-line: #334155;
+  --bg: #0f172a; --surface: #1e293b;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.5);
+  --okr-drug: #a78bfa; --okr-unhoused: #60a5fa; --okr-merchant: #fbbf24;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; font-family: var(--font-sans); color: var(--text); background: var(--bg); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { color: var(--c-blue); }
+
+/* ── header ── */
+.app-header { background: var(--c-slate); color: #fff; padding: 2rem 1.25rem 1.75rem; }
+.app-header__inner { max-width: 1100px; margin: 0 auto; }
+.app-header__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 600; color: var(--c-blue); }
+.app-header h1 { margin: .35rem 0 .5rem; font-size: 1.6rem; font-weight: 700; }
+.app-header__sub { margin: 0; color: #cbd5e1; max-width: 70ch; }
+
+.app-main { max-width: 1100px; margin: 0 auto; padding: 1.75rem 1.25rem 4rem; }
+
+/* ── displacement callout ── */
+.displacement { background: var(--surface); border: 1px solid var(--c-line); border-left: 4px solid var(--okr-merchant);
+  border-radius: var(--radius); padding: 1rem 1.2rem; box-shadow: var(--shadow); margin-bottom: 2rem; max-width: 80ch; }
+.displacement__title { margin: 0 0 .35rem; font-size: 1rem; font-weight: 700; }
+.displacement p { margin: 0; color: var(--muted); }
+
+/* ── the stage: two columns with an SVG wire layer between them ── */
+.stage { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: clamp(3.5rem, 11vw, 10rem); align-items: center; }
+.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: visible; }
+
+.col { position: relative; z-index: 1; min-width: 0; }
+.col__head { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 .9rem; }
+.col__head--right { text-align: right; }
+.col__sub { display: block; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); opacity: .85; margin-top: .15rem; }
+.col__nodes { display: flex; flex-direction: column; gap: 1rem; }
+.col--okr .col__nodes { gap: 1.4rem; }
+
+/* ── nodes ── */
+.node { background: var(--surface); border: 1px solid var(--c-line); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: .8rem 1rem; font-size: .96rem; transition: opacity .15s ease, transform .15s ease, box-shadow .15s ease; }
+.node--draft { color: var(--text); }
+/* emphasize the place-specific phrasing — the part the reframe had to drop */
+.node--draft em { font-style: normal; font-weight: 650; color: var(--okr-merchant);
+  text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+
+.node--okr { display: flex; align-items: center; gap: .65rem; text-decoration: none; color: var(--text); font-weight: 650;
+  border-left: 4px solid var(--accent); }
+.node--okr:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(16,24,40,.16); }
+.node__dot { flex: none; width: .7rem; height: .7rem; border-radius: 999px; background: var(--accent); }
+.node__go { margin-left: auto; color: var(--muted); font-size: .9rem; }
+
+/* hover focus: dim everything not connected */
+.stage.has-focus .node.is-dim { opacity: .3; }
+
+/* ── wires ── */
+.wire { fill: none; stroke-width: 2.5; opacity: .5; transition: opacity .15s ease, stroke-width .15s ease; }
+.stage.has-focus .wire { opacity: .1; }
+.stage.has-focus .wire.is-on { opacity: 1; stroke-width: 3.5; }
+
+/* ── legend ── */
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 1.1rem; padding: 0; margin: 2.25rem 0 0; font-size: .85rem; color: var(--muted); }
+.legend li { display: inline-flex; align-items: center; gap: .45rem; }
+.legend .swatch { width: 1.4rem; height: .3rem; border-radius: 999px; background: var(--accent); }
+
+.app-footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--c-line); color: var(--muted); }
+.app-footer a { color: var(--c-blue); }
+
+/* ── light/dark QA toggle ── */
+.theme-toggle {
+  position: fixed; bottom: 1rem; right: 1rem; z-index: 1200;
+  width: 2.25rem; height: 2.25rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.05rem; line-height: 1; cursor: pointer;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--c-line); box-shadow: var(--shadow);
+  opacity: .55; transition: opacity .15s ease, transform .15s ease;
+}
+.theme-toggle:hover { opacity: 1; transform: translateY(-1px); }
+.theme-toggle:focus-visible { opacity: 1; outline: 2px solid var(--c-blue); outline-offset: 2px; }
+
+/* narrow screens: let the diagram scroll horizontally rather than collapse the wires */
+@media (max-width: 720px) {
+  .stage { gap: 4rem; }
+  .col__head { font-size: .68rem; }
+}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OKR mapping — draft spreadsheet → dashboards</title>
+
+  <!-- Light/dark: follow the OS by default; a small toggle (bottom-right) overrides it for QA. -->
+  <script>
+    (function () {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var KEY = 'theme-override';   // 'dark' | 'light' | null → follow OS
+      function override() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+      function isDark() { var o = override(); return o ? o === 'dark' : mq.matches; }
+      function syncBtn(dark) {
+        var b = document.getElementById('theme-toggle');
+        if (!b) return;
+        b.textContent = dark ? '☀' : '☾';
+        var lbl = (dark ? 'Switch to light mode' : 'Switch to dark mode') +
+                  (override() ? '' : ' (following OS)');
+        b.title = lbl; b.setAttribute('aria-label', lbl);
+      }
+      function apply() {
+        var dark = isDark(), el = document.documentElement;
+        el.classList.toggle('wa-dark', dark);
+        el.classList.toggle('wa-light', !dark);
+        syncBtn(dark);
+        window.dispatchEvent(new CustomEvent('themechange'));
+      }
+      window.__toggleTheme = function () {
+        try { localStorage.setItem(KEY, isDark() ? 'light' : 'dark'); } catch (e) {}
+        apply();
+      };
+      apply();
+      mq.addEventListener('change', function () { if (!override()) apply(); });
+      document.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('button');
+        b.id = 'theme-toggle'; b.className = 'theme-toggle'; b.type = 'button';
+        b.addEventListener('click', window.__toggleTheme);
+        document.body.appendChild(b);
+        syncBtn(isDark());
+      });
+    })();
+  </script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <span class="app-header__eyebrow">San Francisco · OKR mapping exercise</span>
+      <h1>From the draft spreadsheet to the dashboard OKRs</h1>
+      <p class="app-header__sub">
+        Every draft OKR from the planning spreadsheet (left) maps onto one of three dashboard OKRs
+        (right). Nothing was dropped — the <strong>wording</strong> changed, on purpose.
+      </p>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <aside class="displacement" aria-label="Why the wording changed">
+      <h2 class="displacement__title">Why the wording changed: displacement</h2>
+      <p>
+        The drafts target specific <strong>corners and hotspots</strong>. But these are connected
+        systems — hold one corner and the activity just moves a block over. Measured corner-by-corner,
+        that reads as a win. So each dashboard OKR measures its issue <strong>district-wide</strong>,
+        where displacement can't be mistaken for progress.
+      </p>
+    </aside>
+
+    <section class="stage" id="stage" aria-label="OKR mapping diagram">
+      <div class="col col--draft">
+        <p class="col__head">From · Draft OKRs <span class="col__sub">spreadsheet · hotspot-specific</span></p>
+        <div class="col__nodes" id="draft-col"></div>
+      </div>
+
+      <svg class="wires" id="wires" aria-hidden="true"></svg>
+
+      <div class="col col--okr">
+        <p class="col__head col__head--right">To · Dashboard OKRs <span class="col__sub">district-wide · displacement-aware</span></p>
+        <div class="col__nodes" id="okr-col"></div>
+      </div>
+    </section>
+
+    <ul class="legend" id="legend" aria-label="Dashboard legend"></ul>
+
+    <footer class="app-footer">
+      <small>
+        Mapping exercise · the three dashboards: <a href="../drug/index.html">drug disorder</a> ·
+        <a href="../unhoused/index.html">unsheltered homelessness</a> ·
+        <a href="../theft/index.html">merchant confidence</a>. Hover any item to trace its links.
+      </small>
+    </footer>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
