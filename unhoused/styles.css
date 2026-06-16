@@ -245,3 +245,8 @@ path.mk-halo { pointer-events: all !important; }
 .status { max-width: 1040px; margin: .5rem auto; padding: .8rem 1rem; border-radius: var(--radius); font-size: .9rem; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 .app-footer { margin-top: 1rem; color: var(--muted); }
 .marker-overlay .ov-multi { margin: .25rem 0 .15rem; font-size: .72rem; font-style: italic; opacity: .7; }
+
+/* Back-to-homepage link (top of header) */
+.back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }
+.back-home:hover { opacity: 1; color: #fff; }
+.back-home:focus-visible { opacity: 1; color: #fff; outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }

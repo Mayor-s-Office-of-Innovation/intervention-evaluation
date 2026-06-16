@@ -197,3 +197,8 @@ body {
 .app-footer a, .methodology a, .app-header a { color: var(--c-reported); }
 
 .error { color: var(--c-bad); }
+
+/* Back-to-homepage link (top of header) */
+.back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }
+.back-home:hover { opacity: 1; color: #fff; }
+.back-home:focus-visible { opacity: 1; color: #fff; outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }

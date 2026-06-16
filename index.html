@@ -3,30 +3,48 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Does the data support my hypothesis? — SF intervention check</title>
+  <title>SF intervention OKR dashboards</title>
 
-  <!-- Respect the OS light/dark setting (Web Awesome reads .wa-dark / .wa-light on <html>) -->
+  <!-- Light/dark: follow the OS by default; a small toggle (bottom-right) overrides it for QA. -->
   <script>
     (function () {
       var mq = window.matchMedia('(prefers-color-scheme: dark)');
-      function apply() {
-        document.documentElement.classList.toggle('wa-dark', mq.matches);
-        document.documentElement.classList.toggle('wa-light', !mq.matches);
+      var KEY = 'theme-override';   // 'dark' | 'light' | null → follow OS
+      function override() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+      function isDark() { var o = override(); return o ? o === 'dark' : mq.matches; }
+      function syncBtn(dark) {
+        var b = document.getElementById('theme-toggle');
+        if (!b) return;
+        b.textContent = dark ? '☀' : '☾';
+        var lbl = (dark ? 'Switch to light mode' : 'Switch to dark mode') +
+                  (override() ? '' : ' (following OS)');
+        b.title = lbl; b.setAttribute('aria-label', lbl);
       }
+      function apply() {
+        var dark = isDark(), el = document.documentElement;
+        el.classList.toggle('wa-dark', dark);
+        el.classList.toggle('wa-light', !dark);
+        syncBtn(dark);
+        window.dispatchEvent(new CustomEvent('themechange'));
+      }
+      window.__toggleTheme = function () {
+        try { localStorage.setItem(KEY, isDark() ? 'light' : 'dark'); } catch (e) {}
+        apply();
+      };
       apply();
-      mq.addEventListener('change', apply);
+      mq.addEventListener('change', function () { if (!override()) apply(); });
+      document.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('button');
+        b.id = 'theme-toggle'; b.className = 'theme-toggle'; b.type = 'button';
+        b.addEventListener('click', window.__toggleTheme);
+        document.body.appendChild(b);
+        syncBtn(isDark());
+      });
     })();
   </script>
 
-  <!-- Web Awesome (autoloader: components load on demand) -->
   <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.7.0/styles/webawesome.css" />
   <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"></script>
-
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -34,107 +52,86 @@
   <header class="app-header">
     <div class="app-header__inner">
       <span class="app-header__eyebrow">San Francisco · OpenData</span>
-      <h1>Does the data support my hypothesis?</h1>
+      <h1>SF intervention OKR dashboards</h1>
       <p class="app-header__sub">
-        Check whether a neighborhood intervention had its intended effect, using live SF 911 dispatch data.
+        Track whether San Francisco's neighborhood interventions are moving the numbers that matter,
+        using live SF OpenData. Pick an objective to see its key results.
       </p>
     </div>
   </header>
 
-  <main class="app-main wa-stack wa-gap-xl">
+  <main class="app-main">
+    <p class="section-label">Objectives</p>
+    <div class="okr-grid">
 
-    <!-- ───────────── Inputs ───────────── -->
-    <wa-card class="panel" id="input-panel">
-      <h2 slot="header" class="panel__title">Describe your intervention</h2>
-
-      <div class="wa-stack wa-gap-l">
-        <wa-input id="in-what" label="What did you do?"
-                  placeholder="e.g. installed new lighting and trimmed trees for better sight lines"></wa-input>
-
-        <div class="wa-grid" style="--min-column-size: 14rem;">
-          <wa-input id="in-when" type="date" label="When did it happen?"></wa-input>
-          <div class="wa-stack wa-gap-2xs">
-            <wa-select id="in-expect" label="What do you expect to change?"></wa-select>
-            <small id="expect-desc" class="field-hint"></small>
-          </div>
+      <!-- Drug -->
+      <a class="okr-card" href="./drug/">
+        <div class="okr-card__body">
+          <span class="okr-card__eyebrow">Drug activity by district</span>
+          <h2 class="okr-card__title">Reduce visible disorder: Drugs</h2>
+          <p class="okr-kr-label">Key Results</p>
+          <ul class="okr-krs" aria-label="Key results">
+            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+              <span class="okr-kr__text"><strong>Reduce</strong> 911 drug related complaints</span></li>
+            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↑</span>
+              <span class="okr-kr__text"><strong>Increase</strong> dealer arrests that disrupt supply</span></li>
+          </ul>
         </div>
+        <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
+      </a>
 
-        <div class="wa-stack wa-gap-2xs">
-          <label class="field-label">Where did you do it? <span class="field-hint">Click the map to drop a pin.</span></label>
-          <div id="picker-map" class="picker-map"></div>
-          <small id="coords-readout" class="coords-readout"></small>
+      <!-- Unhoused -->
+      <a class="okr-card" href="./unhoused/">
+        <div class="okr-card__body">
+          <span class="okr-card__eyebrow">Unhoused presence by district</span>
+          <h2 class="okr-card__title">Reduce visible disorder: unsheltered homelessness</h2>
+          <p class="okr-kr-label">Key Results</p>
+          <ul class="okr-krs" aria-label="Key results">
+            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+              <span class="okr-kr__text"><strong>Reduce</strong> encampments</span></li>
+            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+              <span class="okr-kr__text"><strong>Reduce</strong> 911 unhoused-presence calls</span></li>
+          </ul>
         </div>
+        <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
+      </a>
 
-        <wa-slider id="radius-slider" label="Area radius (meters)"
-                   min="100" max="1000" value="250" step="50" with-tooltip
-                   hint="Size of the circle searched around the pin."></wa-slider>
-
-        <wa-button id="run-btn" variant="brand" appearance="accent" size="l">
-          <wa-icon slot="start" name="magnifying-glass-chart"></wa-icon>
-          Check the data
-        </wa-button>
-      </div>
-    </wa-card>
-
-    <!-- ───────────── Results (hidden until first run) ───────────── -->
-    <section id="results" class="wa-stack wa-gap-xl" hidden>
-
-      <!-- Save / share — copy a link that re-creates this exact report -->
-      <div class="share-bar">
-        <wa-button id="copy-link-btn" size="small" appearance="outlined" variant="brand">
-          <wa-icon id="copy-icon" slot="start" name="copy"></wa-icon>
-          <span id="copy-label">Copy shareable link</span>
-        </wa-button>
-        <small id="copy-status" class="copy-status" role="status" aria-live="polite"></small>
-      </div>
-
-      <!-- Verdict slot — deterministic descriptive line now; AI synthesis drops in here later -->
-      <wa-callout id="verdict" variant="neutral" size="l">
-        <wa-icon slot="icon" name="wand-magic-sparkles"></wa-icon>
-        <div id="verdict-body"></div>
-      </wa-callout>
-
-      <!-- Stat cards -->
-      <div class="wa-grid wa-gap-l" id="stat-cards" style="--min-column-size: 13rem;"></div>
-
-      <!-- Chart -->
-      <wa-card class="panel">
-        <h2 slot="header" class="panel__title" id="chart-title">Complaints over time</h2>
-        <div class="chart-controls">
-          <wa-slider id="range-slider" range size="s" with-tooltip
-                     min="0" max="100" min-value="0" max-value="100"
-                     label="Date range — drag the handles to zoom in (bars and map adjust)"></wa-slider>
-          <div id="range-readout" class="range-readout"></div>
-          <small id="range-suggest" class="range-suggest"></small>
+      <!-- Theft -->
+      <a class="okr-card" href="./theft/">
+        <div class="okr-card__body">
+          <span class="okr-card__eyebrow">Theft from merchants (Northern)</span>
+          <h2 class="okr-card__title">Restore merchant confidence</h2>
+          <p class="okr-kr-label">Key Results</p>
+          <ul class="okr-krs" aria-label="Key results">
+            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+              <span class="okr-kr__text"><strong>Reduce</strong> shoplifting reported by businesses</span></li>
+            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
+              <span class="okr-kr__text"><strong>Reduce</strong> commercial burglary &amp; robbery</span></li>
+          </ul>
         </div>
-        <div id="chart-host" class="chart-host"></div>
-        <small id="chart-note" class="repro-note"></small>
-      </wa-card>
+        <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
+      </a>
 
-      <!-- Map of events -->
-      <wa-card class="panel">
-        <h2 slot="header" class="panel__title" id="map-title">Where the reports are</h2>
-        <div id="events-map" class="events-map"></div>
-        <small class="repro-note">Each dot is one 911 call. Click a dot for the date and dispatcher notes.</small>
-      </wa-card>
+    </div>
+
+    <!-- Hypothesis tool -->
+    <section class="tool-section">
+      <p class="section-label">Explore interventions</p>
+      <a class="tool-card" href="./hypothesis/">
+        <wa-icon class="tool-card__icon" name="magnifying-glass-chart"></wa-icon>
+        <div class="tool-card__body">
+          <h2 class="tool-card__title">Does the data support my hypothesis?</h2>
+          <p class="tool-card__sub">Check whether a neighborhood intervention had its intended effect, using live SF 911 dispatch data.</p>
+        </div>
+        <wa-icon class="tool-card__arrow" name="arrow-right" label="Open tool"></wa-icon>
+      </a>
     </section>
-
-    <!-- Loading / error -->
-    <div id="status" class="status" hidden></div>
-
-    <section id="methodology" class="methodology">
-      <h2 class="methodology__title">How this is measured — data &amp; live queries</h2>
-      <div id="methodology-body"></div>
-    </section>
-
-    <footer class="app-footer">
-      <small>
-        Source: SFPD Calls for Service (<a href="https://data.sfgov.org/d/2zdj-bwza" target="_blank" rel="noopener">2zdj-bwza</a>),
-        queried live from data.sfgov.org. Prototype — observational, not a causal claim.
-      </small>
-    </footer>
   </main>
 
-  <script type="module" src="./js/app.js"></script>
+  <footer class="app-footer">
+    <small>
+      Sources: SF OpenData (<a href="https://data.sfgov.org" target="_blank" rel="noopener">data.sfgov.org</a>).
+    </small>
+  </footer>
 </body>
 </html>

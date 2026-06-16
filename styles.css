@@ -1,20 +1,14 @@
 /* ──────────────────────────────────────────────────────────────────────
-   Design tokens — values reused from resultsfor.sf.gov (NO Tailwind / framework).
-   Hand-authored, layered alongside Web Awesome's own theme tokens.
+   Homepage — index of the SF intervention OKR dashboards. Self-contained
+   (no JS beyond the theme toggle), reuses the dashboards' design tokens.
    ────────────────────────────────────────────────────────────────────── */
 :root {
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 
   --c-blue:   #3b82f6;
-  --c-amber:  #f59e0b;
-  --c-orange: #f97316;
-  --c-purple: #a855f7;
   --c-green:  #22c55e;
-  --c-red:    #ef4444;
-  --c-red-dk: #b91c1c;
   --c-slate:  #1f2937;
   --c-gray:   #6b7280;
-  --c-gray-2: #9ca3af;
   --c-line:   #e5e7eb;
 
   --bg:       #f4f4f6;
@@ -24,183 +18,98 @@
 
   --radius:   12px;
   --shadow:   0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
+  --shadow-lift: 0 4px 10px rgba(16,24,40,.10), 0 12px 24px rgba(16,24,40,.10);
 
-  /* Nudge Web Awesome's brand toward the SF blue */
   --wa-color-brand-fill-loud: var(--c-blue);
   --wa-color-brand-fill-normal: var(--c-blue);
 }
-
-/* Dark mode — same tokens, dark values (toggled via html.wa-dark, set from OS).
-   Every element reads these tokens, so this one block flips the whole page. */
 html.wa-dark {
-  --text:     #e2e8f0;   /* slate-200 */
-  --muted:    #94a3b8;   /* slate-400 */
-  --c-gray:   #94a3b8;
-  --c-gray-2: #64748b;
-  --c-line:   #334155;   /* slate-700 */
-  --bg:       #0f172a;   /* slate-900 */
-  --surface:  #1e293b;   /* slate-800 */
-  --shadow:   0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.5);
+  --text: #e2e8f0; --muted: #94a3b8; --c-gray: #94a3b8; --c-line: #334155;
+  --bg: #0f172a; --surface: #1e293b;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.5);
+  --shadow-lift: 0 4px 10px rgba(0,0,0,.5), 0 12px 24px rgba(0,0,0,.5);
 }
-html.wa-dark .verdict-warn { color: #fcd34d; background: #422006; border-color: #854d0e; }
-html.wa-dark .status--loading { background: #172554; color: #bfdbfe; border-color: #1e3a8a; }
-html.wa-dark .status--error { background: #450a0a; color: #fecaca; border-color: #7f1d1d; }
 
 * { box-sizing: border-box; }
-
-/* The hidden attribute must win over layout utilities like .wa-stack
-   (which set display:flex and would otherwise override [hidden]). */
 [hidden] { display: none !important; }
-
 html { scroll-behavior: smooth; }
-
-body {
-  margin: 0;
-  font-family: var(--font-sans);
-  color: var(--text);
-  background: var(--bg);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
+body { margin: 0; font-family: var(--font-sans); color: var(--text); background: var(--bg); line-height: 1.5; -webkit-font-smoothing: antialiased; }
 a { color: var(--c-blue); }
 
 /* ───────────── Header ───────────── */
-.app-header {
-  background: var(--c-slate);
-  color: #fff;
-  padding: 2rem 1.25rem;
-}
+.app-header { background: var(--c-slate); color: #fff; padding: 2.25rem 1.25rem; }
 .app-header__inner { max-width: 1040px; margin: 0 auto; }
-.app-header__eyebrow {
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  font-size: .72rem;
-  font-weight: 600;
-  color: var(--c-blue);
-}
-.app-header h1 { margin: .35rem 0 .25rem; font-size: 1.6rem; font-weight: 700; }
-.app-header__sub { margin: 0; color: #cbd5e1; max-width: 60ch; }
+.app-header__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 600; color: var(--c-blue); }
+.app-header h1 { margin: .35rem 0 .35rem; font-size: 1.75rem; font-weight: 700; }
+.app-header__sub { margin: 0; color: #cbd5e1; max-width: 72ch; }
 
-/* ───────────── Layout ───────────── */
-.app-main {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 1.75rem 1.25rem 3rem;
+/* Theme toggle — subtle, fixed bottom-right (matches the dashboards) */
+.theme-toggle {
+  position: fixed; bottom: 1rem; right: 1rem; z-index: 1200;
+  width: 2.25rem; height: 2.25rem; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.05rem; line-height: 1; cursor: pointer;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--c-line); box-shadow: var(--shadow);
+  opacity: .55; transition: opacity .15s ease, transform .15s ease;
 }
+.theme-toggle:hover { opacity: 1; transform: translateY(-1px); }
+.theme-toggle:focus-visible { opacity: 1; outline: 2px solid var(--c-blue); outline-offset: 2px; }
 
-.panel {
-  --spacing: 1.25rem;
-  box-shadow: var(--shadow);
-  border-radius: var(--radius);
-}
-.panel__title { margin: 0; font-size: 1.05rem; font-weight: 650; }
+/* ───────────── Main ───────────── */
+.app-main { max-width: 1040px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+.section-label { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 700; color: var(--muted); margin: 0 0 1rem; }
 
-.field-label { font-weight: 600; font-size: .9rem; }
-.field-hint, .coords-readout { color: var(--muted); font-weight: 400; }
-.coords-readout { font-size: .8rem; }
+/* ───────────── OKR dashboard cards ───────────── */
+.okr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1.1rem; }
 
-/* ───────────── Maps ───────────── */
-.picker-map { height: 300px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
-.events-map { height: 440px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
-.leaflet-container { font-family: var(--font-sans); }
+.okr-card {
+  display: flex; flex-direction: column;
+  text-decoration: none; color: inherit;
+  background: var(--surface); border: 1px solid var(--c-line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 1.25rem 1.35rem 1.1rem;
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.okr-card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); border-color: var(--c-blue); }
+.okr-card:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.okr-card__body { flex: 1 1 auto; min-width: 0; }
+.okr-card__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 600; color: var(--c-blue); }
+.okr-card__title { margin: .3rem 0 .9rem; font-size: 1.2rem; font-weight: 700; color: var(--text); line-height: 1.25; }
 
-/* ───────────── Verdict callout ───────────── */
-#verdict { font-size: 1.05rem; }
-.verdict-note { margin-top: .5rem; font-size: .82rem; color: var(--muted); }
-.verdict-warn {
-  margin-top: .6rem; font-size: .85rem; font-weight: 600;
-  color: #92400e; background: #fffbeb;
-  border: 1px solid #fde68a; border-radius: 8px; padding: .5rem .65rem;
+/* Arrow sits at the bottom-right so the KR text gets the card's full width */
+.okr-card__arrow {
+  align-self: flex-end; margin-top: 1rem; font-size: 1.35rem; color: var(--c-gray);
+  transition: transform .15s ease, color .15s ease;
 }
+.okr-card:hover .okr-card__arrow { color: var(--c-blue); transform: translateX(3px); }
 
-/* ───────────── Stat cards ───────────── */
-.stat {
-  display: flex; flex-direction: column; gap: .15rem;
-  background: var(--surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius);
-  padding: 1rem 1.1rem;
-  box-shadow: var(--shadow);
-}
-.stat__label { font-size: .78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-.stat__value { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
-.stat__sub   { font-size: .82rem; color: var(--muted); }
+/* OKR key-results checklist (inside cards) */
+.okr-kr-label { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 700; color: var(--muted); margin: 0 0 .5rem; }
+.okr-krs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .45rem; }
+.okr-kr { display: flex; align-items: baseline; gap: .55rem; color: var(--text); font-size: .92rem; }
+.okr-kr__dir { flex: none; width: 1.3rem; height: 1.3rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .82rem; line-height: 1; color: #fff; background: var(--c-green); }
+.okr-kr__text strong { font-weight: 700; }
 
-/* ───────────── Chart ───────────── */
-.chart-controls { margin-bottom: .75rem; }
-.range-readout { margin-top: .4rem; font-size: .8rem; color: var(--muted); }
-.range-suggest { display: block; margin-top: .25rem; font-size: .78rem; color: var(--muted); font-style: italic; }
-.chart-host { position: relative; width: 100%; }
-.chart-host svg { display: block; width: 100%; }
-.chart-grid line { stroke: var(--c-line); stroke-dasharray: 3 3; }
-.chart-axis text { fill: var(--c-gray); font-size: 11px; }
-.chart-bar { fill: var(--c-blue); }
-.chart-bar--post { fill: #93c5fd; }
-.chart-marker { stroke: var(--c-red); stroke-width: 2; stroke-dasharray: 4 3; }
-.chart-marker-label { fill: var(--c-red); font-size: 11px; font-weight: 600; }
-.chart-break { stroke: var(--c-gray, #6b7280); stroke-width: 1.5; stroke-dasharray: 1 4; }
-.chart-break-label { fill: var(--c-gray, #6b7280); font-size: 11px; font-weight: 600; }
-.chart-tip {
-  position: absolute; pointer-events: none; z-index: 5;
-  transform: translate(-50%, -100%);
-  background: var(--surface); color: var(--text); border: 1px solid var(--c-line); border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(16,24,40,.12);
-  padding: .4rem .6rem; font-size: .8rem; white-space: nowrap;
+/* ───────────── Hypothesis tool link ───────────── */
+.tool-section { margin-top: 2.5rem; }
+.tool-card {
+  display: flex; align-items: center; gap: 1rem;
+  text-decoration: none; color: inherit;
+  background: var(--surface); border: 1px solid var(--c-line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem;
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
 }
-.chart-tip strong { display: block; }
+.tool-card:hover { box-shadow: var(--shadow-lift); transform: translateY(-2px); border-color: var(--c-blue); }
+.tool-card:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.tool-card__icon { flex: none; font-size: 1.5rem; color: var(--c-blue); }
+.tool-card__body { flex: 1 1 auto; min-width: 0; }
+.tool-card__title { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.tool-card__sub { margin: .15rem 0 0; color: var(--muted); font-size: .9rem; }
+.tool-card__arrow { flex: none; font-size: 1.2rem; color: var(--c-gray); transition: transform .15s ease, color .15s ease; }
+.tool-card:hover .tool-card__arrow { color: var(--c-blue); transform: translateX(3px); }
 
-/* ───────────── Methodology ("How this is measured") ───────────── */
-.methodology {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--c-line);
-}
-.methodology__title { font-size: 1.05rem; font-weight: 650; margin: 0 0 .5rem; }
-.method-pre { color: var(--muted); font-size: .88rem; margin: 0 0 1rem; }
-.method-src {
-  background: var(--surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius);
-  padding: .9rem 1rem;
-  margin-bottom: .75rem;
-}
-.method-src__head { font-weight: 600; font-size: .9rem; }
-.method-ds { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; margin-left: .35rem; }
-.method-src__desc { margin: .35rem 0; font-size: .9rem; }
-.method-src__filter {
-  display: block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: .78rem;
-  background: var(--bg);
-  border: 1px solid var(--c-line);
-  border-radius: 6px;
-  padding: .5rem .6rem;
-  margin: .4rem 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--c-gray);
-}
-.method-src__link { margin: .35rem 0 0; font-size: .85rem; }
-.method-pending { color: var(--c-gray-2); font-style: italic; }
-.method-jump { font-size: .8rem; white-space: nowrap; }
-
-/* ───────────── Save / share ───────────── */
-/* Anchor target: leave breathing room so the smooth-scroll lands the share bar
-   just below the top edge rather than flush against it. */
-#results { scroll-margin-top: 1rem; }
-.share-bar {
-  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
-}
-.copy-status { color: var(--c-green, #22c55e); font-size: .85rem; }
-.copy-status--error { color: var(--c-gray, #6b7280); word-break: break-all; }
-
-/* ───────────── Misc ───────────── */
-.repro-note { color: var(--muted); font-size: .78rem; }
-.status {
-  max-width: 1040px; margin: .5rem auto; padding: .8rem 1rem;
-  border-radius: var(--radius); font-size: .9rem;
-}
-.status--loading { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-.status--error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.app-footer { margin-top: 1rem; color: var(--muted); }
+/* ───────────── Footer ───────────── */
+.app-footer { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem 3rem; color: var(--muted); }
+.app-footer small { font-size: .82rem; }

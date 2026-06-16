@@ -31,15 +31,15 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Stage site files
         run: |
-          # Root landing page
-          mkdir -p _site/js
+          # Root landing page — static index of the dashboards, no JS of its own.
+          mkdir -p _site
           cp index.html styles.css _site/
-          cp js/*.js _site/js/
-          # Each dashboard lives in its own subdir with an identical static layout:
+          # Each project lives in its own subdir with an identical static layout:
           #   index.html + styles.css + js/*.js + pre-baked data/ JSON (build/ is
           #   offline Python and is intentionally not shipped). Add a project here
-          #   when it gains an index.html.
-          for project in districts theft unhoused drug okr-map; do
+          #   when it gains an index.html. `hypothesis` is the self-serve tool that
+          #   used to live at the repo root.
+          for project in districts theft unhoused drug okr-map hypothesis; do
             if [ ! -f "$project/index.html" ]; then
               echo "Skipping $project (no index.html yet)"
               continue

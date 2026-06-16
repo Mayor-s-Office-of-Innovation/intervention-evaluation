@@ -1,10 +1,11 @@
 import { defineConfig } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
-// Standalone Playwright config for the hypothesis tool. Kept separate from the
-// main emergent-map suite (root playwright.config.js) — it reuses the installed
-// @playwright/test dependency but has its own testDir + dev server on :8090.
-// Run with:  npx playwright test -c hypothesis-tool/playwright.config.js
+// Standalone Playwright config for the hypothesis tool (lives in hypothesis/).
+// It reuses the @playwright/test dependency installed at the repo root but has
+// its own testDir + dev server on :8090, serving this directory at /.
+// Run with:  npx playwright test -c hypothesis/playwright.config.js
+// (or `npm test` from the repo root, which points here).
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,
