@@ -70,8 +70,9 @@ def build(mapkey):
                 if r["district"] not in TARGET_DISTRICTS or r["lat"] is None:
                     continue
                 day = (datetime.date.fromisoformat(r["date"]) - EPOCH).days
+                hour = r.get("hour")  # 0-23 or None
                 d = r.get("detail", {})
-                rows.append((round(r["lat"] * 1e5), round(r["lng"] * 1e5), day,
+                rows.append((round(r["lat"] * 1e5), round(r["lng"] * 1e5), day, hour,
                              [clean(c, d.get(c)) for c in cols]))
 
     # Code low-cardinality fields with a per-field dictionary (keeps the file lean — e.g. the long
@@ -80,16 +81,16 @@ def build(mapkey):
     n = len(rows)
     fields = []
     for i, lab in enumerate(labels):
-        distinct = {row[3][i] for row in rows}
+        distinct = {row[4][i] for row in rows}  # row[4] is detail values (after lat, lng, day, hour)
         coded = len(distinct) <= max(64, n // 50)
         fields.append({"label": lab, "coded": coded,
                        "values": sorted(distinct) if coded else None})
     code_idx = [({v: j for j, v in enumerate(f["values"])} if f["coded"] else None) for f in fields]
 
     pts = []
-    for (la, lo, day, vals) in rows:
+    for (la, lo, day, hour, vals) in rows:
         enc = [code_idx[i][v] if fields[i]["coded"] else v for i, v in enumerate(vals)]
-        pts.append([la, lo, day] + enc)
+        pts.append([la, lo, day, hour if hour is not None else -1] + enc)  # -1 for unknown hour
 
     out = {
         "epoch": EPOCH.isoformat(),

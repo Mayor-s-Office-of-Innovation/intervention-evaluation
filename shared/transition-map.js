@@ -24,6 +24,21 @@ export const CATEGORY = {
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
 
+const TIME_BUCKETS = {
+  morning: { label: 'Morning', hours: [6, 7, 8, 9, 10, 11] },
+  afternoon: { label: 'Afternoon', hours: [12, 13, 14, 15, 16, 17] },
+  evening: { label: 'Evening', hours: [18, 19, 20, 21] },
+  night: { label: 'Night', hours: [22, 23, 0, 1, 2, 3, 4, 5] },
+};
+
+function getTimeBucket(hour) {
+  if (hour < 0) return null;
+  for (const [key, { hours }] of Object.entries(TIME_BUCKETS)) {
+    if (hours.includes(hour)) return key;
+  }
+  return null;
+}
+
 let map = null, popup = null, hintEl = null;
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
@@ -263,11 +278,17 @@ function showCellPopup(feat) {
     `<strong>${p.label}</strong> · ${esc(titleCase(p.district))}` +
     `<br>Before Lurie: <strong>${p.preRate}</strong>/mo · Now: <strong>${p.nowRate}</strong>/mo` +
     (p.expectedRate != null ? ` <small>(district-tide ${p.expectedRate})</small>` : '') +
-    sparkline(monthly);
+    sparkline(monthly) +
+    `<button class="cell-details-btn" data-lat="${coords[1]}" data-lng="${coords[0]}">See details</button>` +
+    `<div class="cell-details" hidden></div>`;
 
   popup.setLngLat(coords).setHTML(html).addTo(map);
   selectedCellId = p.cellId;
   emitState();
+
+  const popupEl = popup.getElement();
+  const btn = popupEl?.querySelector('.cell-details-btn');
+  btn?.addEventListener('click', () => showCellDetails(coords[1], coords[0], popupEl));
 
   popup.on('close', () => {
     if (selectedCellId === p.cellId) {
@@ -275,6 +296,104 @@ function showCellPopup(feat) {
       emitState();
     }
   });
+}
+
+function getMarkersForCell(lat, lng, data) {
+  if (!data?.pts) return [];
+  const { coordScale, pts } = data;
+  const cellLat = Math.round(lat * 1000) / 1000;
+  const cellLng = Math.round(lng * 1000) / 1000;
+  return pts.filter(pt => {
+    const mLat = Math.round((pt[0] / coordScale) * 1000) / 1000;
+    const mLng = Math.round((pt[1] / coordScale) * 1000) / 1000;
+    return mLat === cellLat && mLng === cellLng;
+  });
+}
+
+function computeBreakdown(markers, fields, hourFilter = null) {
+  const typeFieldIdx = fields.findIndex(f =>
+    ['Reported as', 'Type', 'Call type', 'call_type_original_desc'].includes(f.label)
+  );
+  if (typeFieldIdx < 0 || !markers.length) return [];
+
+  const field = fields[typeFieldIdx];
+  const counts = {};
+  const fieldOffset = 4; // pts layout: [lat, lng, day, hour, ...fields]
+
+  markers.forEach(pt => {
+    const hour = pt[3];
+    if (hourFilter && !hourFilter.includes(getTimeBucket(hour))) return;
+    const rawVal = pt[fieldOffset + typeFieldIdx];
+    const val = field.coded ? (field.values[rawVal] || '') : (rawVal || '');
+    counts[val] = (counts[val] || 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+}
+
+function renderBreakdownList(breakdown) {
+  if (!breakdown.length) return '<em class="cell-details__empty">No reports at this location</em>';
+  const total = breakdown.reduce((s, [, c]) => s + c, 0);
+  return breakdown.map(([type, count]) => {
+    const pct = Math.round((count / total) * 100);
+    return `
+      <div class="breakdown-row">
+        <span class="breakdown-type">${esc(type || '(blank)')}</span>
+        <span class="breakdown-bar" style="--pct:${pct}%"></span>
+        <span class="breakdown-count">${count}</span>
+      </div>`;
+  }).join('');
+}
+
+async function showCellDetails(lat, lng, popupEl) {
+  if (!markerData && markerLoader && !markerLoading) {
+    markerLoading = true;
+    try { markerData = await markerLoader(); } finally { markerLoading = false; }
+  }
+  if (!markerData) return;
+
+  const detailsEl = popupEl?.querySelector('.cell-details');
+  if (!detailsEl) return;
+
+  const cellMarkers = getMarkersForCell(lat, lng, markerData);
+
+  let html = `
+    <div class="cell-details__header">${cellMarkers.length} report${cellMarkers.length !== 1 ? 's' : ''}</div>
+    <div class="cell-details__filter" role="group" aria-label="Time of day">
+      <button class="tod-chip is-active" data-tod="all">All</button>
+      <button class="tod-chip" data-tod="morning">Morning</button>
+      <button class="tod-chip" data-tod="afternoon">Afternoon</button>
+      <button class="tod-chip" data-tod="evening">Evening</button>
+      <button class="tod-chip" data-tod="night">Night</button>
+    </div>
+    <div class="cell-details__breakdown"></div>`;
+
+  detailsEl.innerHTML = html;
+  detailsEl.hidden = false;
+
+  const filterBtns = detailsEl.querySelectorAll('.tod-chip');
+  const breakdownEl = detailsEl.querySelector('.cell-details__breakdown');
+
+  const renderBd = (filter) => {
+    const breakdown = computeBreakdown(cellMarkers, markerData.fields, filter);
+    breakdownEl.innerHTML = renderBreakdownList(breakdown);
+  };
+
+  filterBtns.forEach(btn => {
+    btn.onclick = () => {
+      filterBtns.forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      const tod = btn.dataset.tod;
+      renderBd(tod === 'all' ? null : [tod]);
+    };
+  });
+
+  renderBd(null);
+  popup.setMaxWidth('340px');
+
+  popupEl.querySelector('.cell-details-btn')?.remove();
 }
 
 async function applyZoomMode() {

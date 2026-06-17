@@ -108,13 +108,14 @@ def assign(signal_key, polys):
             dropped_undated += 1
             continue
         ym, date = dt[:7], dt[:10]
+        hour = int(dt[11:13]) if len(dt) >= 13 else None
         lat, lng = coords_of(r, sig)
         if lat is None:
             no_coord += 1
-            out.append({"id": rid, "ym": ym, "date": date, "lat": None, "lng": None, "district": "UNKNOWN"})
+            out.append({"id": rid, "ym": ym, "date": date, "hour": hour, "lat": None, "lng": None, "district": "UNKNOWN"})
             continue
         rec = {
-            "id": rid, "ym": ym, "date": date, "lat": lat, "lng": lng,
+            "id": rid, "ym": ym, "date": date, "hour": hour, "lat": lat, "lng": lng,
             "district": district_for(lat, lng, polys),
         }
         if detail_cols:
