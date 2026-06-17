@@ -8,6 +8,13 @@ co-headline cards (drug reports ↓ / dealer arrests ↑, D9), the **"what drug 
 (the paraphernalia-vs-dealer story), the fixed-Lurie **displacement map** on `cfs_drug`, needles shown
 citywide+caveated, and the two required footnotes (excluded arrest types, needle exclusion). See §11.
 
+**Follow-on work (cross-cutting) → [plan-scrubber.md](plan-scrubber.md).** The **time scrubber + validation
+hardening** generalized the displacement map into a *parametric* difference-in-differences (any analysis
+window vs the fixed pre-Lurie baseline), made the chart the scrubber, extracted the shared `../shared/` lib,
+brought the feature to `../unhoused/`, and added a CI validation suite (build invariants, classifier parity,
+e2e gate, nightly source↔data trace). **Start at [plan-scrubber.md](plan-scrubber.md) for that chain of work
+and its current status.**
+
 > Living document. Keep it current as we build (see Changelog, §9).
 
 ---

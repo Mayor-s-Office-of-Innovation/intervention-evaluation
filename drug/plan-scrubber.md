@@ -1,7 +1,10 @@
 # Time Scrubber + Validation Hardening — Implementation Plan
 
-Status: **approved design, pre-implementation.** Built first on `drug`, then extracted to a shared
-lib and adopted by `unhoused`; `theft` gets only the card chips (no map → no scrubber).
+Part of the [plan.md](plan.md) chain (follow-on work). Covers `drug` + `unhoused` + the shared `../shared/` lib.
+
+Status: **shipped on `drug` + `unhoused` (2026-06-17); validation suite green and gating CI.** `theft` left
+unchanged (already has card chips; no map → no scrubber consumer). Full record + remaining follow-ups in
+**§9 (bottom)**.
 
 ---
 
@@ -200,3 +203,34 @@ never on the PR critical path. The same trace philosophy extends to the map: a c
 - **Short-window noise** — mitigated by min-3-month floor + length-scaled floor + tide normalization.
 - **Nightly trace flakiness** — slow `LIKE` scans on Socrata; keep off the PR path, generous timeout.
 - **app.js drift** — the heaviest duplication; keep per-dashboard, extract only the stable core (Phase 6).
+
+---
+
+## 9. Status — what shipped / what remains (2026-06-17)
+
+**Shipped & verified locally (all phases 0–7):**
+- Architecture: top-level **`shared/{data,rollup,classify,chart,transition-map}.js`** is the single source
+  of truth; `drug/js/` and `unhoused/js/` hold only `app.js` (importing `../../shared/*.js`). `deploy.yml`
+  stages `shared/` → `_site/shared/`.
+- `drug` + `unhoused`: chart-as-scrubber (brush + presets `Since Lurie · 12mo · 3mo · All`), parametric map
+  reclassification per window (client-side `classify.js`), 1/3/12 momentum chips on cards, slim citywide
+  context card above the chart, dashboard panel below the map.
+- Builds (`04_transitions.py`, both dashboards) emit the full window-independent cell universe +
+  `district_monthly` + a fixed-preset **parity oracle**; data regenerated.
+- Validation: `validation/validate_build.py` (V1+V3), `validation/parity.mjs` (V2, drug+unhoused exact),
+  `validation/trace.py` (source↔data, all signals Δ0.00%). e2e: drug 5/5 (V5 fix + V7 + mispoint guard),
+  unhoused 8/8, theft 7/7. CI: `deploy.yml` `test` job gates the Pages deploy (V8); `trace.yml` nightly.
+  Test toolchain Node = 24.
+- `theft`: intentionally **no change** — already has the richest scorecard (card chips + SF-context).
+
+**Remaining / next session:**
+1. **Commit + push** the shared-lib + unhoused + validation work (still uncommitted as of this writing; the
+   prior drug-only commit `1ee0642` was deployed). On push, the new `test` job gates the deploy.
+2. **Action-runtime deprecation (optional):** deploy runs may warn *"Node.js 20 actions are deprecated"* —
+   that's the runtime for `actions/checkout@v4` / `configure-pages@v5` / `upload-pages-artifact@v3` /
+   `deploy-pages@v5` (not our toolchain Node, which is now 24). Bump those action majors to clear it
+   (verify current latest majors first).
+3. **Optional:** convert `theft`'s point-comparison chips (vs last month/year/typical) to the 1/3/12
+   momentum style for cross-dashboard consistency — deferred because it would drop theft's reference values.
+4. After deploy, hard-reload to dodge the GH-Pages JS cache (the `../../shared/` URLs are new, so this is
+   mostly a non-issue this time).
