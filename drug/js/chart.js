@@ -44,7 +44,8 @@ function linePath(values, x, y, band, yMax) {
 }
 
 function paint(host, model) {
-  const { months, values, partialIdx, unsettledFromIdx, overlays = {}, breaks = [], noun = 'report', window: win } = model;
+  const { months, values, partialIdx, unsettledFromIdx, overlays = {}, breaks = [], noun = 'report',
+          window: win, onBrush, maxSel, minWin = 3 } = model;
   const W = Math.max(320, host.clientWidth || 900);
   const H = 340;
   const M = { top: 18, right: 16, bottom: 42, left: 44 };
@@ -75,7 +76,7 @@ function paint(host, model) {
   if (hasWin) {
     const wx = x(win.lo);
     const wW = x(win.hi + 1) - wx;
-    parts.push(`<rect class="chart-window" x="${wx.toFixed(1)}" y="${M.top}" width="${Math.max(0, wW).toFixed(1)}" height="${innerH}"/>`);
+    parts.push(`<rect class="chart-window" data-brush="band" x="${wx.toFixed(1)}" y="${M.top}" width="${Math.max(0, wW).toFixed(1)}" height="${innerH}"/>`);
     parts.push(`<line class="chart-window-edge" x1="${wx.toFixed(1)}" y1="${M.top}" x2="${wx.toFixed(1)}" y2="${M.top + innerH}"/>`);
     parts.push(`<line class="chart-window-edge" x1="${(wx + wW).toFixed(1)}" y1="${M.top}" x2="${(wx + wW).toFixed(1)}" y2="${M.top + innerH}"/>`);
   }
@@ -103,8 +104,8 @@ function paint(host, model) {
     const by = y(v);
     const bh = M.top + innerH - by;
     let cls = 'chart-bar';
+    // D6: bars stay fully lit (the band conveys the selection); only partial/unsettled months fade.
     if (i === partialIdx || (hasUnsettled && i >= unsettledFromIdx)) cls += ' chart-bar--partial';
-    else if (hasWin && (i < win.lo || i > win.hi)) cls += ' chart-bar--dim';
     parts.push(`<rect class="${cls}" x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0, bh).toFixed(1)}" rx="1.5"/>`);
   });
 
@@ -133,6 +134,14 @@ function paint(host, model) {
   months.forEach((ym, i) => {
     parts.push(`<rect data-i="${i}" x="${x(i)}" y="${M.top}" width="${band}" height="${innerH}" fill="transparent"/>`);
   });
+
+  // brush handles — drawn LAST so they sit above the hit areas and stay grabbable (interactive only)
+  if (onBrush && hasWin) {
+    for (const [edge, ex] of [['lo', x(win.lo)], ['hi', x(win.hi + 1)]]) {
+      parts.push(`<rect class="chart-handle" data-brush="${edge}" x="${(ex - 5).toFixed(1)}" y="${M.top}" width="10" height="${innerH}"/>`);
+      parts.push(`<line class="chart-handle-grip" data-brush="${edge}" x1="${ex.toFixed(1)}" y1="${(M.top + innerH / 2 - 7).toFixed(1)}" x2="${ex.toFixed(1)}" y2="${(M.top + innerH / 2 + 7).toFixed(1)}"/>`);
+    }
+  }
 
   // legend — only the series actually drawn (bars + whichever overlay lines exist).
   // Swatches reuse the chart's stroke/fill classes so colour + dash pattern match exactly.
@@ -163,6 +172,70 @@ function paint(host, model) {
       tip.hidden = false;
     });
     rect.addEventListener('mouseleave', () => { tip.hidden = true; });
+  });
+
+  if (onBrush && hasWin)
+    wireBrush(host, { Mleft: M.left, band, W, top: M.top, innerH,
+                      maxSel: Number.isInteger(maxSel) ? maxSel : months.length - 1, minWin, onBrush, win, tip });
+}
+
+// ── chart-as-scrubber: drag across the plot to set a new window; drag an edge handle to nudge it.
+// Updates the band/handles live (cheap DOM writes — no repaint); fires onBrush(lo,hi,committed).
+function wireBrush(host, geom) {
+  const { Mleft, band, W, top, innerH, maxSel, minWin, onBrush, tip } = geom;
+  const svg = host.querySelector('svg');
+  if (!svg) return;
+  let win = { ...geom.win };
+  const bandRect = svg.querySelector('[data-brush="band"]');
+  const edges = svg.querySelectorAll('.chart-window-edge');
+  const handle = e => svg.querySelector(`rect.chart-handle[data-brush="${e}"]`);
+  const grip = e => svg.querySelector(`line.chart-handle-grip[data-brush="${e}"]`);
+  const xOf = i => Mleft + i * band;
+  const idxAt = clientX => {
+    const r = svg.getBoundingClientRect();
+    const sx = (clientX - r.left) * (W / r.width);
+    return Math.max(0, Math.min(maxSel, Math.floor((sx - Mleft) / band)));
+  };
+  const redraw = () => {
+    const wx = xOf(win.lo), ex = xOf(win.hi + 1);
+    bandRect?.setAttribute('x', wx.toFixed(1));
+    bandRect?.setAttribute('width', Math.max(0, ex - wx).toFixed(1));
+    edges[0]?.setAttribute('x1', wx.toFixed(1)); edges[0]?.setAttribute('x2', wx.toFixed(1));
+    edges[1]?.setAttribute('x1', ex.toFixed(1)); edges[1]?.setAttribute('x2', ex.toFixed(1));
+    for (const [e, gx] of [['lo', wx], ['hi', ex]]) {
+      handle(e)?.setAttribute('x', (gx - 5).toFixed(1));
+      grip(e)?.setAttribute('x1', gx.toFixed(1)); grip(e)?.setAttribute('x2', gx.toFixed(1));
+    }
+  };
+  let mode = null, anchor = 0;
+  const onMove = e => {
+    if (!mode) return;
+    const i = idxAt(e.clientX);
+    if (mode === 'lo') win = { lo: Math.min(i, win.hi), hi: win.hi };
+    else if (mode === 'hi') win = { lo: win.lo, hi: Math.max(i, win.lo) };
+    else win = { lo: Math.min(anchor, i), hi: Math.max(anchor, i) };
+    if (win.hi - win.lo + 1 < minWin) {                  // enforce the min-window guard
+      if (mode === 'lo') win.lo = Math.max(0, win.hi - (minWin - 1));
+      else win.hi = Math.min(maxSel, win.lo + (minWin - 1));
+    }
+    redraw();
+    onBrush(win.lo, win.hi, false);
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    if (mode) onBrush(win.lo, win.hi, true);             // commit → reclassify the map
+    mode = null;
+  };
+  svg.addEventListener('pointerdown', e => {
+    const t = e.target.getAttribute && e.target.getAttribute('data-brush');
+    if (t === 'lo' || t === 'hi') { mode = t; anchor = t === 'lo' ? win.hi : win.lo; }
+    else { mode = 'new'; anchor = idxAt(e.clientX); }
+    if (tip) tip.hidden = true;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    onMove(e);
+    e.preventDefault();
   });
 }
 

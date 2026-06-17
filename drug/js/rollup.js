@@ -61,6 +61,19 @@ export function sumRange(series, lo, hi) {
   return s;
 }
 
+/**
+ * Momentum over horizon n: the trailing-n-month total ending at idx vs the immediately preceding
+ * n-month block. One consistent definition for the card's 1/3/12-mo chips (n=12 equals trend12).
+ * Short horizons are NOT season-adjusted (the card labels them so); only n=12 is season-neutral.
+ */
+export function momentumN(series, idx, n) {
+  const lo = idx - 2 * n + 1;
+  if (lo < 0) return null;                         // not enough history for the prior block
+  const cur = sumRange(series, idx - n + 1, idx);
+  const prior = sumRange(series, lo, idx - n);
+  return prior ? (cur - prior) / prior : null;
+}
+
 /** Total over [lo,hi] vs the same-length window one year earlier (same season). */
 export function windowYoY(series, lo, hi) {
   const cur = sumRange(series, lo, hi);

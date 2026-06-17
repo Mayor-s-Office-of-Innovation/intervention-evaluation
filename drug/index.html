@@ -76,18 +76,38 @@
     <!-- Two co-headline cards: drug-activity reports (want DOWN) + dealer arrests (want UP). -->
     <section class="summary" id="summary-cards" aria-label="Headline metrics"></section>
 
+    <!-- Citywide context for the focused signal — slim, full-width, above the chart. -->
+    <section id="citywide-card" class="citywide-card" aria-label="Citywide context"></section>
+
     <!-- Focused chart with a signal selector -->
     <wa-card class="panel">
       <div slot="header" class="panel__header">
         <h2 class="panel__title">Reports &amp; arrests over time</h2>
         <div class="map-controls" id="chart-selector"></div>
       </div>
-      <div id="detail-strip" class="detail-strip"></div>
+      <div id="scrubber" class="scrubber" aria-label="Time window">
+        <div class="scrubber__presets" id="scrubber-presets" role="group" aria-label="Quick windows"></div>
+        <div class="scrubber__label" id="scrubber-label"></div>
+      </div>
       <div id="chart" class="chart-host"></div>
+      <small id="chart-hint" class="scrubber__hint">Drag across the chart to set the window the map analyzes.</small>
       <small id="chart-note" class="repro-note"></small>
     </wa-card>
 
-    <!-- The centerpiece: what the drug-arrest volume is actually made of (dealer vs churn). -->
+    <!-- Transition / displacement map (built on community drug-activity reports only).
+         Driven by the time scrubber on the chart above; the spine is cards → chart → map → panel. -->
+    <wa-card class="panel">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title">Hotspots: what moved in the selected window</h2>
+        <div class="map-controls" id="map-controls"></div>
+      </div>
+      <div class="map-legend" id="map-legend"></div>
+      <div id="map" class="events-map"></div>
+      <small id="map-note" class="repro-note"></small>
+    </wa-card>
+
+    <!-- The centerpiece: what the drug-arrest volume is actually made of (dealer vs churn). Below the
+         map so drug + unhoused share one cards → chart → map → dashboard-specific-panel spine. -->
     <wa-card class="panel">
       <div slot="header" class="panel__header">
         <h2 class="panel__title">What drug arrests are made of</h2>
@@ -96,17 +116,6 @@
       <div id="composition-lead" class="composition-lead"></div>
       <div id="composition-chart" class="chart-host"></div>
       <small id="composition-note" class="repro-note"></small>
-    </wa-card>
-
-    <!-- Transition / displacement map (built on community drug-activity reports only) -->
-    <wa-card class="panel">
-      <div slot="header" class="panel__header">
-        <h2 class="panel__title">Hotspots: what moved since Lurie</h2>
-        <div class="map-controls" id="map-controls"></div>
-      </div>
-      <div class="map-legend" id="map-legend"></div>
-      <div id="map" class="events-map"></div>
-      <small id="map-note" class="repro-note"></small>
     </wa-card>
 
     <div id="status" class="status" hidden></div>

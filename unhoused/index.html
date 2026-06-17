@@ -93,9 +93,6 @@
       <small id="chart-note" class="repro-note"></small>
     </wa-card>
 
-    <!-- Response signal — sits BELOW the success metrics (like arrests in the theft dashboard). -->
-    <section class="response-block" id="hsoc-block"></section>
-
     <!-- Transition map -->
     <wa-card class="panel">
       <div slot="header" class="panel__header">
@@ -106,6 +103,9 @@
       <div id="map" class="events-map"></div>
       <small id="map-note" class="repro-note"></small>
     </wa-card>
+
+    <!-- Response signal — below the map so drug + unhoused share one cards → chart → map → panel spine. -->
+    <section class="response-block" id="hsoc-block"></section>
 
     <div id="status" class="status" hidden></div>
 

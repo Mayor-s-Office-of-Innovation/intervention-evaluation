@@ -35,6 +35,9 @@ let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = nu
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
 let markerKey = null, markerData = null, markerLoader = null, markerLoading = false;
+// Analysis window + baseline as [startYM,…,endYM] spans — drives the zoom-in marker coloring:
+// in-window = solid, baseline = faded, outside both = hidden. Set by the orchestrator per window.
+let mapWinSpan = null, mapBaseSpan = null;
 // Deep-link state: which intersection/block CELL is "expanded" (its popup pinned open), the one
 // queued to re-open on a shared-link load, and the callback that mirrors map state into the URL.
 // (Individual report markers are deliberately NOT deep-linked — only the cluster cells are.)
@@ -111,6 +114,12 @@ export function setSparkMeta(months, lurieMonth) {
 export function setMarkers(key, loaderFn) {
   if (key !== markerKey) { markerKey = key; markerData = null; markerLoader = loaderFn; }
   applyZoomMode();
+}
+
+/** Set the analysis window + baseline ([startYM,…,endYM] spans) the zoom-in markers color against. */
+export function setMapWindow(winSpan, baseSpan) {
+  mapWinSpan = winSpan; mapBaseSpan = baseSpan;
+  if (inMarkerMode()) renderMarkers();
 }
 
 // ── tiny inline sparkline (monthly counts) with a Lurie-inauguration marker ──
@@ -193,9 +202,23 @@ function renderMarkers() {
   if (!markerData) return;
   markerLayer.clearLayers();
   const { coordScale, now_start_day, lurie_day, fields, pts, epoch } = markerData;
-  const cutoff = now_start_day != null ? now_start_day : lurie_day;   // "recent" = trailing-3-month window
   const epochMs = new Date(epoch + 'T00:00:00').getTime();
   const b = map.getBounds();
+
+  // Day-index ranges for the selected window + its baseline (from the YM spans). In-window points are
+  // solid, baseline points faded, points outside BOTH are hidden. Falls back to the old trailing-3mo
+  // cutoff if no window has been set yet.
+  const [epY, epM, epD] = epoch.split('-').map(Number);
+  const epUTC = Date.UTC(epY, epM - 1, epD);
+  const dStart = ym => { const [y, m] = ym.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, 1) - epUTC) / 86400000); };
+  const dEnd = ym => { const [y, m] = ym.split('-').map(Number); return Math.round((Date.UTC(y, m, 0) - epUTC) / 86400000); };
+  const haveWin = mapWinSpan && mapBaseSpan;
+  const winLoD = haveWin ? dStart(mapWinSpan[0]) : (now_start_day != null ? now_start_day : lurie_day);
+  const winHiD = haveWin ? dEnd(mapWinSpan[mapWinSpan.length - 1]) : Infinity;
+  const baseLoD = haveWin ? dStart(mapBaseSpan[0]) : -Infinity;
+  const baseHiD = haveWin ? dEnd(mapBaseSpan[mapBaseSpan.length - 1]) : (now_start_day != null ? now_start_day : lurie_day) - 1;
+  const inWin = d => d >= winLoD && d <= winHiD;
+  const inBase = d => d >= baseLoD && d <= baseHiD;
   // CFS/311 coordinates are snapped to the intersection centroid, so many reports land on the EXACT same
   // point. Stacking individual dots hides all but the top one and makes the colour flip by draw order at
   // different zooms. Instead we GROUP co-located reports into one marker — sized by how many, coloured if
@@ -203,14 +226,17 @@ function renderMarkers() {
   // details. Deterministic (no grey/red flicker) and the cluster size shows volume.
   const groups = new Map();
   for (const p of pts) {
+    const d = p[2];
+    const isWin = inWin(d), isBase = inBase(d);
+    if (!isWin && !isBase) continue;        // outside the window AND its baseline → not shown
     const lat = p[0] / coordScale, lng = p[1] / coordScale;
     if (!b.contains([lat, lng])) continue;
     const key = p[0] + ',' + p[1];
     let g = groups.get(key);
     if (!g) { g = { lat, lng, total: 0, recent: 0, top: p }; groups.set(key, g); }
     g.total++;
-    if (p[2] >= cutoff) g.recent++;
-    if (p[2] > g.top[2]) g.top = p;        // the most-recent report represents the spot in the overlay
+    if (isWin) g.recent++;                  // "recent" = falls inside the analysis window
+    if (p[2] > g.top[2]) g.top = p;         // the most-recent report represents the spot in the overlay
   }
   const inView = groups.size;
   // spots with no recent activity drawn first (underneath); spots with recent activity drawn last (on top)
@@ -229,8 +255,8 @@ function renderMarkers() {
       return val ? `<div class="ov-row"><span>${esc(f.label)}</span>${esc(val)}</div>` : '';
     }).join('');
     const head = g.total > 1
-      ? `${g.total} reports here · ${g.recent} in the last 3 months · most recent ${date}`
-      : `${date} · ${recent ? 'last 3 months' : 'older'}`;
+      ? `${g.total} reports here · ${g.recent} in the window · most recent ${date}`
+      : `${date} · ${recent ? 'in window' : 'baseline'}`;
     const multi = g.total > 1 ? '<div class="ov-multi">Most recent report:</div>' : '';
     // dot radius grows with the count (√ scale, capped); halo is the larger hover target.
     const r = Math.min(15, (recent ? 4.5 : 3.5) + Math.sqrt(Math.max(0, g.total - 1)) * 1.8);
@@ -247,8 +273,8 @@ function renderMarkers() {
   if (hintEl) {
     hintEl.style.display = 'block';
     hintEl.innerHTML =
-      `Reports by location (larger = more) · <span class="hint-dot" style="background:${OLDER_COLOR}"></span>older ` +
-      `<span class="hint-dot" style="background:${RECENT_COLOR}"></span>has recent · hover for count + details` +
+      `Reports by location (larger = more) · <span class="hint-dot" style="background:${OLDER_COLOR}"></span>baseline ` +
+      `<span class="hint-dot" style="background:${RECENT_COLOR}"></span>in window · hover for count + details` +
       (inView > MARKER_CAP ? ` · showing ${MARKER_CAP} of ${inView} locations, zoom in` : '');
   }
 }

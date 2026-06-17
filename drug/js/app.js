@@ -10,12 +10,13 @@
 import { loadAggregates, loadProvenance, loadTransitionMeta, loadTransitions, loadMarkers } from './data.js';
 import { renderChart, renderStacked } from './chart.js';
 import {
-  monthIndex, prettyMonth, yoy, trailing12, trend12, trailing12Line, priorYearLine, fmtPct,
+  monthIndex, prettyMonth, trend12, trailing12Line, priorYearLine, fmtPct, momentumN,
 } from './rollup.js';
 import {
-  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers,
+  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
   onMapState, notifyState, queueRestore, restoreMapView,
 } from './transition-map.js';
+import { classifyCells, ymRange, districtTide } from './classify.js';
 
 const DISTRICTS = ['Northern', 'Mission', 'Central', 'Tenderloin'];
 const $ = sel => document.querySelector(sel);
@@ -36,28 +37,50 @@ let mapSignal = 'cfs_drug';
 const visibleCats = new Set(['persistent', 'cooled', 'emerged']);
 const transitionData = {};
 
-// ── deep-linkable map state (query string; district stays in the hash) ──
+// ── global time window (the scrubber) — indices into AGG.months (the chart axis) ──
+// Drives ONLY the map; the chart hosts it (band); the cards ignore it. Baseline is the FIXED
+// pre-Lurie 24-mo normal (TMETA.pre_window). See ../plan-scrubber.md §2.
+let win = null;                         // {lo, hi}
+let lurieIdx = 0, latestCompleteIdx = 0, MIN_WIN = 3;
+let PRESETS = [];
+
+// ── deep-linkable state (query string; district stays in the hash) ──
+// One writer for BOTH the analysis window (w=startYM_endYM) and the pinned-cell map view
+// (z/ll/sig/cl), so the two never clobber each other's params.
 let pendingRestore = null;
-function parseMapParams() {
+let lastMapState = null;
+function parseUrlParams() {
   const p = new URLSearchParams(location.search);
-  if (!p.has('z') || !p.has('ll')) return null;
-  const [lat, lng] = (p.get('ll') || '').split(',').map(Number);
-  const zoom = parseInt(p.get('z'), 10);
-  if (![lat, lng, zoom].every(Number.isFinite)) return null;
-  return { center: { lat, lng }, zoom, sig: p.get('sig'), cell: p.get('cl') };
-}
-function writeMapUrl(state) {
-  if (!state) {
-    if (location.search) history.replaceState(null, '', location.pathname + location.hash);
-    return;
+  const out = { win: null, map: null };
+  const w = p.get('w');
+  if (w && w.includes('_')) {
+    const [a, b] = w.split('_');
+    const lo = AGG.months.indexOf(a), hi = AGG.months.indexOf(b);
+    if (lo >= 0 && hi >= lo) out.win = { lo, hi };
   }
-  const p = new URLSearchParams();
-  p.set('z', String(state.zoom));
-  p.set('ll', `${state.center.lat.toFixed(5)},${state.center.lng.toFixed(5)}`);
-  p.set('sig', mapSignal);
-  if (state.cell) p.set('cl', state.cell);
-  history.replaceState(null, '', `${location.pathname}?${p}${location.hash}`);
+  if (p.has('z') && p.has('ll')) {
+    const [lat, lng] = (p.get('ll') || '').split(',').map(Number);
+    const zoom = parseInt(p.get('z'), 10);
+    if ([lat, lng, zoom].every(Number.isFinite))
+      out.map = { center: { lat, lng }, zoom, sig: p.get('sig'), cell: p.get('cl') };
+  }
+  return out;
 }
+function syncUrl() {
+  const p = new URLSearchParams();
+  // omit the window param when it's the default (since-Lurie) so plain links stay clean
+  if (win && !(win.lo === lurieIdx && win.hi === latestCompleteIdx))
+    p.set('w', `${AGG.months[win.lo]}_${AGG.months[win.hi]}`);
+  if (lastMapState) {
+    p.set('z', String(lastMapState.zoom));
+    p.set('ll', `${lastMapState.center.lat.toFixed(5)},${lastMapState.center.lng.toFixed(5)}`);
+    p.set('sig', mapSignal);
+    if (lastMapState.cell) p.set('cl', lastMapState.cell);
+  }
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `${location.pathname}?${qs}${location.hash}` : location.pathname + location.hash);
+}
+function onMapStateChange(state) { lastMapState = state; syncUrl(); }
 
 // ── series helpers ──
 const sig = key => AGG.signals[key];
@@ -65,7 +88,6 @@ const seriesFor = (key, dist) => sig(key).series[dist] || sig(key).series.Citywi
 // each signal evaluates at the freshest month it can trust: settling signals hold back the lag months.
 const evalIdx = key =>
   monthIndex(AGG, sig(key).settles ? AGG.latest_settled_month : AGG.latest_complete_month);
-const allTimeAvg = s => s.reduce((a, b) => a + b, 0) / s.length;
 
 // Direction-aware verdict. presence (cfs_drug, needles): down=good. enforcement goal (dealer): up=good.
 function verdict(key, series, idx) {
@@ -96,6 +118,17 @@ function focusInfo() {
 }
 
 // ── two co-headline cards ──
+// The cards are the decoupled "where things stand now" header — always the latest month, never the
+// scrubber window (plan D4/D5). One authoritative verdict (12-mo trend) + a subordinate row of
+// momentum chips at 1/3/12-mo horizons, each goal-colored (short ones aren't season-adjusted).
+function momentumChips(key, series, idx) {
+  const horizons = [['month', 1], ['3-mo', 3], ['yr', 12]];
+  return `<span class="scard__chips">` + horizons.map(([lab, n]) => {
+    const pct = momentumN(series, idx, n);
+    const tip = n < 12 ? ' title="recent momentum — not season-adjusted"' : ' title="12-mo trend — season-neutral"';
+    return `<span class="chip ${dirClass(key, pct)}"${tip}><span class="chip__h">${lab}</span> ${fmtPct(pct)}</span>`;
+  }).join('') + `</span>`;
+}
 function summaryCard(key, label, accent) {
   const idx = evalIdx(key), series = seriesFor(key, active), cur = series[idx], v = verdict(key, series, idx);
   const arrow = sig(key).goal === 'up' ? '↑ want up' : '↓ want down';
@@ -103,6 +136,7 @@ function summaryCard(key, label, accent) {
     <span class="scard__label">${label} <small class="scard__goal">${arrow}</small></span>
     <span class="scard__num">${cur.toLocaleString()}<small>${prettyMonth(AGG.months[idx])}</small></span>
     <span class="verdict ${v.cls}">${v.label}${v.pct != null ? ` · 12-mo ${fmtPct(v.pct)}` : ''}</span>
+    ${momentumChips(key, series, idx)}
   </button>`;
 }
 function renderSummary() {
@@ -112,37 +146,30 @@ function renderSummary() {
   $('#summary-cards').querySelectorAll('.scard').forEach(b => b.onclick = () => setFocus(b.dataset.focus));
 }
 
-// ── detail strip under the chart ──
-function cmp(key, label, cur, ref, refLabel) {
-  if (ref == null) return `<div class="cmp"><span class="cmp__h">${label}</span><span class="cmp__v">—</span></div>`;
-  const pct = ref ? (cur - ref) / ref : null;
-  return `<div class="cmp ${dirClass(key, pct)}"><span class="cmp__h">${label}</span>
-    <span class="cmp__v">${fmtPct(pct)}</span><span class="cmp__r">${refLabel}</span></div>`;
-}
-function renderDetail(key) {
-  const idx = evalIdx(key);
+// ── citywide context card (above the chart) ──
+// Mirrors the headline-card format for the FOCUSED signal but at citywide scope — the macro picture
+// the district cards drill into. Replaces the old per-district "vs last month/year/typical" strip,
+// whose comparisons now live on the card pills (plan: cards decoupled, citywide gets its own slot).
+function renderCitywide(key) {
   const cwOnly = sig(key).citywide_only;
-  const series = cwOnly ? sig(key).series.Citywide : seriesFor(key, active);
   const city = sig(key).series.Citywide;
-  const cur = series[idx], y = yoy(series, idx), typical = allTimeAvg(series.slice(0, idx + 1));
-  const cityT = trend12(city, idx);
+  const idx = evalIdx(key);
+  const cur = city[idx];
   let shareLine = '';
   if (!cwOnly) {
-    const shareNow = city[idx] ? cur / city[idx] : null;
+    const dseries = seriesFor(key, active);
+    const shareNow = city[idx] ? dseries[idx] / city[idx] : null;
     let d = 0, c = 0;
-    for (let i = 0; i <= idx; i++) { d += series[i]; c += city[i]; }
+    for (let i = 0; i <= idx; i++) { d += dseries[i]; c += city[i]; }
     const shareAvg = c ? d / c : null;
-    shareLine = ` · ${active} is ${shareNow != null ? (shareNow * 100).toFixed(0) + '%' : '—'} of citywide
-      (typically ${shareAvg != null ? (shareAvg * 100).toFixed(0) + '%' : '—'})`;
+    shareLine = `<span class="cw__share">${active} is <strong>${shareNow != null ? Math.round(shareNow * 100) + '%' : '—'}</strong> ` +
+      `of citywide <small>(typically ${shareAvg != null ? Math.round(shareAvg * 100) + '%' : '—'})</small></span>`;
   }
-  $('#detail-strip').innerHTML = `
-    <div class="cmps">
-      ${cmp(key, 'vs last month', cur, series[idx - 1], prettyMonth(AGG.months[idx - 1]))}
-      ${cmp(key, 'vs a year ago', cur, y && y.prior, y && y.prior != null ? prettyMonth(AGG.months[idx - 12]) : '')}
-      ${cmp(key, 'vs a typical month', cur, typical, `avg ${typical.toFixed(0)}`)}
-    </div>
-    <div class="ctx-line"><span>In SF context:</span>
-      citywide 12-mo ${cityT ? fmtPct(cityT.pct) : '—'}${shareLine}</div>`;
+  $('#citywide-card').innerHTML = `
+    <span class="cw__label">Citywide · ${sig(key).label}</span>
+    <span class="cw__num">${cur.toLocaleString()}<small>${prettyMonth(AGG.months[idx])}</small></span>
+    ${momentumChips(key, city, idx)}
+    ${shareLine}`;
 }
 
 // ── focused chart ──
@@ -161,11 +188,12 @@ function renderFocusChart() {
       citywideScaled: fi.citywideOnly ? null : city.map(v => v * (maxD / maxC)),
     },
     noun: sig(fi.key).axis === 'enforcement' ? 'arrest' : 'report',
+    window: win, onBrush: onChartBrush, maxSel: latestCompleteIdx, minWin: MIN_WIN,
   });
   let note = fi.note || '';
   if (sig(fi.key).excluded_from_trend) note = '⚠ Excluded from the trend read. ' + note;
   $('#chart-note').textContent = note;
-  renderDetail(fi.key);
+  renderCitywide(fi.key);
 }
 
 function buildChartSelector() {
@@ -178,6 +206,59 @@ function setFocus(f) {
   renderSummary();
   buildChartSelector();
   renderFocusChart();
+}
+
+// ── the time scrubber ───────────────────────────────────────────────────
+const clampWin = (lo, hi) => {
+  lo = Math.max(0, Math.min(lo, latestCompleteIdx));
+  hi = Math.max(lo, Math.min(hi, latestCompleteIdx));
+  if (hi - lo + 1 < MIN_WIN) hi = Math.min(latestCompleteIdx, lo + MIN_WIN - 1);
+  return { lo, hi };
+};
+const sameWin = (a, b) => a && b && a.lo === b.lo && a.hi === b.hi;
+// the transitions axis omits the partial month; keep a resolved window range inside it
+const clampToAxis = r => ({
+  lo: Math.max(0, r.lo),
+  hi: r.hi < 0 ? TMETA.months.length - 1 : Math.min(TMETA.months.length - 1, r.hi),
+});
+
+function buildPresets() {
+  const L = latestCompleteIdx;
+  PRESETS = [
+    { id: 'lurie', label: 'Since Lurie', lo: lurieIdx, hi: L },
+    { id: '12mo', label: 'Last 12 mo', lo: Math.max(0, L - 11), hi: L },
+    { id: '3mo', label: 'Last 3 mo', lo: Math.max(0, L - 2), hi: L },
+    { id: 'all', label: 'All time', lo: 0, hi: L },
+  ];
+}
+
+function renderScrubber() {
+  const activePreset = PRESETS.find(p => p.lo === win.lo && p.hi === win.hi);
+  $('#scrubber-presets').innerHTML = PRESETS.map(p =>
+    `<button class="seg ${activePreset && activePreset.id === p.id ? 'is-active' : ''}" data-preset="${p.id}">${p.label}</button>`
+    ).join('') + (activePreset ? '' : '<span class="seg is-custom" aria-disabled="true">Custom</span>');
+  $('#scrubber-presets').querySelectorAll('button[data-preset]').forEach(b =>
+    b.onclick = () => { const p = PRESETS.find(x => x.id === b.dataset.preset); setWindow(p.lo, p.hi); });
+  const span = `${prettyMonth(AGG.months[win.lo])} – ${prettyMonth(AGG.months[win.hi])}`;
+  const n = win.hi - win.lo + 1;
+  $('#scrubber-label').innerHTML =
+    `<strong>Analyzing ${span}</strong> <small>(${n} mo)</small> · map compares this to the ` +
+    `<strong>pre-Lurie 2023–24 baseline</strong>`;
+}
+
+// preset / programmatic change → repaint chart (to move the band) + reclassify map
+function setWindow(lo, hi) {
+  win = clampWin(lo, hi);
+  renderScrubber();
+  renderFocusChart();
+  renderMap();
+  syncUrl();
+}
+// live brush from the chart → move the band live (chart already did) + label; reclassify only on commit
+function onChartBrush(lo, hi, committed) {
+  win = clampWin(lo, hi);
+  renderScrubber();
+  if (committed) { renderMap(); syncUrl(); }
 }
 
 // ── composition: what drug arrests are made of (dealer vs churn) ──
@@ -217,7 +298,17 @@ async function renderMap() {
   if (!transitionData[mapSignal]) transitionData[mapSignal] = await loadTransitions(mapSignal);
   if (pendingRestore) queueRestore(pendingRestore.cell);
   focusDistrict($('#map'), GEO, active);
-  const counts = renderCells(transitionData[mapSignal], active, visibleCats);
+
+  // Reclassify every candidate block against the SELECTED window vs the fixed pre-Lurie baseline,
+  // normalized by the district tide recomputed over the same window (classify.js — parity-checked).
+  const sigMeta = TMETA.signals[mapSignal];
+  const knobs = { hot: sigMeta.hot_rate_per_month, floor: TMETA.knobs.floor, band: TMETA.knobs.tide_band };
+  const winSpan = [AGG.months[win.lo], AGG.months[win.hi]];
+  const w = clampToAxis(ymRange(TMETA.months, winSpan));
+  const b = ymRange(TMETA.months, TMETA.pre_window);
+  const classified = classifyCells(transitionData[mapSignal], sigMeta.district_monthly, w, b, knobs);
+  const counts = renderCells(classified, active, visibleCats);
+  setMapWindow(winSpan, TMETA.pre_window);
   setMarkers(mapSignal, () => loadMarkers(mapSignal));
   $('#map-legend').innerHTML = Object.entries(CATEGORY).map(([k, m]) => `
     <button class="legend-item ${visibleCats.has(k) ? '' : 'is-off'}" data-cat="${k}"
@@ -228,16 +319,17 @@ async function renderMap() {
     </button>`).join('');
   $('#map-legend').querySelectorAll('.legend-item').forEach(b =>
     b.onclick = () => { const c = b.dataset.cat; visibleCats.has(c) ? visibleCats.delete(c) : visibleCats.add(c); renderMap(); });
-  const sigMeta = TMETA.signals[mapSignal];
-  const tide = sigMeta.district_tide[active];
+  const tide = +districtTide(sigMeta.district_monthly[active], w, b).toFixed(2);
   const hot = sigMeta.hot_rate_per_month;
+  const span = `${prettyMonth(AGG.months[win.lo])}–${prettyMonth(AGG.months[win.hi])}`;
   $('#map-note').innerHTML =
     `Each dot is a ~block (≈110 m) reaching at least <strong>${hot} drug-activity calls/month</strong>, ` +
-    `classified by how its “hot now” rate (last 3 complete months) compares to pre-Lurie (2023–24), ` +
-    `<strong>normalized against ${active}’s overall change</strong> (×${tide} pre→now) so citywide growth ` +
+    `classified by how its rate over <strong>${span}</strong> compares to its <strong>pre-Lurie (2023–24) baseline</strong>, ` +
+    `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so citywide growth ` +
     `doesn’t read as local change. Built on community drug-activity reports only (never enforcement). ` +
     `This is the displacement view — where activity persisted, cooled, or emerged as people were moved around. ` +
-    `<strong>Click a block</strong> to pin its trend and a shareable link; <strong>zoom in</strong> for individual reports.`;
+    `<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> to pin a shareable link; ` +
+    `<strong>zoom in</strong> for individual reports.`;
 
   if (pendingRestore) {
     const r = pendingRestore; pendingRestore = null;
@@ -344,12 +436,21 @@ async function main() {
       `Data current to ${AGG.generated} · drug reports evaluate ${prettyMonth(AGG.latest_complete_month)}, ` +
       `arrests evaluate ${prettyMonth(AGG.latest_settled_month)} (latest settled)`;
     setSparkMeta(TMETA.months, TMETA.lurie_month);
-    pendingRestore = parseMapParams();
+
+    // window setup: indices into AGG.months; default = full Lurie era (since-Lurie preset)
+    lurieIdx = Math.max(0, AGG.months.indexOf(AGG.lurie_inauguration.slice(0, 7)));
+    latestCompleteIdx = AGG.months.indexOf(AGG.latest_complete_month);
+    buildPresets();
+    const parsed = parseUrlParams();
+    win = parsed.win ? clampWin(parsed.win.lo, parsed.win.hi) : { lo: lurieIdx, hi: latestCompleteIdx };
+
+    pendingRestore = parsed.map;
     if (pendingRestore && pendingRestore.sig === 'cfs_drug') mapSignal = pendingRestore.sig;
-    onMapState(writeMapUrl);
+    onMapState(onMapStateChange);
     buildNav();
+    renderScrubber();
     renderMethodology();
-    window.addEventListener('hashchange', () => { pendingRestore = null; writeMapUrl(null); routeFromHash(); });
+    window.addEventListener('hashchange', () => { pendingRestore = null; lastMapState = null; syncUrl(); routeFromHash(); });
     routeFromHash();
   } catch (e) {
     const s = $('#status'); s.hidden = false; s.textContent = 'Failed to load data: ' + e.message;

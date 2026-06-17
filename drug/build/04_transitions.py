@@ -107,6 +107,10 @@ def classify(key, latest, nowset, summary):
                                  "m": defaultdict(int), "names": Counter()})
     dist_pre = defaultdict(int)
     dist_now = defaultdict(int)
+    # Full per-district monthly histogram (every in-district report, aligned to MONTHS). The browser
+    # sums this over any scrubbed window to recompute the district "tide" — so it lives in the data
+    # file and parity-matches the fixed-preset tide computed below (D7 / classify.js).
+    dist_month = defaultdict(lambda: defaultdict(int))
     for r in recs:
         cy = round(r["lat"], CELL_DECIMALS)
         cx = round(r["lng"], CELL_DECIMALS)
@@ -118,6 +122,7 @@ def classify(key, latest, nowset, summary):
             c["names"][clean_loc(loc)] += 1
         ym = r["ym"]
         c["m"][ym] += 1
+        dist_month[r["district"]][ym] += 1
         if in_pre(ym):
             c["pre"] += 1; dist_pre[r["district"]] += 1
         elif ym in nowset:
@@ -136,53 +141,61 @@ def classify(key, latest, nowset, summary):
     out = []
     counts = defaultdict(int)
     for (cy, cx), c in cells.items():
-        if c["pre"] + c["now"] < FLOOR:
+        # Window-INDEPENDENT inclusion (D7): emit every block with enough ALL-TIME volume to ever be a
+        # hotspot in some scrubbed window, not just those hot under the fixed Lurie split. The browser
+        # reclassifies these against any window from their `monthly` array (classify.js).
+        if c["n"] < FLOOR:
             continue
         pre_rate = c["pre"] / PRE_MONTHS
         now_rate = c["now"] / NOW_MONTHS
-        hot_before = pre_rate >= hot
-        hot_now = now_rate >= hot
-        if not (hot_before or hot_now):
-            continue  # never a hotspot — not on the map
-
-        # Expected "now" rate if this cell had merely tracked its district's tide.
         expected = pre_rate * tide[c["dist"]]
-        rose = now_rate > expected * (1 + BAND)     # grew faster than its district
-        fell = now_rate < expected * (1 - BAND)     # grew slower / shrank vs its district
 
+        # Fixed-preset (24-mo pre vs 3-mo now) classification, baked as the PARITY ORACLE for
+        # classify.js. `category` is null for cells the fixed preset doesn't classify — they're still
+        # emitted (with `monthly`) so the scrubber can classify them under any window.
         cat = None
-        if hot_now and not hot_before:
-            cat = "emerged" if rose else None          # newly hot AND outpaced the district tide
-        elif fell and (hot_before or now_rate < hot):
-            cat = "cooled"                              # was hot, fell relative to its district
-        elif hot_before and hot_now:
-            cat = "persistent"                          # stayed hot, roughly tracking its district
-        if not cat:
-            continue
+        if c["pre"] + c["now"] >= FLOOR:
+            hot_before = pre_rate >= hot
+            hot_now = now_rate >= hot
+            if hot_before or hot_now:
+                rose = now_rate > expected * (1 + BAND)     # grew faster than its district
+                fell = now_rate < expected * (1 - BAND)     # grew slower / shrank vs its district
+                if hot_now and not hot_before:
+                    cat = "emerged" if rose else None        # newly hot AND outpaced the district tide
+                elif fell and (hot_before or now_rate < hot):
+                    cat = "cooled"                           # was hot, fell relative to its district
+                elif hot_before and hot_now:
+                    cat = "persistent"                       # stayed hot, roughly tracking its district
+        if cat:
+            counts[cat] += 1
 
-        counts[cat] += 1
         out.append({
             "lat": round(c["lat"] / c["n"], 5),
             "lng": round(c["lng"] / c["n"], 5),
             "name": c["names"].most_common(1)[0][0] if c["names"] else None,  # most-reported spot in the cell
             "district": DISTRICT_LABEL[c["dist"]],
-            "category": cat,
+            "category": cat,                                  # fixed-preset oracle (may be null)
             "preRate": round(pre_rate, 2),
             "nowRate": round(now_rate, 2),
             "expectedRate": round(expected, 2),
-            "total": c["pre"] + c["now"],
-            "monthly": [c["m"].get(mo, 0) for mo in MONTHS],  # aligned to meta.months (sparkline)
+            "total": c["n"],                                  # all-time volume (window-independent)
+            "monthly": [c["m"].get(mo, 0) for mo in MONTHS],  # aligned to meta.months — the raw material
         })
 
+    classified = sum(counts.values())
     summary[key] = {
         "label": MAP_LABEL[key],
         "members": MAP_SIGNALS[key],
         "hot_rate_per_month": hot,
         "district_tide": {DISTRICT_LABEL[d]: round(tide[d], 2) for d in TARGET_DISTRICTS},
+        # per-district monthly totals (aligned to MONTHS) so the browser recomputes the tide per window
+        "district_monthly": {DISTRICT_LABEL[d]: [dist_month[d].get(mo, 0) for mo in MONTHS]
+                             for d in TARGET_DISTRICTS},
         "counts": dict(counts),
         "cells": len(out),
+        "classified_fixed_preset": classified,
     }
-    print(f"  [{key}] {len(out)} hotspot cells → "
+    print(f"  [{key}] {len(out)} candidate cells ({classified} classified under fixed preset) → "
           f"persistent {counts['persistent']}, cooled {counts['cooled']}, emerged {counts['emerged']}  "
           f"| district tide {summary[key]['district_tide']}")
     return out
