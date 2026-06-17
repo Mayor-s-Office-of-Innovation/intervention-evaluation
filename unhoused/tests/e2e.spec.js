@@ -105,6 +105,23 @@ test('clicking a block cell pins its popup, deep-links the URL (replaceState, no
   await expect(page).not.toHaveURL(/[?&]cl=/);
 });
 
+test('time scrubber: presets render, default is Since Lurie, switching reclassifies the map', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('mission'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  await expect(page.locator('#scrubber-presets .seg')).toHaveCount(4);
+  await expect(page.locator('#scrubber-presets .seg.is-active')).toHaveText('Since Lurie');
+  await expect(page.locator('#citywide-card .chip')).toHaveCount(3);
+  await expect(page.locator('.scard').first().locator('.chip')).toHaveCount(3);
+  await expect(page.locator('#chart svg .chart-window')).toBeVisible();
+  const before = (await page.locator('.legend-count').allTextContents()).join(',');
+  await page.locator('#scrubber-presets button[data-preset="3mo"]').click();
+  await page.waitForTimeout(600);
+  await expect(page.locator('#scrubber-presets .seg.is-active')).toHaveText('Last 3 mo');
+  expect((await page.locator('.legend-count').allTextContents()).join(',')).not.toBe(before);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('methodology shows runnable queries, HSOC-as-response framing, and the waste/needles exclusions', async ({ page }) => {
   trackErrors(page);
   await page.goto(url('northern'), { waitUntil: 'networkidle' });
