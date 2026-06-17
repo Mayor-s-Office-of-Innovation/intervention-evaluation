@@ -127,6 +127,27 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .ctx-line { font-size: .82rem; color: var(--muted); }
 .ctx-line span { font-weight: 600; color: var(--text); }
 
+/* citywide context card — slim, full-width, between the district cards and the chart */
+.citywide-card {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem;
+  background: var(--surface); border: 1px solid var(--c-line); border-radius: var(--radius);
+  padding: .7rem 1.1rem; box-shadow: var(--shadow);
+}
+.cw__label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.cw__num { display: flex; align-items: baseline; gap: .4rem; font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.cw__num small { font-size: .72rem; font-weight: 500; color: var(--muted); }
+.cw__share { font-size: .82rem; color: var(--muted); margin-left: auto; }
+.cw__share strong { color: var(--text); }
+
+/* momentum chips on the headline cards (1/3/12-mo, goal-colored, subordinate to the verdict) */
+.scard__chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.chip { font-size: .74rem; font-weight: 700; padding: .18rem .5rem; border-radius: 999px;
+        background: var(--bg); border: 1px solid var(--c-line); white-space: nowrap; }
+.chip .chip__h { font-weight: 600; color: var(--muted); margin-right: .15rem; }
+.chip.delta-good { color: var(--c-green); }
+.chip.delta-bad  { color: var(--c-red); }
+.chip.delta-flat { color: var(--muted); }
+
 /* ───────────── Response block (HSOC — below the success metrics) ───────────── */
 .response-block {
   background: var(--surface); border: 1px solid var(--c-line);
@@ -142,12 +163,23 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .rb__note { margin: 0; font-size: .85rem; color: var(--muted); max-width: 80ch; }
 
 /* ───────────── Chart (reused from districts) ───────────── */
-.chart-host { position: relative; width: 100%; }
+.chart-host { position: relative; width: 100%; touch-action: none; }
 .chart-host svg { display: block; width: 100%; }
 .chart-grid line { stroke: var(--c-line); stroke-dasharray: 3 3; }
 .chart-axis text { fill: var(--c-gray); font-size: 11px; }
 .chart-window { fill: var(--c-blue); opacity: .08; }
 .chart-window-edge { stroke: var(--c-blue); stroke-width: 1; opacity: .45; }
+/* brush handles on the chart-as-scrubber */
+.chart-handle { fill: var(--c-blue); opacity: .001; cursor: ew-resize; }
+.chart-handle:hover { opacity: .12; }
+.chart-handle-grip { stroke: var(--c-blue); stroke-width: 2.5; stroke-linecap: round; opacity: .65; pointer-events: none; }
+/* time scrubber control (presets + window label, above the chart) */
+.scrubber { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin-bottom: .5rem; }
+.scrubber__presets { display: flex; gap: .25rem; flex-wrap: wrap; }
+.scrubber__label { font-size: .8rem; color: var(--muted); }
+.scrubber__label strong { color: var(--text); font-weight: 600; }
+.seg.is-custom { color: var(--muted); font-style: italic; cursor: default; background: none; }
+.scrubber__hint { display: block; color: var(--muted); font-style: italic; margin-top: .15rem; }
 .chart-bar { fill: var(--c-orange); }
 .chart-bar--partial { opacity: .4; }
 .chart-bar--dim { opacity: .35; }
