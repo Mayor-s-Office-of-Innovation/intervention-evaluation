@@ -173,7 +173,12 @@ a { color: var(--c-blue); }
 
 /* ───────────── Map ───────────── */
 .events-map { height: 560px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
-.leaflet-container { font-family: var(--font-sans); }
+.mapboxgl-map { font-family: var(--font-sans); }
+.mapboxgl-popup-content {
+  background: var(--surface); color: var(--text); border: 1px solid var(--c-line);
+  border-radius: 8px; box-shadow: 0 4px 14px rgba(16,24,40,.18); padding: .5rem .6rem; max-width: 260px;
+  white-space: normal; overflow-wrap: anywhere; font-size: .82rem;
+}
 .range-readout { margin-top: .4rem; font-size: .8rem; color: var(--muted); }
 .chart-controls { margin-bottom: .75rem; }
 .district-label {

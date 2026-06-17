@@ -1,5 +1,9 @@
 *.bak
 .DS_Store
+
+# Mapbox token (contains secrets)
+shared/mapbox-token.js
+
 .vscode/
 .idea/
 playwright-report/

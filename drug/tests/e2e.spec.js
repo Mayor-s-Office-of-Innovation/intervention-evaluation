@@ -34,7 +34,7 @@ test('headline cards, citywide card, scrubber, chart, map render (no console err
     await expect(page.locator('#scrubber-presets .seg.is-active')).toHaveText('Since Lurie');  // default
     await expect(page.locator('#chart > svg')).toBeVisible();
     await expect(page.locator('#chart svg .chart-window')).toBeVisible();      // the selection band
-    await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();
+    await expect(page.locator('#map canvas.mapboxgl-canvas')).toBeVisible();
     await expect(page.locator('.legend-item')).toHaveCount(3);
   }
   expect(errors, errors.join('\n')).toEqual([]);

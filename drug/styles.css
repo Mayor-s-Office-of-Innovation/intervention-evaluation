@@ -202,7 +202,7 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 
 /* ───────────── Transition map ───────────── */
 .events-map { height: 540px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
-.leaflet-container { font-family: var(--font-sans); }
+.mapboxgl-map { font-family: var(--font-sans); }
 /* segmented control: one container, segments touch, active segment filled */
 .map-controls {
   display: inline-flex; gap: 0; padding: 3px;
@@ -236,21 +236,20 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .legend-item.is-off { opacity: .5; }
 .legend-item.is-off .legend-count { color: var(--muted); }
 .legend-dot { width: .9rem; height: .9rem; border-radius: 999px; display: inline-block; flex: none; background: var(--cat, var(--c-gray)); }
-.leaflet-popup-content { font-size: .82rem; }
+.mapboxgl-popup-content { font-size: .82rem; padding: .5rem .6rem; }
 .cell-loc { font-weight: 700; font-size: .92rem; margin-bottom: .15rem; }
 .spark { display: block; margin-top: .4rem; }
 .spark-axis { display: flex; justify-content: space-between; font-size: .66rem; color: var(--muted); }
-/* individual-report hover overlay (zoom-in markers) */
-.marker-overlay.leaflet-tooltip {
+/* Mapbox popup styling */
+.mapboxgl-popup-content {
   background: var(--surface); color: var(--text); border: 1px solid var(--c-line);
-  border-radius: 8px; box-shadow: 0 4px 14px rgba(16,24,40,.18); padding: .5rem .6rem; width: 250px;
-  white-space: normal; overflow-wrap: anywhere;   /* fixed width (tooltips are shrink-to-fit, so max-width
-                                                     alone collapses to min-content) + wrap inside the card */
+  border-radius: 8px; box-shadow: 0 4px 14px rgba(16,24,40,.18); padding: .5rem .6rem; max-width: 260px;
+  white-space: normal; overflow-wrap: anywhere;
 }
-.marker-overlay.leaflet-tooltip::before { display: none; }
-/* Invisible hover target around each tiny report dot — `all` makes the transparent fill hittable
-   (Leaflet's default only hit-tests painted pixels, so a 0-opacity fill wouldn't trigger). */
-path.mk-halo { pointer-events: all !important; }
+.mapboxgl-popup-anchor-top .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-left .mapboxgl-popup-tip,
+.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-top-color: var(--surface); }
 .ov-date { font-weight: 700; margin-bottom: .3rem; }
 .ov-row { display: flex; gap: .5rem; font-size: .78rem; line-height: 1.35; align-items: baseline; }
 .ov-row span { color: var(--muted); min-width: 4.75rem; flex: none; }   /* fixed label column; value wraps */

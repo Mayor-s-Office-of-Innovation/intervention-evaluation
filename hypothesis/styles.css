@@ -103,7 +103,12 @@ a { color: var(--c-blue); }
 /* ───────────── Maps ───────────── */
 .picker-map { height: 300px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
 .events-map { height: 440px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
-.leaflet-container { font-family: var(--font-sans); }
+.mapboxgl-map { font-family: var(--font-sans); }
+.mapboxgl-popup-content {
+  background: var(--surface); color: var(--text); border: 1px solid var(--c-line);
+  border-radius: 8px; box-shadow: 0 4px 14px rgba(16,24,40,.18); padding: .5rem .6rem; max-width: 260px;
+  white-space: normal; overflow-wrap: anywhere; font-size: .82rem;
+}
 
 /* ───────────── Verdict callout ───────────── */
 #verdict { font-size: 1.05rem; }

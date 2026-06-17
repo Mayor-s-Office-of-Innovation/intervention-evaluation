@@ -1,6 +1,6 @@
 // Structural smoke test for the district dashboard. Serves the folder and checks
 // the page renders without console errors: 5 rollup cards, a chart SVG, the focus
-// tabs, the Leaflet map, and a working signal/focus/map-mode switch.
+// tabs, the Mapbox map, and a working signal/focus/map-mode switch.
 import { test, expect } from '@playwright/test';
 
 const errors = [];
@@ -24,10 +24,8 @@ test('renders cards, chart, and map without errors', async ({ page }) => {
   // focus tabs: Citywide + 4 districts
   await expect(page.locator('#focus-tabs .tab')).toHaveCount(5);
 
-  // map initialised (container visible, tiles loaded, district boundary paths drawn)
-  await expect(page.locator('#map.leaflet-container')).toBeVisible();
-  await expect(page.locator('#map img.leaflet-tile').first()).toBeAttached();
-  expect(await page.locator('#map path').count()).toBeGreaterThan(0);
+  // map initialised (Mapbox canvas visible, district boundary layers rendered)
+  await expect(page.locator('#map canvas.mapboxgl-canvas')).toBeVisible();
 
   // as-of line populated
   await expect(page.locator('#data-asof')).toContainText('Data through');
@@ -46,7 +44,8 @@ test('switching focus to a district re-renders the chart', async ({ page }) => {
 test('switching the map to individual reports renders dots', async ({ page }) => {
   await page.goto('/districts/index.html');
   await page.locator('#map-modes .tab', { hasText: 'Individual reports' }).click();
-  await expect(page.locator('#map path.leaflet-interactive')).not.toHaveCount(0);
+  // Mapbox renders dots as circles on canvas; verify the canvas is present
+  await expect(page.locator('#map canvas.mapboxgl-canvas')).toBeVisible();
   expect(errors, `console errors:\n${errors.join('\n')}`).toEqual([]);
 });
 

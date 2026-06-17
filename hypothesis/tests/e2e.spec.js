@@ -47,7 +47,7 @@ test('runs the default data point and reveals chart, map, stats, one query link'
   await runAnalysis(page);
   expect(await page.$$eval('#stat-cards .stat', e => e.length)).toBe(4);
   expect(await page.$$eval('#chart-host svg rect.chart-bar', e => e.length)).toBeGreaterThan(0);
-  expect(await page.$$eval('#events-map path.leaflet-interactive', e => e.length)).toBeGreaterThan(0);
+  await expect(page.locator('#events-map canvas.mapboxgl-canvas')).toBeVisible();
   expect(await page.$$eval('#methodology-body .method-src__link a', e => e.length)).toBe(1);
   await expect(page.locator('#results')).toBeVisible();
   expect(errors).toEqual([]);
@@ -153,11 +153,9 @@ test('overflow: known reporting break surfaces only when the window straddles it
   await expect(page.locator('#verdict-body')).not.toContainText('reporting change');
 });
 
-test('respects OS dark mode (wa-dark class + CARTO dark tiles)', async ({ page }) => {
+test('respects OS dark mode (wa-dark class + Mapbox dark style)', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await gotoApp(page);
   expect(await page.evaluate(() => document.documentElement.classList.contains('wa-dark'))).toBeTruthy();
-  await page.waitForFunction(() => !!document.querySelector('#picker-map img.leaflet-tile'));
-  const srcs = await page.$$eval('#picker-map img.leaflet-tile', els => els.map(i => i.src));
-  expect(srcs.some(s => s.includes('dark_all'))).toBeTruthy();
+  await expect(page.locator('#picker-map canvas.mapboxgl-canvas')).toBeVisible();
 });
