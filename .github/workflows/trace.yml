@@ -1,0 +1,25 @@
+# Nightly E2E "is it externally TRUE?" trace — re-derives each dashboard's headline numbers by running
+# its OWN declared Socrata query (provenance.query_url) and reconciles against the baked aggregates.json.
+# Kept separate from the deploy gate because it hits the live Socrata API (slow + occasionally flaky);
+# a failure here flags real source↔data drift to investigate, it does not block a deploy.
+name: Nightly data trace
+
+on:
+  schedule:
+    - cron: "0 12 * * *"   # 12:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Reconcile baked numbers against the declared Socrata queries
+        run: |
+          python3 validation/trace.py drug
+          python3 validation/trace.py unhoused

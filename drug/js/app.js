@@ -7,16 +7,16 @@
 // are made of" composition (dealer vs paraphernalia vs other), and the fixed-Lurie
 // displacement map built on presence only (D2). Methodology footnotes per D5/D7/D9.
 // ──────────────────────────────────────────────────────────────────────
-import { loadAggregates, loadProvenance, loadTransitionMeta, loadTransitions, loadMarkers } from './data.js';
-import { renderChart, renderStacked } from './chart.js';
+import { loadAggregates, loadProvenance, loadTransitionMeta, loadTransitions, loadMarkers } from '../../shared/data.js';
+import { renderChart, renderStacked } from '../../shared/chart.js';
 import {
   monthIndex, prettyMonth, trend12, trailing12Line, priorYearLine, fmtPct, momentumN,
-} from './rollup.js';
+} from '../../shared/rollup.js';
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
   onMapState, notifyState, queueRestore, restoreMapView,
-} from './transition-map.js';
-import { classifyCells, ymRange, districtTide } from './classify.js';
+} from '../../shared/transition-map.js';
+import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
 const DISTRICTS = ['Northern', 'Mission', 'Central', 'Tenderloin'];
 const $ = sel => document.querySelector(sel);
