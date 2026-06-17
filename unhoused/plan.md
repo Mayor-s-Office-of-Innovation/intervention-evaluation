@@ -2,7 +2,9 @@
 
 **Working title:** "Unhoused presence — community-reported signals, trends over time"
 **Owner:** Aaron · **Drafted:** 2026-06-13
-**Status:** 🟡 Planning — analysis-first. Signal set scoped; dashboard build deferred to after review.
+**Status:** 🟢 Dashboard shipped. As of 2026-06-17 it also carries the **time scrubber** (chart-as-scrubber
+driving a parametric displacement map) and runs on the shared `../shared/` lib — see the cross-cutting
+**[../drug/plan-scrubber.md](../drug/plan-scrubber.md)** for that work and its status.
 
 > Living document. Keep it current as we build (see Changelog, §9).
 
