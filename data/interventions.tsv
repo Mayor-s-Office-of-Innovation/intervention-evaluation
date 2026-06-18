@@ -1,0 +1,9 @@
+district	name	description	target_okr	status	working	eval_link
+Northern	Plain clothes officers	Undercover deployment targeting dealers in Hayes Valley	drug	active	inconclusive	./hypothesis/?dp=drug&date=2026-05-11&lat=37.78900&lng=-122.41598&r=200&from=2025-11-01&to=2026-06-16&what=plain+clothes+officers
+Northern	Increased foot patrols	Regular uniformed patrols on Fillmore corridor	theft	active
+Central	Market Street cleanup	Weekly encampment outreach with HOT team	unhoused	completed	yes
+Central	Retail theft task force	Dedicated officers for repeat offender tracking	theft	active	inconclusive
+Mission	16th St BART outreach	Daily outreach at 16th St BART plaza	unhoused	active	no
+Mission	Dealer disruption ops	Targeted enforcement on known dealing locations	drug	completed	yes
+Tenderloin	Safe passage program	Escort service for residents and workers	drug	active	inconclusive
+Tenderloin	SIP hotel enforcement	Addressing drug activity at SIP hotel sites	drug	planned
