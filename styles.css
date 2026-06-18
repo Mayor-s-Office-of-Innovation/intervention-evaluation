@@ -126,6 +126,178 @@ a { color: var(--c-blue); }
 .saved-eval__arrow { flex: none; font-size: .85rem; transition: transform .15s ease; }
 .saved-eval:hover .saved-eval__arrow { transform: translateX(2px); }
 
+/* ───────────── District accordions ───────────── */
+.district-section {
+  background: var(--surface);
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.district-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+  transition: background .15s ease;
+}
+.district-header:hover { background: rgba(59,130,246,.04); }
+.district-header:focus-visible { outline: 2px solid var(--c-blue); outline-offset: -2px; }
+
+.district-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  flex: 1 1 auto;
+}
+.district-header__count {
+  font-size: .82rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.district-header__icon {
+  font-size: 1rem;
+  color: var(--muted);
+  transition: transform .2s ease;
+}
+.district-section.is-expanded .district-header__icon {
+  transform: rotate(180deg);
+}
+
+.district-body {
+  display: none;
+  padding: 0 1.25rem 1.25rem;
+  border-top: 1px solid var(--c-line);
+}
+.district-section.is-expanded .district-body {
+  display: block;
+}
+
+.district-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 1rem;
+}
+@media (max-width: 720px) {
+  .district-cols { grid-template-columns: 1fr; }
+}
+
+/* Mini OKR cards for within-district view */
+.okr-grid--mini { gap: .75rem; }
+.okr-card--mini {
+  padding: .9rem 1rem .8rem;
+}
+.okr-card--mini .okr-card__title {
+  font-size: .95rem;
+  margin: .2rem 0 0;
+}
+.okr-card--mini .okr-card__arrow {
+  display: none;
+}
+
+/* ───────────── Intervention list ───────────── */
+.intervention-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.intervention-item {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: .9rem 1rem;
+}
+
+.intervention-item__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .35rem;
+}
+
+.intervention-name {
+  font-weight: 600;
+  font-size: .95rem;
+  color: var(--text);
+}
+
+.intervention-status,
+.intervention-working {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: .15rem .5rem;
+  border-radius: 4px;
+}
+
+.intervention-status { background: var(--c-line); color: var(--muted); }
+.intervention-status--active { background: #dbeafe; color: #1d4ed8; }
+.intervention-status--completed { background: #dcfce7; color: #15803d; }
+.intervention-status--planned { background: var(--c-line); color: var(--muted); }
+
+.intervention-working { background: var(--c-line); color: var(--muted); }
+.intervention-working--yes { background: #dcfce7; color: #15803d; }
+.intervention-working--no { background: #fee2e2; color: #b91c1c; }
+.intervention-working--inconclusive { background: #fef3c7; color: #b45309; }
+
+html.wa-dark .intervention-status--active { background: #1e3a5f; color: #93c5fd; }
+html.wa-dark .intervention-status--completed { background: #14532d; color: #86efac; }
+html.wa-dark .intervention-working--yes { background: #14532d; color: #86efac; }
+html.wa-dark .intervention-working--no { background: #450a0a; color: #fca5a5; }
+html.wa-dark .intervention-working--inconclusive { background: #451a03; color: #fcd34d; }
+
+.intervention-desc {
+  margin: 0 0 .5rem;
+  font-size: .88rem;
+  color: var(--muted);
+}
+
+.intervention-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .75rem;
+  font-size: .82rem;
+}
+
+.intervention-okr {
+  color: var(--muted);
+}
+
+.intervention-eval {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  color: var(--c-blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+.intervention-eval:hover { text-decoration: underline; }
+.intervention-eval wa-icon { font-size: .75rem; }
+
+.intervention-empty {
+  color: var(--muted);
+  font-size: .88rem;
+  font-style: italic;
+  margin: 0;
+}
+
 /* ───────────── Footer ───────────── */
 .app-footer { max-width: 1040px; margin: 0 auto; padding: 0 1.25rem 3rem; color: var(--muted); }
 .app-footer small { font-size: .82rem; }

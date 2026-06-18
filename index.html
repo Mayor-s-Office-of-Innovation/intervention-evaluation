@@ -49,6 +49,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <script type="module" src="./js/app.js"></script>
   <header class="app-header">
     <div class="app-header__inner">
       <span class="app-header__eyebrow">San Francisco · OpenData</span>
@@ -61,57 +62,9 @@
   </header>
 
   <main class="app-main">
-    <p class="section-label">Objectives</p>
-    <div class="okr-grid">
-
-      <!-- Drug -->
-      <a class="okr-card" href="./drug/">
-        <div class="okr-card__body">
-          <span class="okr-card__eyebrow">Drug activity by district</span>
-          <h2 class="okr-card__title">Reduce visible disorder: Drugs</h2>
-          <p class="okr-kr-label">Key Results</p>
-          <ul class="okr-krs" aria-label="Key results">
-            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
-              <span class="okr-kr__text"><strong>Reduce</strong> 911 drug related complaints</span></li>
-            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↑</span>
-              <span class="okr-kr__text"><strong>Increase</strong> dealer arrests that disrupt supply</span></li>
-          </ul>
-        </div>
-        <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
-      </a>
-
-      <!-- Unhoused -->
-      <a class="okr-card" href="./unhoused/">
-        <div class="okr-card__body">
-          <span class="okr-card__eyebrow">Unhoused presence by district</span>
-          <h2 class="okr-card__title">Reduce visible disorder: unsheltered homelessness</h2>
-          <p class="okr-kr-label">Key Results</p>
-          <ul class="okr-krs" aria-label="Key results">
-            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
-              <span class="okr-kr__text"><strong>Reduce</strong> encampments</span></li>
-            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
-              <span class="okr-kr__text"><strong>Reduce</strong> 911 unhoused-presence calls</span></li>
-          </ul>
-        </div>
-        <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
-      </a>
-
-      <!-- Theft -->
-      <a class="okr-card" href="./theft/">
-        <div class="okr-card__body">
-          <span class="okr-card__eyebrow">Theft from merchants (Northern)</span>
-          <h2 class="okr-card__title">Restore merchant confidence</h2>
-          <p class="okr-kr-label">Key Results</p>
-          <ul class="okr-krs" aria-label="Key results">
-            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
-              <span class="okr-kr__text"><strong>Reduce</strong> shoplifting reported by businesses</span></li>
-            <li class="okr-kr"><span class="okr-kr__dir" aria-hidden="true">↓</span>
-              <span class="okr-kr__text"><strong>Reduce</strong> commercial burglary &amp; robbery</span></li>
-          </ul>
-        </div>
-        <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
-      </a>
-
+    <p class="section-label">Districts</p>
+    <div id="districts-container">
+      <!-- Populated by js/app.js -->
     </div>
 
     <!-- Hypothesis tool -->
