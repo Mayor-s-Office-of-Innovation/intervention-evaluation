@@ -48,6 +48,7 @@ jobs:
           node validation/parity.mjs unhoused
       - name: e2e suites (V5 + V7 included)
         run: |
+          npx playwright test -c homepage/playwright.config.js
           npx playwright test -c drug/playwright.config.js
           npx playwright test -c unhoused/playwright.config.js
           npx playwright test -c theft/playwright.config.js
@@ -103,6 +104,16 @@ jobs:
               cp -r "$project/data" "_site/$project/data"
             fi
           done
+      # Catch staging gaps before they 404 in prod (the landing page's js/ + data/ were once omitted).
+      # The e2e gate runs against the repo root, so it can't see what the staging step forgot to copy —
+      # this verifies the homepage's referenced assets actually made it into the uploaded artifact.
+      - name: Verify homepage assets were staged
+        run: |
+          missing=0
+          for f in index.html styles.css js/app.js js/tsv.js data/interventions.tsv; do
+            if [ ! -f "_site/$f" ]; then echo "::error::homepage asset missing from _site: $f"; missing=1; fi
+          done
+          [ "$missing" = 0 ] || { echo "Staging is incomplete — see errors above."; exit 1; }
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
