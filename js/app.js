@@ -38,15 +38,23 @@ const OKRS = [
   },
 ];
 
-const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
-const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Inconclusive' };
+const LEVERS = ['Enforcement', 'Environmental', 'Outreach', 'Cleaning', 'Infrastructure', 'Policy'];
+const STATUSES = ['In progress', 'Closed'];
+const OUTCOMES = [
+  { value: '', label: 'In progress' },
+  { value: 'worked', label: '✓ Worked' },
+  { value: 'didnt', label: '✗ Didn\'t work' },
+  { value: 'inconclusive', label: '~ Inconclusive' },
+];
 
 let currentDistrict = DISTRICTS[0];
 let currentTab = 'okrs';
 let interventionsByDistrict = {};
 let aggregatesData = {};
+let showForm = false;
 
 function esc(s) {
+  if (!s) return '';
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
@@ -67,7 +75,6 @@ function getKRData(okrId, kr, district) {
   const signal = data.signals?.[kr.signal];
   if (!signal) return null;
 
-  // Handle different data structures
   let series = signal.series?.[district];
   if (!series) {
     const districtKey = district.toLowerCase();
@@ -164,36 +171,140 @@ function renderOKRCards() {
   `;
 }
 
-function renderIntervention(i) {
-  const statusClass = i.status ? `intervention-status--${i.status}` : '';
-  const workingClass = i.working ? `intervention-working--${i.working}` : '';
-  const okrLabel = OKRS.find(o => o.id === i.target_okr)?.title || i.target_okr;
+function getLeverClass(lever) {
+  const map = { Outreach: 'outreach', Cleaning: 'cleaning', Environmental: 'env', Infrastructure: 'infra' };
+  return map[lever] || '';
+}
+
+function getWorkingLabel(i) {
+  if (!i.working) return { label: '—', cls: 'gray' };
+  if (i.working === 'yes' || i.working === 'worked') return { label: 'Working', cls: 'good' };
+  if (i.working === 'no' || i.working === 'didnt') return { label: 'Not working', cls: 'bad' };
+  if (i.working === 'inconclusive') return { label: 'Inconclusive', cls: 'amber' };
+  return { label: '—', cls: 'gray' };
+}
+
+function getOutcomeLabel(outcome) {
+  if (!outcome) return '';
+  if (outcome === 'worked') return '✓ Worked';
+  if (outcome === 'didnt') return '✗ Didn\'t work';
+  if (outcome === 'inconclusive') return '~ Inconclusive';
+  return '';
+}
+
+function renderInterventionRow(i, idx) {
+  const okr = OKRS.find(o => o.id === i.target_okr);
+  const krLabel = okr ? `KR: ${okr.title}` : (i.target_okr || '<span class="iv-unmapped">Not mapped</span>');
+  const leverCls = getLeverClass(i.lever);
+  const working = getWorkingLabel(i);
+  const outcome = getOutcomeLabel(i.working);
+  const outcomeCls = i.working === 'worked' ? 'good' : (i.working === 'didnt' ? 'bad' : '');
 
   return `
-    <li class="intervention-item">
-      <div class="intervention-item__header">
-        <span class="intervention-name">${esc(i.name)}</span>
-        ${i.status ? `<span class="intervention-status ${statusClass}">${STATUS_LABELS[i.status] || i.status}</span>` : ''}
-        ${i.working ? `<span class="intervention-working ${workingClass}">${WORKING_LABELS[i.working] || i.working}</span>` : ''}
+    <tr>
+      <td>
+        <div class="iv-name">${esc(i.name)}</div>
+        <div class="iv-problem">${esc(i.description)}</div>
+      </td>
+      <td class="iv-owner">${esc(i.owner) || '—'}${i.agencies ? `<div class="iv-agencies">+ ${esc(i.agencies)}</div>` : ''}</td>
+      <td>${i.lever ? `<span class="iv-lever ${leverCls}">${esc(i.lever)}</span>` : '—'}</td>
+      <td class="iv-kr">${krLabel}</td>
+      <td><span class="iv-effect iv-effect--${working.cls}">${working.label}</span></td>
+      <td>${outcome ? `<span class="iv-outcome ${outcomeCls}">${outcome}</span>` : '—'}</td>
+    </tr>
+  `;
+}
+
+function renderAddForm() {
+  if (!showForm) return '';
+
+  return `
+    <div class="iv-form">
+      <h3>New intervention</h3>
+      <p class="iv-form__desc">Capture the work and map it to the Key Result it serves.</p>
+      <div class="iv-form__grid">
+        <div class="iv-field iv-field--full">
+          <label>Intervention name <span class="req">*</span></label>
+          <input type="text" id="iv-name" placeholder="e.g. Evening plaza activation">
+        </div>
+        <div class="iv-field iv-field--full iv-field--kr">
+          <label>Serves Key Result <span class="req">*</span></label>
+          <select id="iv-kr">
+            <option value="">— select a Key Result —</option>
+            ${OKRS.map(o => `<option value="${o.id}">${esc(o.title)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="iv-field">
+          <label>Lever</label>
+          <select id="iv-lever">
+            ${LEVERS.map(l => `<option value="${l}">${l}</option>`).join('')}
+          </select>
+        </div>
+        <div class="iv-field">
+          <label>Status</label>
+          <select id="iv-status">
+            ${STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="iv-field">
+          <label>Owner</label>
+          <input type="text" id="iv-owner" placeholder="e.g. DEM">
+        </div>
+        <div class="iv-field">
+          <label>Associated agencies</label>
+          <input type="text" id="iv-agencies" placeholder="e.g. SFPD, DPW">
+        </div>
+        <div class="iv-field iv-field--full">
+          <label>Problem statement</label>
+          <textarea id="iv-problem" placeholder="What condition is this addressing?"></textarea>
+        </div>
       </div>
-      <p class="intervention-desc">${esc(i.description)}</p>
-      <div class="intervention-meta">
-        <span class="intervention-okr">Target: ${esc(okrLabel)}</span>
-        ${i.eval_link ? `<a class="intervention-eval" href="${esc(i.eval_link)}">View evaluation <wa-icon name="arrow-right"></wa-icon></a>` : ''}
+      <p class="iv-form__note">Mapping to a Key Result is required. A new intervention starts in "90-day window building" until there's enough time for a before/after read.</p>
+      <div class="iv-form__actions">
+        <button class="btn-primary" id="iv-submit">Add intervention</button>
+        <button class="btn-ghost" id="iv-cancel">Cancel</button>
       </div>
-    </li>
+    </div>
   `;
 }
 
 function renderInterventions() {
   const interventions = interventionsByDistrict[currentDistrict] || [];
-  if (interventions.length === 0) {
-    return '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
-  }
+  const count = interventions.length;
+
   return `
-    <ul class="intervention-list">
-      ${interventions.map(renderIntervention).join('')}
-    </ul>
+    <div class="iv-header">
+      <div>
+        <h2 class="iv-title">Intervention log</h2>
+        <p class="iv-subtitle">Every intervention maps to the Key Result it serves and closes the loop with an is-it-working read plus a recorded outcome.</p>
+      </div>
+      <div class="iv-header__actions">
+        <span class="iv-count">${count} logged</span>
+        <button class="iv-add-btn" id="iv-add-btn">+ Add intervention</button>
+      </div>
+    </div>
+    ${renderAddForm()}
+    <div class="iv-table-wrap">
+      <table class="iv-table">
+        <thead>
+          <tr>
+            <th>Intervention</th>
+            <th>Owner & agencies</th>
+            <th>Lever</th>
+            <th>Serves KR</th>
+            <th>Is it working?</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${count > 0 ? interventions.map((i, idx) => renderInterventionRow(i, idx)).join('') : `
+            <tr class="iv-empty-row">
+              <td colspan="6">No interventions logged for ${currentDistrict} yet. Click "+ Add intervention" to get started.</td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -216,6 +327,7 @@ function wireEvents(container) {
   container.querySelectorAll('.district-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentDistrict = btn.dataset.district;
+      showForm = false;
       render(container);
     });
   });
@@ -223,9 +335,57 @@ function wireEvents(container) {
   container.querySelectorAll('.content-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentTab = btn.dataset.tab;
+      showForm = false;
       render(container);
     });
   });
+
+  const addBtn = container.querySelector('#iv-add-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      showForm = !showForm;
+      render(container);
+    });
+  }
+
+  const cancelBtn = container.querySelector('#iv-cancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      showForm = false;
+      render(container);
+    });
+  }
+
+  const submitBtn = container.querySelector('#iv-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      const name = container.querySelector('#iv-name')?.value?.trim();
+      const kr = container.querySelector('#iv-kr')?.value;
+      if (!name || !kr) {
+        alert('Please fill in the intervention name and select a Key Result.');
+        return;
+      }
+
+      const intervention = {
+        name,
+        target_okr: kr,
+        lever: container.querySelector('#iv-lever')?.value || '',
+        status: container.querySelector('#iv-status')?.value || 'In progress',
+        owner: container.querySelector('#iv-owner')?.value?.trim() || '',
+        agencies: container.querySelector('#iv-agencies')?.value?.trim() || '',
+        description: container.querySelector('#iv-problem')?.value?.trim() || '',
+        working: '',
+        eval_link: '',
+      };
+
+      if (!interventionsByDistrict[currentDistrict]) {
+        interventionsByDistrict[currentDistrict] = [];
+      }
+      interventionsByDistrict[currentDistrict].push(intervention);
+      showForm = false;
+      render(container);
+    });
+  }
 }
 
 async function loadAggregates() {
