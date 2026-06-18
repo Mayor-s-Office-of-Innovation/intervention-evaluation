@@ -16,10 +16,10 @@ test.beforeEach(async ({ page }) => {
 test('landing page renders links to every dashboard without errors', async ({ page }) => {
   await page.goto('/index.html');
 
-  // app.js fetched the TSV and rendered the four district accordions (proves script + data loaded)
-  await expect(page.locator('.district-section')).toHaveCount(4);
+  // app.js fetched the TSV and rendered the four district tabs (proves script + data loaded)
+  await expect(page.locator('.district-tab')).toHaveCount(4);
 
-  // each OKR dashboard is linked from the page (cards are injected per district by app.js)
+  // each OKR dashboard is linked from the page (cards are rendered in the tab content)
   for (const slug of DASHBOARDS) {
     const links = page.locator(`a.okr-card[href="./${slug}/"]`);
     expect(await links.count(), `expected a link to ./${slug}/`).toBeGreaterThan(0);
