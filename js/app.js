@@ -2,41 +2,137 @@ import { parseTSV, groupBy } from './tsv.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
-const OKRS = [
-  {
+// Base OKR definitions with data sources
+const OKR_DEFS = {
+  drug: {
     id: 'drug',
     title: 'Reduce visible disorder: Drugs',
     href: './drug/',
     eyebrow: 'Drug activity',
     dataPath: './drug/data/aggregates.json',
-    krs: [
-      { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
-      { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
-    ]
   },
-  {
+  unhoused: {
     id: 'unhoused',
     title: 'Reduce unsheltered homelessness',
     href: './unhoused/',
     eyebrow: 'Unhoused presence',
     dataPath: './unhoused/data/aggregates.json',
-    krs: [
-      { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
-      { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
-    ]
   },
-  {
+  theft: {
     id: 'theft',
     title: 'Restore merchant confidence',
     href: './theft/',
     eyebrow: 'Theft from merchants',
     dataPath: './theft/data/aggregates.json',
-    krs: [
-      { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
-      { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
-    ]
   },
-];
+};
+
+// District-specific OKRs and KRs
+const DISTRICT_OKRS = {
+  Northern: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      title: 'Reduce non-violent crime',
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+  Central: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+  Mission: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+  Tenderloin: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+};
+
+// Helper to get OKRs for current district
+function getOKRs() {
+  return DISTRICT_OKRS[currentDistrict] || [];
+}
+
+// Flat list for KR dropdown in form
+function getAllOKRs() {
+  return Object.values(OKR_DEFS);
+}
 
 const LEVERS = ['Enforcement', 'Environmental', 'Outreach', 'Cleaning', 'Infrastructure', 'Policy'];
 const STATUSES = ['In progress', 'Closed'];
@@ -155,9 +251,10 @@ function renderContentTabs() {
 
 function renderOKRCards() {
   const districtHash = `#${currentDistrict.toLowerCase()}`;
+  const okrs = getOKRs();
   return `
     <div class="okr-grid">
-      ${OKRS.map(o => `
+      ${okrs.map(o => `
         <a class="okr-card" href="${o.href}${districtHash}">
           <div class="okr-card__body">
             <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
@@ -193,7 +290,7 @@ function getOutcomeLabel(outcome) {
 }
 
 function renderInterventionRow(i, idx) {
-  const okr = OKRS.find(o => o.id === i.target_okr);
+  const okr = getAllOKRs().find(o => o.id === i.target_okr);
   const krLabel = okr ? `KR: ${okr.title}` : (i.target_okr || '<span class="iv-unmapped">Not mapped</span>');
   const leverCls = getLeverClass(i.lever);
   const working = getWorkingLabel(i);
@@ -231,7 +328,7 @@ function renderAddForm() {
           <label>Serves Key Result <span class="req">*</span></label>
           <select id="iv-kr">
             <option value="">— select a Key Result —</option>
-            ${OKRS.map(o => `<option value="${o.id}">${esc(o.title)}</option>`).join('')}
+            ${getOKRs().map(o => `<option value="${o.id}">${esc(o.title)}</option>`).join('')}
           </select>
         </div>
         <div class="iv-field">
@@ -389,8 +486,9 @@ function wireEvents(container) {
 }
 
 async function loadAggregates() {
+  const okrDefs = Object.values(OKR_DEFS);
   const results = await Promise.allSettled(
-    OKRS.map(async o => {
+    okrDefs.map(async o => {
       const res = await fetch(o.dataPath);
       if (!res.ok) return null;
       return { id: o.id, data: await res.json() };
