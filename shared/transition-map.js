@@ -395,10 +395,15 @@ async function showCellDetails(lat, lng, popupEl, cm) {
   });
 
   renderBd(null);
-
-  // Leaflet equivalent of Mapbox's popup.setMaxWidth — widen for the panel and reflow.
-  const popup = cm?.getPopup();
-  if (popup) { popup.options.maxWidth = 340; popup.update(); }
-
   popupEl.querySelector('.cell-details-btn')?.remove();
+
+  // Widen the popup for the panel and reflow. NOTE: do NOT call popup.update() — it re-renders the
+  // popup from the original bound HTML string and would wipe the breakdown DOM we just injected.
+  // _updateLayout/_updatePosition re-fit width + reposition against the *live* DOM, preserving it.
+  const popup = cm?.getPopup();
+  if (popup) {
+    popup.options.maxWidth = 340;
+    popup._updateLayout?.();
+    popup._updatePosition?.();
+  }
 }
