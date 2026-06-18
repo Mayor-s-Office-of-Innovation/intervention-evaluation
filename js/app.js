@@ -11,20 +11,62 @@ const OKRS = [
 const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
 const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Inconclusive' };
 
+let currentDistrict = DISTRICTS[0];
+let currentTab = 'okrs';
+let interventionsByDistrict = {};
+
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function renderDistrictTabs() {
+  return `
+    <div class="district-tabs" role="tablist" aria-label="Select district">
+      ${DISTRICTS.map(d => `
+        <button class="district-tab${d === currentDistrict ? ' is-active' : ''}"
+                role="tab"
+                aria-selected="${d === currentDistrict}"
+                data-district="${d}">
+          ${esc(d)}
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderContentTabs() {
+  return `
+    <div class="content-tabs" role="tablist" aria-label="View type">
+      <button class="content-tab${currentTab === 'okrs' ? ' is-active' : ''}"
+              role="tab"
+              aria-selected="${currentTab === 'okrs'}"
+              data-tab="okrs">
+        OKRs
+      </button>
+      <button class="content-tab${currentTab === 'interventions' ? ' is-active' : ''}"
+              role="tab"
+              aria-selected="${currentTab === 'interventions'}"
+              data-tab="interventions">
+        Interventions
+      </button>
+    </div>
+  `;
+}
+
 function renderOKRCards() {
-  return OKRS.map(o => `
-    <a class="okr-card okr-card--mini" href="${o.href}">
-      <div class="okr-card__body">
-        <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
-        <h3 class="okr-card__title">${esc(o.title)}</h3>
-      </div>
-      <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
-    </a>
-  `).join('');
+  return `
+    <div class="okr-grid">
+      ${OKRS.map(o => `
+        <a class="okr-card" href="${o.href}">
+          <div class="okr-card__body">
+            <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
+            <h3 class="okr-card__title">${esc(o.title)}</h3>
+          </div>
+          <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
+        </a>
+      `).join('')}
+    </div>
+  `;
 }
 
 function renderIntervention(i) {
@@ -48,45 +90,45 @@ function renderIntervention(i) {
   `;
 }
 
-function renderDistrict(name, interventions, expanded = false) {
-  const count = interventions.length;
-  const countText = count === 1 ? '1 intervention' : `${count} interventions`;
-
+function renderInterventions() {
+  const interventions = interventionsByDistrict[currentDistrict] || [];
+  if (interventions.length === 0) {
+    return '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
+  }
   return `
-    <section class="district-section${expanded ? ' is-expanded' : ''}">
-      <button class="district-header" aria-expanded="${expanded}" type="button">
-        <h2>${esc(name)}</h2>
-        <span class="district-header__count">${countText}</span>
-        <wa-icon name="chevron-down" class="district-header__icon"></wa-icon>
-      </button>
-      <div class="district-body">
-        <div class="district-cols">
-          <div class="district-okrs">
-            <p class="section-label">Objectives</p>
-            <div class="okr-grid okr-grid--mini">
-              ${renderOKRCards()}
-            </div>
-          </div>
-          <div class="district-interventions">
-            <p class="section-label">Interventions</p>
-            ${count > 0 ? `
-              <ul class="intervention-list">
-                ${interventions.map(renderIntervention).join('')}
-              </ul>
-            ` : '<p class="intervention-empty">No interventions recorded yet.</p>'}
-          </div>
-        </div>
-      </div>
-    </section>
+    <ul class="intervention-list">
+      ${interventions.map(renderIntervention).join('')}
+    </ul>
   `;
 }
 
-function wireAccordions(container) {
-  container.querySelectorAll('.district-header').forEach(btn => {
+function renderContent() {
+  return currentTab === 'okrs' ? renderOKRCards() : renderInterventions();
+}
+
+function render(container) {
+  container.innerHTML = `
+    ${renderDistrictTabs()}
+    ${renderContentTabs()}
+    <div class="tab-content">
+      ${renderContent()}
+    </div>
+  `;
+  wireEvents(container);
+}
+
+function wireEvents(container) {
+  container.querySelectorAll('.district-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      const section = btn.closest('.district-section');
-      const expanded = section.classList.toggle('is-expanded');
-      btn.setAttribute('aria-expanded', expanded);
+      currentDistrict = btn.dataset.district;
+      render(container);
+    });
+  });
+
+  container.querySelectorAll('.content-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentTab = btn.dataset.tab;
+      render(container);
     });
   });
 }
@@ -99,13 +141,9 @@ async function init() {
     const res = await fetch('./data/interventions.tsv');
     const text = await res.text();
     const interventions = parseTSV(text);
-    const byDistrict = groupBy(interventions, 'district');
+    interventionsByDistrict = groupBy(interventions, 'district');
 
-    container.innerHTML = DISTRICTS.map((d, i) =>
-      renderDistrict(d, byDistrict[d] || [], i === 0)
-    ).join('');
-
-    wireAccordions(container);
+    render(container);
   } catch (err) {
     console.error('Failed to load interventions:', err);
     container.innerHTML = '<p class="error">Failed to load intervention data.</p>';
