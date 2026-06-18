@@ -27,6 +27,7 @@ function renderDistrictTabs() {
                 role="tab"
                 aria-selected="${d === currentDistrict}"
                 data-district="${d}">
+          <span class="district-tab__dot"></span>
           ${esc(d)}
         </button>
       `).join('')}

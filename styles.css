@@ -126,20 +126,24 @@ a { color: var(--c-blue); }
 .saved-eval__arrow { flex: none; font-size: .85rem; transition: transform .15s ease; }
 .saved-eval:hover .saved-eval__arrow { transform: translateX(2px); }
 
-/* ───────────── District tabs (horizontal) ───────────── */
+/* ───────────── District pills (horizontal) ───────────── */
 .district-tabs {
   display: flex;
   gap: .5rem;
   margin-bottom: 1.25rem;
+  flex-wrap: wrap;
 }
 
 .district-tab {
-  padding: .6rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
   background: var(--surface);
   border: 1px solid var(--c-line);
-  border-radius: var(--radius);
+  border-radius: 999px;
   font-family: inherit;
-  font-size: .95rem;
+  font-size: .9rem;
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
@@ -150,31 +154,45 @@ a { color: var(--c-blue); }
   color: var(--text);
 }
 .district-tab.is-active {
-  background: var(--c-blue);
-  border-color: var(--c-blue);
-  color: #fff;
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: var(--c-blue);
+}
+html.wa-dark .district-tab.is-active {
+  background: #1d2c4d;
+  border-color: #2c4b85;
+  color: #dce8ff;
 }
 .district-tab:focus-visible {
   outline: 2px solid var(--c-blue);
   outline-offset: 2px;
 }
+.district-tab__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.district-tab.is-active .district-tab__dot {
+  background: var(--c-blue);
+}
 
 /* ───────────── Content tabs (OKRs | Interventions) ───────────── */
 .content-tabs {
   display: flex;
-  gap: 0;
-  margin-bottom: 1.5rem;
+  gap: 4px;
+  margin-bottom: 1.25rem;
   border-bottom: 1px solid var(--c-line);
 }
 
 .content-tab {
-  padding: .75rem 1.5rem;
+  padding: .65rem 1rem;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   font-family: inherit;
-  font-size: .9rem;
+  font-size: .875rem;
   font-weight: 600;
   color: var(--muted);
   cursor: pointer;
@@ -184,12 +202,13 @@ a { color: var(--c-blue); }
   color: var(--text);
 }
 .content-tab.is-active {
-  color: var(--c-blue);
+  color: var(--text);
   border-bottom-color: var(--c-blue);
 }
 .content-tab:focus-visible {
   outline: 2px solid var(--c-blue);
   outline-offset: -2px;
+  border-radius: 6px;
 }
 
 /* ───────────── Tab content area ───────────── */
