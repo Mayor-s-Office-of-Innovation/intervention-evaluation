@@ -126,83 +126,75 @@ a { color: var(--c-blue); }
 .saved-eval__arrow { flex: none; font-size: .85rem; transition: transform .15s ease; }
 .saved-eval:hover .saved-eval__arrow { transform: translateX(2px); }
 
-/* ───────────── District accordions ───────────── */
-.district-section {
+/* ───────────── District tabs (horizontal) ───────────── */
+.district-tabs {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1.25rem;
+}
+
+.district-tab {
+  padding: .6rem 1.25rem;
   background: var(--surface);
   border: 1px solid var(--c-line);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  margin-bottom: 1rem;
-  overflow: hidden;
+  font-family: inherit;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.district-tab:hover {
+  border-color: var(--c-blue);
+  color: var(--text);
+}
+.district-tab.is-active {
+  background: var(--c-blue);
+  border-color: var(--c-blue);
+  color: #fff;
+}
+.district-tab:focus-visible {
+  outline: 2px solid var(--c-blue);
+  outline-offset: 2px;
 }
 
-.district-header {
+/* ───────────── Content tabs (OKRs | Interventions) ───────────── */
+.content-tabs {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-  padding: 1rem 1.25rem;
+  gap: 0;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.content-tab {
+  padding: .75rem 1.5rem;
   background: none;
   border: none;
-  cursor: pointer;
-  text-align: left;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   font-family: inherit;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.content-tab:hover {
   color: var(--text);
-  transition: background .15s ease;
 }
-.district-header:hover { background: rgba(59,130,246,.04); }
-.district-header:focus-visible { outline: 2px solid var(--c-blue); outline-offset: -2px; }
-
-.district-header h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
-  flex: 1 1 auto;
+.content-tab.is-active {
+  color: var(--c-blue);
+  border-bottom-color: var(--c-blue);
 }
-.district-header__count {
-  font-size: .82rem;
-  color: var(--muted);
-  font-weight: 500;
-}
-.district-header__icon {
-  font-size: 1rem;
-  color: var(--muted);
-  transition: transform .2s ease;
-}
-.district-section.is-expanded .district-header__icon {
-  transform: rotate(180deg);
+.content-tab:focus-visible {
+  outline: 2px solid var(--c-blue);
+  outline-offset: -2px;
 }
 
-.district-body {
-  display: none;
-  padding: 0 1.25rem 1.25rem;
-  border-top: 1px solid var(--c-line);
-}
-.district-section.is-expanded .district-body {
-  display: block;
-}
-
-.district-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-top: 1rem;
-}
-@media (max-width: 720px) {
-  .district-cols { grid-template-columns: 1fr; }
-}
-
-/* Mini OKR cards for within-district view */
-.okr-grid--mini { gap: .75rem; }
-.okr-card--mini {
-  padding: .9rem 1rem .8rem;
-}
-.okr-card--mini .okr-card__title {
-  font-size: .95rem;
-  margin: .2rem 0 0;
-}
-.okr-card--mini .okr-card__arrow {
-  display: none;
+/* ───────────── Tab content area ───────────── */
+.tab-content {
+  min-height: 200px;
 }
 
 /* ───────────── Intervention list ───────────── */
