@@ -5,7 +5,7 @@
 // Both pure consumers: given a {lat,lng} + events, they draw. No fetch.
 // ──────────────────────────────────────────────────────────────────────
 
-const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const TILE_OPTS = {
   subdomains: 'abcd',

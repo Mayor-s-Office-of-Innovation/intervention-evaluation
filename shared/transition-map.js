@@ -9,7 +9,9 @@
 // Built on presence signals only (D8). CARTO light/dark tiles follow the OS.
 // ──────────────────────────────────────────────────────────────────────
 
-const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+// Light uses CARTO Voyager for noticeably clearer street labels than Positron; dark stays Dark Matter
+// (Voyager has no dark variant). Street names are part of the basemap, drawn under the data dots.
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const TILE_OPTS = {
   subdomains: 'abcd', maxZoom: 19,
@@ -30,6 +32,21 @@ export const CATEGORY = {
 const isDark = () => document.documentElement.classList.contains('wa-dark');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
+
+const TIME_BUCKETS = {
+  morning: { label: 'Morning', hours: [6, 7, 8, 9, 10, 11] },
+  afternoon: { label: 'Afternoon', hours: [12, 13, 14, 15, 16, 17] },
+  evening: { label: 'Evening', hours: [18, 19, 20, 21] },
+  night: { label: 'Night', hours: [22, 23, 0, 1, 2, 3, 4, 5] },
+};
+
+function getTimeBucket(hour) {
+  if (hour < 0) return null;
+  for (const [key, { hours }] of Object.entries(TIME_BUCKETS)) {
+    if (hours.includes(hour)) return key;
+  }
+  return null;
+}
 
 let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = null, hintEl = null;
 let lastCells = [], lastDistrict = '', lastVisible = null;
@@ -166,9 +183,16 @@ export function renderCells(cells, districtName, visible) {
       `<strong>${meta.label}</strong> · ${esc(titleCase(c.district))}` +
       `<br>Before Lurie: <strong>${c.preRate}</strong>/mo · Now: <strong>${c.nowRate}</strong>/mo` +
       (c.expectedRate != null ? ` <small>(district-tide ${c.expectedRate})</small>` : '') +
-      sparkline(c.monthly), { maxWidth: 230, autoPan: false }
+      sparkline(c.monthly) +
+      `<button class="cell-details-btn" data-lat="${c.lat}" data-lng="${c.lng}">See details</button>` +
+      `<div class="cell-details" hidden></div>`, { maxWidth: 230, autoPan: false }
     );
-    cm.on('popupopen', () => { selectedCellId = cellId; emitState(); });   // click → pin + shareable URL
+    cm.on('popupopen', () => {
+      selectedCellId = cellId; emitState();   // click → pin + shareable URL
+      const popupEl = cm.getPopup()?.getElement();
+      const btn = popupEl?.querySelector('.cell-details-btn');
+      btn?.addEventListener('click', () => showCellDetails(c.lat, c.lng, popupEl, cm));
+    });
     cm.on('popupclose', () => { if (selectedCellId === cellId) { selectedCellId = null; emitState(); } });
     cm.addTo(cellLayer);
     if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }   // deep-link target
@@ -250,7 +274,7 @@ function renderMarkers() {
     const color = recent ? RECENT_COLOR : OLDER_COLOR;
     const date = new Date(epochMs + g.top[2] * 86400000).toISOString().slice(0, 10);
     const rows = fields.map((f, i) => {
-      const raw = g.top[3 + i];
+      const raw = g.top[4 + i];   // pts layout: [lat, lng, day, hour, ...fields] → fields start at 4
       const val = f.coded ? f.values[raw] : raw;
       return val ? `<div class="ov-row"><span>${esc(f.label)}</span>${esc(val)}</div>` : '';
     }).join('');
@@ -277,4 +301,104 @@ function renderMarkers() {
       `<span class="hint-dot" style="background:${RECENT_COLOR}"></span>in window · hover for count + details` +
       (inView > MARKER_CAP ? ` · showing ${MARKER_CAP} of ${inView} locations, zoom in` : '');
   }
+}
+
+// ── cell "See details" panel — incident-type breakdown with time-of-day filtering ──
+function getMarkersForCell(lat, lng, data) {
+  if (!data?.pts) return [];
+  const { coordScale, pts } = data;
+  const cellLat = Math.round(lat * 1000) / 1000;
+  const cellLng = Math.round(lng * 1000) / 1000;
+  return pts.filter(pt => {
+    const mLat = Math.round((pt[0] / coordScale) * 1000) / 1000;
+    const mLng = Math.round((pt[1] / coordScale) * 1000) / 1000;
+    return mLat === cellLat && mLng === cellLng;
+  });
+}
+
+function computeBreakdown(markers, fields, hourFilter = null) {
+  const typeFieldIdx = fields.findIndex(f =>
+    ['Reported as', 'Type', 'Call type', 'call_type_original_desc'].includes(f.label)
+  );
+  if (typeFieldIdx < 0 || !markers.length) return [];
+
+  const field = fields[typeFieldIdx];
+  const counts = {};
+  const fieldOffset = 4; // pts layout: [lat, lng, day, hour, ...fields]
+
+  markers.forEach(pt => {
+    const hour = pt[3];
+    if (hourFilter && !hourFilter.includes(getTimeBucket(hour))) return;
+    const rawVal = pt[fieldOffset + typeFieldIdx];
+    const val = field.coded ? (field.values[rawVal] || '') : (rawVal || '');
+    counts[val] = (counts[val] || 0) + 1;
+  });
+
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+}
+
+function renderBreakdownList(breakdown) {
+  if (!breakdown.length) return '<em class="cell-details__empty">No reports at this location</em>';
+  const total = breakdown.reduce((s, [, c]) => s + c, 0);
+  return breakdown.map(([type, count]) => {
+    const pct = Math.round((count / total) * 100);
+    return `
+      <div class="breakdown-row">
+        <span class="breakdown-type">${esc(type || '(blank)')}</span>
+        <span class="breakdown-bar" style="--pct:${pct}%"></span>
+        <span class="breakdown-count">${count}</span>
+      </div>`;
+  }).join('');
+}
+
+async function showCellDetails(lat, lng, popupEl, cm) {
+  if (!markerData && markerLoader && !markerLoading) {
+    markerLoading = true;
+    try { markerData = await markerLoader(); } finally { markerLoading = false; }
+  }
+  if (!markerData) return;
+
+  const detailsEl = popupEl?.querySelector('.cell-details');
+  if (!detailsEl) return;
+
+  const cellMarkers = getMarkersForCell(lat, lng, markerData);
+
+  detailsEl.innerHTML = `
+    <div class="cell-details__header">${cellMarkers.length} report${cellMarkers.length !== 1 ? 's' : ''}</div>
+    <div class="cell-details__filter" role="group" aria-label="Time of day">
+      <button class="tod-chip is-active" data-tod="all">All</button>
+      <button class="tod-chip" data-tod="morning">Morning</button>
+      <button class="tod-chip" data-tod="afternoon">Afternoon</button>
+      <button class="tod-chip" data-tod="evening">Evening</button>
+      <button class="tod-chip" data-tod="night">Night</button>
+    </div>
+    <div class="cell-details__breakdown"></div>`;
+  detailsEl.hidden = false;
+
+  const filterBtns = detailsEl.querySelectorAll('.tod-chip');
+  const breakdownEl = detailsEl.querySelector('.cell-details__breakdown');
+
+  const renderBd = (filter) => {
+    const breakdown = computeBreakdown(cellMarkers, markerData.fields, filter);
+    breakdownEl.innerHTML = renderBreakdownList(breakdown);
+  };
+
+  filterBtns.forEach(btn => {
+    btn.onclick = () => {
+      filterBtns.forEach(b => b.classList.remove('is-active'));
+      btn.classList.add('is-active');
+      const tod = btn.dataset.tod;
+      renderBd(tod === 'all' ? null : [tod]);
+    };
+  });
+
+  renderBd(null);
+
+  // Leaflet equivalent of Mapbox's popup.setMaxWidth — widen for the panel and reflow.
+  const popup = cm?.getPopup();
+  if (popup) { popup.options.maxWidth = 340; popup.update(); }
+
+  popupEl.querySelector('.cell-details-btn')?.remove();
 }
