@@ -3,12 +3,39 @@ import { parseTSV, groupBy } from './tsv.js';
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
 const OKRS = [
-  { id: 'drug', title: 'Reduce visible disorder: Drugs', href: './drug/', eyebrow: 'Drug activity',
-    dataPath: './drug/data/aggregates.json', signal: 'cfs_drug', goal: 'down' },
-  { id: 'unhoused', title: 'Reduce unsheltered homelessness', href: './unhoused/', eyebrow: 'Unhoused presence',
-    dataPath: './unhoused/data/aggregates.json', signal: 'encampment', goal: 'down' },
-  { id: 'theft', title: 'Restore merchant confidence', href: './theft/', eyebrow: 'Theft from merchants',
-    dataPath: './theft/data/aggregates.json', signal: 'shoplifting', goal: 'down' },
+  {
+    id: 'drug',
+    title: 'Reduce visible disorder: Drugs',
+    href: './drug/',
+    eyebrow: 'Drug activity',
+    dataPath: './drug/data/aggregates.json',
+    krs: [
+      { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+      { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+    ]
+  },
+  {
+    id: 'unhoused',
+    title: 'Reduce unsheltered homelessness',
+    href: './unhoused/',
+    eyebrow: 'Unhoused presence',
+    dataPath: './unhoused/data/aggregates.json',
+    krs: [
+      { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+      { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+    ]
+  },
+  {
+    id: 'theft',
+    title: 'Restore merchant confidence',
+    href: './theft/',
+    eyebrow: 'Theft from merchants',
+    dataPath: './theft/data/aggregates.json',
+    krs: [
+      { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+      { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+    ]
+  },
 ];
 
 const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
@@ -33,74 +60,55 @@ function pctChange(current, previous) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-function getKPIs(okr, district) {
-  const data = aggregatesData[okr.id];
+function getKRData(okrId, kr, district) {
+  const data = aggregatesData[okrId];
   if (!data) return null;
 
-  const signal = data.signals?.[okr.signal];
+  const signal = data.signals?.[kr.signal];
   if (!signal) return null;
 
-  // Handle different data structures:
-  // - drug/unhoused: signal.series[district]
-  // - theft: signal[district.toLowerCase()].reported (Northern-only dataset)
+  // Handle different data structures
   let series = signal.series?.[district];
-  let label = signal.label || okr.signal;
-
   if (!series) {
-    // Try theft format
     const districtKey = district.toLowerCase();
     series = signal[districtKey]?.reported;
   }
 
   if (!series || series.length < 13) return null;
 
-  // Get values for different periods (excluding current partial month)
   const len = series.length;
   const hasPartial = data.current_partial_month != null;
   const endIdx = hasPartial ? len - 1 : len;
 
-  const last1 = series[endIdx - 1] || 0;
   const last3 = sumLast(series.slice(0, endIdx), 3);
-  const last12 = sumLast(series.slice(0, endIdx), 12);
-
-  // Compare to same periods from prior year
-  const prior1 = series[endIdx - 13] || 0;
   const prior3 = sumLast(series.slice(0, endIdx - 12), 3);
-  const prior12 = sumLast(series.slice(0, endIdx - 12), 12);
+  const change = pctChange(last3, prior3);
 
-  return {
-    label,
-    goal: okr.goal,
-    periods: [
-      { label: 'Last month', value: last1, change: pctChange(last1, prior1) },
-      { label: '3 months', value: last3, change: pctChange(last3, prior3) },
-      { label: '12 months', value: last12, change: pctChange(last12, prior12) },
-    ]
-  };
+  return { change, goal: kr.goal };
 }
 
-function renderKPIBadge(period, goal) {
-  if (period.change === null) return '';
-  const isGood = (goal === 'down' && period.change < 0) || (goal === 'up' && period.change > 0);
-  const isFlat = period.change === 0;
-  const cls = isFlat ? 'kpi-flat' : (isGood ? 'kpi-good' : 'kpi-bad');
-  const arrow = period.change > 0 ? '↑' : (period.change < 0 ? '↓' : '→');
-  return `<span class="kpi-change ${cls}">${arrow}${Math.abs(period.change)}% vs last year</span>`;
-}
+function renderKRTicker(okr, district) {
+  const items = okr.krs.map(kr => {
+    const data = getKRData(okr.id, kr, district);
+    if (!data || data.change === null) {
+      return `<div class="kr-ticker"><span class="kr-ticker__label">${esc(kr.label)}</span><span class="kr-ticker__badge kr-ticker--nodata">—</span></div>`;
+    }
 
-function renderKPIs(kpis) {
-  if (!kpis) return '';
-  return `
-    <div class="kpi-row">
-      ${kpis.periods.map(p => `
-        <div class="kpi-cell">
-          <span class="kpi-value">${p.value?.toLocaleString() ?? '—'}</span>
-          <span class="kpi-label">${p.label}</span>
-          ${renderKPIBadge(p, kpis.goal)}
-        </div>
-      `).join('')}
-    </div>
-  `;
+    const isUp = data.change > 0;
+    const isDown = data.change < 0;
+    const isGood = (data.goal === 'down' && isDown) || (data.goal === 'up' && isUp);
+    const arrow = isUp ? '↑' : (isDown ? '↓' : '→');
+    const cls = isGood ? 'kr-ticker--good' : 'kr-ticker--bad';
+
+    return `
+      <div class="kr-ticker">
+        <span class="kr-ticker__label">${esc(kr.label)}</span>
+        <span class="kr-ticker__badge ${cls}">${arrow}${Math.abs(data.change)}%</span>
+      </div>
+    `;
+  });
+
+  return `<div class="kr-tickers">${items.join('')}</div>`;
 }
 
 function renderDistrictTabs() {
@@ -141,20 +149,16 @@ function renderContentTabs() {
 function renderOKRCards() {
   return `
     <div class="okr-grid">
-      ${OKRS.map(o => {
-        const kpis = getKPIs(o, currentDistrict);
-        return `
-          <a class="okr-card" href="${o.href}">
-            <div class="okr-card__body">
-              <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
-              <h3 class="okr-card__title">${esc(o.title)}</h3>
-              ${kpis ? `<p class="okr-card__signal">${esc(kpis.label)}</p>` : ''}
-              ${renderKPIs(kpis)}
-            </div>
-            <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
-          </a>
-        `;
-      }).join('')}
+      ${OKRS.map(o => `
+        <a class="okr-card" href="${o.href}">
+          <div class="okr-card__body">
+            <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
+            <h3 class="okr-card__title">${esc(o.title)}</h3>
+            ${renderKRTicker(o, currentDistrict)}
+          </div>
+          <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
+        </a>
+      `).join('')}
     </div>
   `;
 }
@@ -244,7 +248,6 @@ async function init() {
   if (!container) return;
 
   try {
-    // Load interventions and aggregates in parallel
     const [interventionsRes] = await Promise.all([
       fetch('./data/interventions.tsv'),
       loadAggregates()
