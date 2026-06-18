@@ -147,10 +147,11 @@ function renderContentTabs() {
 }
 
 function renderOKRCards() {
+  const districtHash = `#${currentDistrict.toLowerCase()}`;
   return `
     <div class="okr-grid">
       ${OKRS.map(o => `
-        <a class="okr-card" href="${o.href}">
+        <a class="okr-card" href="${o.href}${districtHash}">
           <div class="okr-card__body">
             <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
             <h3 class="okr-card__title">${esc(o.title)}</h3>
