@@ -23,6 +23,12 @@ jobs:
   # (The source↔data trace is network/flaky, so it runs nightly in trace.yml, not here.)
   test:
     runs-on: ubuntu-latest
+    # Run inside Playwright's official image (Chromium + all its system libs pre-installed) so CI never
+    # touches apt / the flaky azure.archive.ubuntu.com mirror that was hanging `--with-deps`. Pin the
+    # tag to the @playwright/test version in package-lock.json (1.60.0) so the image's pre-baked
+    # browsers match the installed client; bump both together when upgrading Playwright.
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +37,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '24', cache: 'npm' }
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # Browsers are baked into the image, so this is a no-op when versions match — kept (without
+      # --with-deps) as a cheap self-heal if the client ever drifts ahead of the image tag. No apt.
+      - run: npx playwright install chromium
       - name: V1+V3 · build invariants + axis alignment
         run: python3 validation/validate_build.py
       - name: V2 · classifier parity (drug + unhoused)
@@ -57,9 +65,16 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Stage site files
         run: |
-          # Root landing page — static index of the dashboards, no JS of its own.
+          # Root landing page — the intervention tracker. It ships its own ES modules (js/app.js +
+          # js/tsv.js) and fetches ./data/interventions.tsv, so stage the root js/ and data/ dirs too
+          # (not just index.html/styles.css) or the homepage 404s on its script + data.
           mkdir -p _site
           cp index.html styles.css _site/
+          mkdir -p _site/js && cp js/*.js _site/js/
+          if [ -d data ]; then
+            mkdir -p _site/data
+            cp -r data/. _site/data/
+          fi
           # Shared ES-module lib imported by the dashboards as ../../shared/*.js (data/rollup/
           # classify/chart/transition-map). Staged once at the site root so _site/<project>/js/app.js
           # resolves ../../shared/ to _site/shared/.

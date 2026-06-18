@@ -32,6 +32,8 @@ export const CATEGORY = {
 const isDark = () => document.documentElement.classList.contains('wa-dark');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const titleCase = s => s.charAt(0) + s.slice(1).toLowerCase();
+// Monthly rates come out of the build as raw floats (e.g. 3.235294117647059); show 1 decimal.
+const fmtRate = n => (n == null ? n : Number(n).toFixed(1));
 
 const TIME_BUCKETS = {
   morning: { label: 'Morning', hours: [6, 7, 8, 9, 10, 11] },
@@ -181,8 +183,8 @@ export function renderCells(cells, districtName, visible) {
     cm.bindPopup(
       (c.name ? `<div class="cell-loc">${esc(c.name)}</div>` : '') +
       `<strong>${meta.label}</strong> · ${esc(titleCase(c.district))}` +
-      `<br>Before Lurie: <strong>${c.preRate}</strong>/mo · Now: <strong>${c.nowRate}</strong>/mo` +
-      (c.expectedRate != null ? ` <small>(district-tide ${c.expectedRate})</small>` : '') +
+      `<br>Before Lurie: <strong>${fmtRate(c.preRate)}</strong>/mo · Now: <strong>${fmtRate(c.nowRate)}</strong>/mo` +
+      (c.expectedRate != null ? ` <small>(district-tide ${fmtRate(c.expectedRate)})</small>` : '') +
       sparkline(c.monthly) +
       `<button class="cell-details-btn" data-lat="${c.lat}" data-lng="${c.lng}">See details</button>` +
       `<div class="cell-details" hidden></div>`, { maxWidth: 230, autoPan: false }
