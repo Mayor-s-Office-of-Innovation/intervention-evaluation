@@ -2,24 +2,155 @@ import { parseTSV, groupBy } from './tsv.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
-const OKRS = [
-  { id: 'drug', title: 'Reduce visible disorder: Drugs', href: './drug/', eyebrow: 'Drug activity',
-    dataPath: './drug/data/aggregates.json', signal: 'cfs_drug', goal: 'down' },
-  { id: 'unhoused', title: 'Reduce unsheltered homelessness', href: './unhoused/', eyebrow: 'Unhoused presence',
-    dataPath: './unhoused/data/aggregates.json', signal: 'encampment', goal: 'down' },
-  { id: 'theft', title: 'Restore merchant confidence', href: './theft/', eyebrow: 'Theft from merchants',
-    dataPath: './theft/data/aggregates.json', signal: 'shoplifting', goal: 'down' },
-];
+// Base OKR definitions with data sources
+const OKR_DEFS = {
+  drug: {
+    id: 'drug',
+    title: 'Reduce visible disorder: Drugs',
+    href: './drug/',
+    eyebrow: 'Drug activity',
+    dataPath: './drug/data/aggregates.json',
+  },
+  unhoused: {
+    id: 'unhoused',
+    title: 'Reduce unsheltered homelessness',
+    href: './unhoused/',
+    eyebrow: 'Unhoused presence',
+    dataPath: './unhoused/data/aggregates.json',
+  },
+  theft: {
+    id: 'theft',
+    title: 'Restore merchant confidence',
+    href: './theft/',
+    eyebrow: 'Theft from merchants',
+    dataPath: './theft/data/aggregates.json',
+  },
+};
 
-const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
-const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Inconclusive' };
+// District-specific OKRs and KRs
+const DISTRICT_OKRS = {
+  Northern: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      title: 'Reduce non-violent crime',
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+  Central: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+  Mission: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+  Tenderloin: [
+    {
+      ...OKR_DEFS.drug,
+      krs: [
+        { signal: 'cfs_drug', label: '911 drug complaints', goal: 'down' },
+        { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
+      ]
+    },
+    {
+      ...OKR_DEFS.unhoused,
+      krs: [
+        { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+        { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
+      ]
+    },
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
+        { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
+      ]
+    },
+  ],
+};
+
+// Helper to get OKRs for current district
+function getOKRs() {
+  return DISTRICT_OKRS[currentDistrict] || [];
+}
+
+// Flat list for KR dropdown in form
+function getAllOKRs() {
+  return Object.values(OKR_DEFS);
+}
+
+const LEVERS = ['Enforcement', 'Environmental', 'Outreach', 'Cleaning', 'Infrastructure', 'Policy'];
+const STATUSES = ['In progress', 'Closed'];
+const OUTCOMES = [
+  { value: '', label: 'In progress' },
+  { value: 'worked', label: '✓ Worked' },
+  { value: 'didnt', label: '✗ Didn\'t work' },
+  { value: 'inconclusive', label: '~ Inconclusive' },
+];
 
 let currentDistrict = DISTRICTS[0];
 let currentTab = 'okrs';
 let interventionsByDistrict = {};
 let aggregatesData = {};
+let showForm = false;
 
 function esc(s) {
+  if (!s) return '';
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
@@ -33,74 +164,54 @@ function pctChange(current, previous) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
-function getKPIs(okr, district) {
-  const data = aggregatesData[okr.id];
+function getKRData(okrId, kr, district) {
+  const data = aggregatesData[okrId];
   if (!data) return null;
 
-  const signal = data.signals?.[okr.signal];
+  const signal = data.signals?.[kr.signal];
   if (!signal) return null;
 
-  // Handle different data structures:
-  // - drug/unhoused: signal.series[district]
-  // - theft: signal[district.toLowerCase()].reported (Northern-only dataset)
   let series = signal.series?.[district];
-  let label = signal.label || okr.signal;
-
   if (!series) {
-    // Try theft format
     const districtKey = district.toLowerCase();
     series = signal[districtKey]?.reported;
   }
 
   if (!series || series.length < 13) return null;
 
-  // Get values for different periods (excluding current partial month)
   const len = series.length;
   const hasPartial = data.current_partial_month != null;
   const endIdx = hasPartial ? len - 1 : len;
 
-  const last1 = series[endIdx - 1] || 0;
   const last3 = sumLast(series.slice(0, endIdx), 3);
-  const last12 = sumLast(series.slice(0, endIdx), 12);
-
-  // Compare to same periods from prior year
-  const prior1 = series[endIdx - 13] || 0;
   const prior3 = sumLast(series.slice(0, endIdx - 12), 3);
-  const prior12 = sumLast(series.slice(0, endIdx - 12), 12);
+  const change = pctChange(last3, prior3);
 
-  return {
-    label,
-    goal: okr.goal,
-    periods: [
-      { label: 'Last month', value: last1, change: pctChange(last1, prior1) },
-      { label: '3 months', value: last3, change: pctChange(last3, prior3) },
-      { label: '12 months', value: last12, change: pctChange(last12, prior12) },
-    ]
-  };
+  return { change, goal: kr.goal };
 }
 
-function renderKPIBadge(period, goal) {
-  if (period.change === null) return '';
-  const isGood = (goal === 'down' && period.change < 0) || (goal === 'up' && period.change > 0);
-  const isFlat = period.change === 0;
-  const cls = isFlat ? 'kpi-flat' : (isGood ? 'kpi-good' : 'kpi-bad');
-  const arrow = period.change > 0 ? '↑' : (period.change < 0 ? '↓' : '→');
-  return `<span class="kpi-change ${cls}">${arrow}${Math.abs(period.change)}% vs last year</span>`;
-}
+function renderKRTicker(okr, district) {
+  const items = okr.krs.map(kr => {
+    const data = getKRData(okr.id, kr, district);
+    if (!data || data.change === null) {
+      return `<div class="kr-ticker"><span class="kr-ticker__label">${esc(kr.label)}</span><span class="kr-ticker__badge kr-ticker--nodata">—</span></div>`;
+    }
 
-function renderKPIs(kpis) {
-  if (!kpis) return '';
-  return `
-    <div class="kpi-row">
-      ${kpis.periods.map(p => `
-        <div class="kpi-cell">
-          <span class="kpi-value">${p.value?.toLocaleString() ?? '—'}</span>
-          <span class="kpi-label">${p.label}</span>
-          ${renderKPIBadge(p, kpis.goal)}
-        </div>
-      `).join('')}
-    </div>
-  `;
+    const isUp = data.change > 0;
+    const isDown = data.change < 0;
+    const isGood = (data.goal === 'down' && isDown) || (data.goal === 'up' && isUp);
+    const arrow = isUp ? '↑' : (isDown ? '↓' : '→');
+    const cls = isGood ? 'kr-ticker--good' : 'kr-ticker--bad';
+
+    return `
+      <div class="kr-ticker">
+        <span class="kr-ticker__label">${esc(kr.label)}</span>
+        <span class="kr-ticker__badge ${cls}">${arrow}${Math.abs(data.change)}%</span>
+      </div>
+    `;
+  });
+
+  return `<div class="kr-tickers">${items.join('')}</div>`;
 }
 
 function renderDistrictTabs() {
@@ -139,56 +250,158 @@ function renderContentTabs() {
 }
 
 function renderOKRCards() {
+  const districtHash = `#${currentDistrict.toLowerCase()}`;
+  const okrs = getOKRs();
   return `
     <div class="okr-grid">
-      ${OKRS.map(o => {
-        const kpis = getKPIs(o, currentDistrict);
-        return `
-          <a class="okr-card" href="${o.href}">
-            <div class="okr-card__body">
-              <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
-              <h3 class="okr-card__title">${esc(o.title)}</h3>
-              ${kpis ? `<p class="okr-card__signal">${esc(kpis.label)}</p>` : ''}
-              ${renderKPIs(kpis)}
-            </div>
-            <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
-          </a>
-        `;
-      }).join('')}
+      ${okrs.map(o => `
+        <a class="okr-card" href="${o.href}${districtHash}">
+          <div class="okr-card__body">
+            <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
+            <h3 class="okr-card__title">${esc(o.title)}</h3>
+            ${renderKRTicker(o, currentDistrict)}
+          </div>
+          <wa-icon class="okr-card__arrow" name="arrow-right" label="Open dashboard"></wa-icon>
+        </a>
+      `).join('')}
     </div>
   `;
 }
 
-function renderIntervention(i) {
-  const statusClass = i.status ? `intervention-status--${i.status}` : '';
-  const workingClass = i.working ? `intervention-working--${i.working}` : '';
-  const okrLabel = OKRS.find(o => o.id === i.target_okr)?.title || i.target_okr;
+function getLeverClass(lever) {
+  const map = { Outreach: 'outreach', Cleaning: 'cleaning', Environmental: 'env', Infrastructure: 'infra' };
+  return map[lever] || '';
+}
+
+function getWorkingLabel(i) {
+  if (!i.working) return { label: '—', cls: 'gray' };
+  if (i.working === 'yes' || i.working === 'worked') return { label: 'Working', cls: 'good' };
+  if (i.working === 'no' || i.working === 'didnt') return { label: 'Not working', cls: 'bad' };
+  if (i.working === 'inconclusive') return { label: 'Inconclusive', cls: 'amber' };
+  return { label: '—', cls: 'gray' };
+}
+
+function getOutcomeLabel(outcome) {
+  if (!outcome) return '';
+  if (outcome === 'worked') return '✓ Worked';
+  if (outcome === 'didnt') return '✗ Didn\'t work';
+  if (outcome === 'inconclusive') return '~ Inconclusive';
+  return '';
+}
+
+function renderInterventionRow(i, idx) {
+  const okr = getAllOKRs().find(o => o.id === i.target_okr);
+  const krLabel = okr ? `KR: ${okr.title}` : (i.target_okr || '<span class="iv-unmapped">Not mapped</span>');
+  const leverCls = getLeverClass(i.lever);
+  const working = getWorkingLabel(i);
+  const outcome = getOutcomeLabel(i.working);
+  const outcomeCls = i.working === 'worked' ? 'good' : (i.working === 'didnt' ? 'bad' : '');
 
   return `
-    <li class="intervention-item">
-      <div class="intervention-item__header">
-        <span class="intervention-name">${esc(i.name)}</span>
-        ${i.status ? `<span class="intervention-status ${statusClass}">${STATUS_LABELS[i.status] || i.status}</span>` : ''}
-        ${i.working ? `<span class="intervention-working ${workingClass}">${WORKING_LABELS[i.working] || i.working}</span>` : ''}
+    <tr>
+      <td>
+        <div class="iv-name">${esc(i.name)}</div>
+        <div class="iv-problem">${esc(i.description)}</div>
+      </td>
+      <td class="iv-owner">${esc(i.owner) || '—'}${i.agencies ? `<div class="iv-agencies">+ ${esc(i.agencies)}</div>` : ''}</td>
+      <td>${i.lever ? `<span class="iv-lever ${leverCls}">${esc(i.lever)}</span>` : '—'}</td>
+      <td class="iv-kr">${krLabel}</td>
+      <td><span class="iv-effect iv-effect--${working.cls}">${working.label}</span></td>
+      <td>${outcome ? `<span class="iv-outcome ${outcomeCls}">${outcome}</span>` : '—'}</td>
+    </tr>
+  `;
+}
+
+function renderAddForm() {
+  if (!showForm) return '';
+
+  return `
+    <div class="iv-form">
+      <h3>New intervention</h3>
+      <p class="iv-form__desc">Capture the work and map it to the Key Result it serves.</p>
+      <div class="iv-form__grid">
+        <div class="iv-field iv-field--full">
+          <label>Intervention name <span class="req">*</span></label>
+          <input type="text" id="iv-name" placeholder="e.g. Evening plaza activation">
+        </div>
+        <div class="iv-field iv-field--full iv-field--kr">
+          <label>Serves Key Result <span class="req">*</span></label>
+          <select id="iv-kr">
+            <option value="">— select a Key Result —</option>
+            ${getOKRs().map(o => `<option value="${o.id}">${esc(o.title)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="iv-field">
+          <label>Lever</label>
+          <select id="iv-lever">
+            ${LEVERS.map(l => `<option value="${l}">${l}</option>`).join('')}
+          </select>
+        </div>
+        <div class="iv-field">
+          <label>Status</label>
+          <select id="iv-status">
+            ${STATUSES.map(s => `<option value="${s}">${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="iv-field">
+          <label>Owner</label>
+          <input type="text" id="iv-owner" placeholder="e.g. DEM">
+        </div>
+        <div class="iv-field">
+          <label>Associated agencies</label>
+          <input type="text" id="iv-agencies" placeholder="e.g. SFPD, DPW">
+        </div>
+        <div class="iv-field iv-field--full">
+          <label>Problem statement</label>
+          <textarea id="iv-problem" placeholder="What condition is this addressing?"></textarea>
+        </div>
       </div>
-      <p class="intervention-desc">${esc(i.description)}</p>
-      <div class="intervention-meta">
-        <span class="intervention-okr">Target: ${esc(okrLabel)}</span>
-        ${i.eval_link ? `<a class="intervention-eval" href="${esc(i.eval_link)}">View evaluation <wa-icon name="arrow-right"></wa-icon></a>` : ''}
+      <p class="iv-form__note">Mapping to a Key Result is required. A new intervention starts in "90-day window building" until there's enough time for a before/after read.</p>
+      <div class="iv-form__actions">
+        <button class="btn-primary" id="iv-submit">Add intervention</button>
+        <button class="btn-ghost" id="iv-cancel">Cancel</button>
       </div>
-    </li>
+    </div>
   `;
 }
 
 function renderInterventions() {
   const interventions = interventionsByDistrict[currentDistrict] || [];
-  if (interventions.length === 0) {
-    return '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
-  }
+  const count = interventions.length;
+
   return `
-    <ul class="intervention-list">
-      ${interventions.map(renderIntervention).join('')}
-    </ul>
+    <div class="iv-header">
+      <div>
+        <h2 class="iv-title">Intervention log</h2>
+        <p class="iv-subtitle">Every intervention maps to the Key Result it serves and closes the loop with an is-it-working read plus a recorded outcome.</p>
+      </div>
+      <div class="iv-header__actions">
+        <span class="iv-count">${count} logged</span>
+        <button class="iv-add-btn" id="iv-add-btn">+ Add intervention</button>
+      </div>
+    </div>
+    ${renderAddForm()}
+    <div class="iv-table-wrap">
+      <table class="iv-table">
+        <thead>
+          <tr>
+            <th>Intervention</th>
+            <th>Owner & agencies</th>
+            <th>Lever</th>
+            <th>Serves KR</th>
+            <th>Is it working?</th>
+            <th>Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${count > 0 ? interventions.map((i, idx) => renderInterventionRow(i, idx)).join('') : `
+            <tr class="iv-empty-row">
+              <td colspan="6">No interventions logged for ${currentDistrict} yet. Click "+ Add intervention" to get started.</td>
+            </tr>
+          `}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -211,6 +424,7 @@ function wireEvents(container) {
   container.querySelectorAll('.district-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentDistrict = btn.dataset.district;
+      showForm = false;
       render(container);
     });
   });
@@ -218,14 +432,63 @@ function wireEvents(container) {
   container.querySelectorAll('.content-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentTab = btn.dataset.tab;
+      showForm = false;
       render(container);
     });
   });
+
+  const addBtn = container.querySelector('#iv-add-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', () => {
+      showForm = !showForm;
+      render(container);
+    });
+  }
+
+  const cancelBtn = container.querySelector('#iv-cancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      showForm = false;
+      render(container);
+    });
+  }
+
+  const submitBtn = container.querySelector('#iv-submit');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      const name = container.querySelector('#iv-name')?.value?.trim();
+      const kr = container.querySelector('#iv-kr')?.value;
+      if (!name || !kr) {
+        alert('Please fill in the intervention name and select a Key Result.');
+        return;
+      }
+
+      const intervention = {
+        name,
+        target_okr: kr,
+        lever: container.querySelector('#iv-lever')?.value || '',
+        status: container.querySelector('#iv-status')?.value || 'In progress',
+        owner: container.querySelector('#iv-owner')?.value?.trim() || '',
+        agencies: container.querySelector('#iv-agencies')?.value?.trim() || '',
+        description: container.querySelector('#iv-problem')?.value?.trim() || '',
+        working: '',
+        eval_link: '',
+      };
+
+      if (!interventionsByDistrict[currentDistrict]) {
+        interventionsByDistrict[currentDistrict] = [];
+      }
+      interventionsByDistrict[currentDistrict].push(intervention);
+      showForm = false;
+      render(container);
+    });
+  }
 }
 
 async function loadAggregates() {
+  const okrDefs = Object.values(OKR_DEFS);
   const results = await Promise.allSettled(
-    OKRS.map(async o => {
+    okrDefs.map(async o => {
       const res = await fetch(o.dataPath);
       if (!res.ok) return null;
       return { id: o.id, data: await res.json() };
@@ -244,7 +507,6 @@ async function init() {
   if (!container) return;
 
   try {
-    // Load interventions and aggregates in parallel
     const [interventionsRes] = await Promise.all([
       fetch('./data/interventions.tsv'),
       loadAggregates()
