@@ -47,6 +47,27 @@ body {
 .app-header h1 { margin: .35rem 0 .5rem; font-size: 1.6rem; }
 .app-header__sub { margin: 0; max-width: 46rem; color: var(--wa-color-text-quiet, #4b4f58); }
 
+/* District navigation tabs */
+.district-nav { display: flex; gap: .25rem; flex-wrap: wrap; margin-top: 1rem; }
+.district-nav a {
+  color: var(--c-flat); text-decoration: none; font-weight: 600; font-size: .92rem;
+  padding: .55rem .95rem; border-radius: 8px; border: 1px solid transparent;
+  transition: all .15s ease;
+}
+.district-nav a:hover { color: var(--wa-color-text-normal, #1c1c1e); background: rgba(0,0,0,.04); }
+.district-nav a.is-active {
+  color: var(--wa-color-text-normal, #1c1c1e);
+  background: var(--wa-color-surface-default, #fff);
+  border-color: var(--wa-color-surface-border, #e2e4e9);
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+}
+.wa-dark .district-nav a { color: #9aa0a6; }
+.wa-dark .district-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+.wa-dark .district-nav a.is-active {
+  color: #fff; background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.15);
+}
+
 /* Light/dark QA toggle — subtle, fixed bottom-right */
 .theme-toggle {
   position: fixed; bottom: 1rem; right: 1rem; z-index: 1200;
@@ -69,6 +90,7 @@ body {
 .app-header__asof { display: block; margin-top: .75rem; color: var(--c-flat); font-size: .8rem; }
 
 .app-main { max-width: var(--maxw); margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+.field-hint { color: var(--c-flat); font-size: .82rem; margin-bottom: 1rem; display: block; }
 
 .cards { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); }
 

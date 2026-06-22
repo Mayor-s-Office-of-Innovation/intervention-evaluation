@@ -114,8 +114,13 @@ function getKRData(okrId, kr, district) {
   const signal = data.signals?.[kr.signal];
   if (!signal) return null;
 
-  // Handle different data structures
+  // Handle different data structures:
+  // - drug/unhoused: signal.series[district] is an array
+  // - theft: signal.series[district].reported is an array
   let series = signal.series?.[district];
+  if (series && typeof series === 'object' && !Array.isArray(series)) {
+    series = series.reported;
+  }
   if (!series) {
     const districtKey = district.toLowerCase();
     series = signal[districtKey]?.reported;
