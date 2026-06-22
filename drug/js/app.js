@@ -338,17 +338,15 @@ async function renderMap() {
   }
 }
 
-// ── nav ──
-function buildNav() {
-  $('#district-nav').innerHTML = DISTRICTS.map(d => `<a href="#${d.toLowerCase()}" data-d="${d}">${d}</a>`).join('');
-}
-function routeFromHash() {
+// ── district (locked from homepage selection) ──
+function initDistrict() {
   const h = (location.hash || '').replace('#', '').toLowerCase();
-  renderDistrict(DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern');
+  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
+  // Update header to show which district we're viewing
+  const eyebrow = document.querySelector('.app-header__eyebrow');
+  if (eyebrow) eyebrow.textContent = `San Francisco · ${active} district · Drug activity`;
 }
-function renderDistrict(name) {
-  active = name;
-  document.querySelectorAll('.district-nav a').forEach(a => a.classList.toggle('is-active', a.dataset.d === name));
+function renderDistrict() {
   renderSummary();
   buildChartSelector();
   renderFocusChart();
@@ -447,11 +445,10 @@ async function main() {
     pendingRestore = parsed.map;
     if (pendingRestore && pendingRestore.sig === 'cfs_drug') mapSignal = pendingRestore.sig;
     onMapState(onMapStateChange);
-    buildNav();
+    initDistrict();
     renderScrubber();
     renderMethodology();
-    window.addEventListener('hashchange', () => { pendingRestore = null; lastMapState = null; syncUrl(); routeFromHash(); });
-    routeFromHash();
+    renderDistrict();
   } catch (e) {
     const s = $('#status'); s.hidden = false; s.textContent = 'Failed to load data: ' + e.message;
     console.error(e);

@@ -20,35 +20,20 @@ const chartColor = name => getComputedStyle(document.documentElement).getPropert
 const cardsHost = document.getElementById('cards');
 const asOf = document.getElementById('data-asof');
 const exclHost = document.getElementById('exclusion-note');
-const districtNav = document.getElementById('district-nav');
 let charts = [];
 
-function buildNav() {
-  if (!districtNav) return;
-  districtNav.innerHTML = DISTRICTS.map(d =>
-    `<a href="#${d.toLowerCase()}" data-d="${d}">${d}</a>`
-  ).join('');
-}
-
-function routeFromHash() {
+function initDistrict() {
   const h = (location.hash || '').replace('#', '').toLowerCase();
-  const district = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
-  renderDistrict(district);
-}
+  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
 
-function renderDistrict(name) {
-  active = name;
-  document.querySelectorAll('#district-nav a').forEach(a =>
-    a.classList.toggle('is-active', a.dataset.d === name)
-  );
-
-  // Update header
+  // Update header to show which district
   const eyebrow = document.querySelector('.app-header__eyebrow');
   if (eyebrow) {
-    eyebrow.textContent = `San Francisco · OKR candidate · Property & street crime (${active})`;
+    eyebrow.textContent = `San Francisco · ${active} district · Property & street crime`;
   }
+}
 
-  // Clear and re-render cards
+function renderDistrict() {
   cardsHost.innerHTML = '';
   charts = [];
 
@@ -248,9 +233,8 @@ function renderFootnotes(prov) {
   try {
     [AGG, PROV] = await Promise.all([loadAggregates(), loadProvenance().catch(() => null)]);
 
-    buildNav();
-    window.addEventListener('hashchange', routeFromHash);
-    routeFromHash();
+    initDistrict();
+    renderDistrict();
 
     let t;
     window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => charts.forEach(fn => fn()), 150); });
