@@ -118,7 +118,7 @@ function getKRData(okrId, kr, district) {
   if (EMERGING_SIGNALS[kr.signal]) {
     const cached = emergingSignalsCache[`${kr.signal}_${district}`];
     if (!cached) return null;
-    return { change: cached.change, goal: kr.goal };
+    return { change1mo: cached.change, change3mo: cached.change, goal: kr.goal };
   }
 
   const data = aggregatesData[okrId];
@@ -145,30 +145,45 @@ function getKRData(okrId, kr, district) {
   const hasPartial = data.current_partial_month != null;
   const endIdx = hasPartial ? len - 1 : len;
 
+  // 1-month change: compare last settled month vs same month last year
+  const last1 = series[endIdx - 1];
+  const prior1 = series[endIdx - 13];
+  const change1mo = pctChange(last1, prior1);
+
+  // 3-month change: compare last 3 months vs same 3 months last year
   const last3 = sumLast(series.slice(0, endIdx), 3);
   const prior3 = sumLast(series.slice(0, endIdx - 12), 3);
-  const change = pctChange(last3, prior3);
+  const change3mo = pctChange(last3, prior3);
 
-  return { change, goal: kr.goal };
+  return { change1mo, change3mo, goal: kr.goal };
+}
+
+function renderChangeBadge(change, goal, label) {
+  if (change === null) {
+    return `<span class="kr-ticker__badge kr-ticker--nodata" title="${label}">—</span>`;
+  }
+  const isUp = change > 0;
+  const isDown = change < 0;
+  const isGood = (goal === 'down' && isDown) || (goal === 'up' && isUp);
+  const arrow = isUp ? '↑' : (isDown ? '↓' : '→');
+  const cls = isGood ? 'kr-ticker--good' : 'kr-ticker--bad';
+  return `<span class="kr-ticker__badge ${cls}" title="${label}">${arrow}${Math.abs(change)}%</span>`;
 }
 
 function renderKRTicker(okr, district) {
   const items = okr.krs.map(kr => {
     const data = getKRData(okr.id, kr, district);
-    if (!data || data.change === null) {
-      return `<div class="kr-ticker"><span class="kr-ticker__label">${esc(kr.label)}</span><span class="kr-ticker__badge kr-ticker--nodata">—</span></div>`;
+    if (!data) {
+      return `<div class="kr-ticker"><span class="kr-ticker__label">${esc(kr.label)}</span><span class="kr-ticker__badges"><span class="kr-ticker__badge kr-ticker--nodata">—</span></span></div>`;
     }
-
-    const isUp = data.change > 0;
-    const isDown = data.change < 0;
-    const isGood = (data.goal === 'down' && isDown) || (data.goal === 'up' && isUp);
-    const arrow = isUp ? '↑' : (isDown ? '↓' : '→');
-    const cls = isGood ? 'kr-ticker--good' : 'kr-ticker--bad';
 
     return `
       <div class="kr-ticker">
         <span class="kr-ticker__label">${esc(kr.label)}</span>
-        <span class="kr-ticker__badge ${cls}">${arrow}${Math.abs(data.change)}%</span>
+        <span class="kr-ticker__badges">
+          ${renderChangeBadge(data.change1mo, data.goal, '1 month vs last year')}
+          ${renderChangeBadge(data.change3mo, data.goal, '3 months vs last year')}
+        </span>
       </div>
     `;
   });
