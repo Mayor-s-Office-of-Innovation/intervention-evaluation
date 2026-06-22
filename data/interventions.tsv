@@ -1,9 +1,9 @@
-district	intervention	target_kr	tactics	owner	agencies	status	start_date	last_evaluated	eval_link
-Northern	Plain clothes officers	911 drug complaints	Deploy 4 plain clothes officers targeting dealers in Hayes Valley, peak hours 2-6pm	Capt. Rodriguez	SFPD	active	2025-11-01	2026-06-15	./hypothesis/?dp=drug&date=2026-05-11&lat=37.78900&lng=-122.41598&r=200&from=2025-11-01&to=2026-06-16&what=plain+clothes+officers
+district	intervention	target_kr	tactics	owner	agencies	status	start_date	impact	last_evaluated	eval_link
+Northern	Plain clothes officers	911 drug complaints	Deploy 4 plain clothes officers targeting dealers in Hayes Valley, peak hours 2-6pm	Capt. Rodriguez	SFPD	active	2025-11-01	-18%	2026-06-15	./hypothesis/?dp=drug&date=2026-05-11&lat=37.78900&lng=-122.41598&r=200&from=2025-11-01&to=2026-06-16&what=plain+clothes+officers
 Northern	Increased foot patrols	Shoplifting	2 additional beat officers on Fillmore corridor, 4-hour rotating shifts	Capt. Rodriguez	SFPD	active	2026-01-15
-Central	Market Street cleanup	Encampment reports	Weekly HOT team + DPW coordination every Tuesday, focus on Market/Powell area	J. Martinez	DPW, HSH, SFPD	completed	2025-09-01	2026-03-31
-Central	Retail theft task force	Shoplifting	Dedicated officers tracking repeat offenders, cross-reference with DA for prosecution	Lt. Chen	SFPD, DA	active	2026-02-01	2026-06-10
-Mission	16th St BART outreach	Encampment reports	2 outreach workers at 16th St BART plaza, daily contact and shelter referrals	HSH Lead	HSH, BART	active	2025-10-01	2026-06-01
-Mission	Dealer disruption ops	911 drug complaints	Rotating patrol focus on top 3 dealing hotspots weekly	Sgt. Williams	SFPD, DEA	completed	2025-06-01	2025-12-15
-Tenderloin	Safe passage program	Dog bites	Volunteer escorts for residents/workers, 7-9am and 5-7pm routes	Community Board	TLCBD, SFPD	active	2026-01-01	2026-05-20
+Central	Market Street cleanup	Encampment reports	Weekly HOT team + DPW coordination every Tuesday, focus on Market/Powell area	J. Martinez	DPW, HSH, SFPD	completed	2025-09-01	-32%	2026-03-31
+Central	Retail theft task force	Shoplifting	Dedicated officers tracking repeat offenders, cross-reference with DA for prosecution	Lt. Chen	SFPD, DA	active	2026-02-01	-8%	2026-06-10
+Mission	16th St BART outreach	Encampment reports	2 outreach workers at 16th St BART plaza, daily contact and shelter referrals	HSH Lead	HSH, BART	active	2025-10-01	-14%	2026-06-01
+Mission	Dealer disruption ops	911 drug complaints	Rotating patrol focus on top 3 dealing hotspots weekly	Sgt. Williams	SFPD, DEA	completed	2025-06-01	-25%	2025-12-15
+Tenderloin	Safe passage program	Dog bites	Volunteer escorts for residents/workers, 7-9am and 5-7pm routes	Community Board	TLCBD, SFPD	active	2026-01-01	-41%	2026-05-20
 Tenderloin	SIP hotel enforcement	911 drug complaints	On-site security + weekly SFPD check-ins at 3 SIP hotels	HSH Director	HSH, SFPD	planned	2026-07-01
