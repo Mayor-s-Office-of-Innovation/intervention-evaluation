@@ -21,7 +21,8 @@ test('landing page renders links to every dashboard without errors', async ({ pa
 
   // each OKR dashboard is linked from the page (cards are rendered in the tab content)
   for (const slug of DASHBOARDS) {
-    const links = page.locator(`a.okr-card[href="./${slug}/"]`);
+    // hrefs now carry the selected-district hash (e.g. ./drug/#northern), so match by prefix.
+    const links = page.locator(`a.okr-card[href^="./${slug}/"]`);
     expect(await links.count(), `expected a link to ./${slug}/`).toBeGreaterThan(0);
     await expect(links.first()).toBeVisible();
   }

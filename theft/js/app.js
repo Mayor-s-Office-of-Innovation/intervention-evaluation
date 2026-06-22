@@ -1,6 +1,7 @@
 // Orchestration: render a per-signal card whose PRIMARY stat is theft reported by
 // businesses (latest full month + three reference comparisons + a 12-mo-trend badge),
 // then the chart, then arrests as secondary context. See ../plan.md §7.1 / D10 / D11.
+// Now supports multiple districts via hash routing (e.g., #central, #mission).
 import { loadAggregates, loadProvenance } from './data.js';
 import {
   prettyMonth, shortMonth, monthIndex, trailingYoY, trailing12Line,
@@ -9,16 +10,48 @@ import {
 } from './rollup.js';
 import { drawChart } from './chart.js';
 
+const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
+let active = 'Northern';
+let AGG, PROV;
+
 const fmtNum = n => (n == null ? '—' : n.toLocaleString('en-US'));
-// chart line colors live in CSS (light/dark aware); read fresh at each draw
 const chartColor = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 const cardsHost = document.getElementById('cards');
 const asOf = document.getElementById('data-asof');
 const exclHost = document.getElementById('exclusion-note');
-const charts = [];
+let charts = [];
 
-// one reference-comparison chip (vs last month / a year ago / typical month)
+function initDistrict() {
+  const h = (location.hash || '').replace('#', '').toLowerCase();
+  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
+
+  // Update header to show which district
+  const eyebrow = document.querySelector('.app-header__eyebrow');
+  if (eyebrow) {
+    eyebrow.textContent = `San Francisco · ${active} district · Property & street crime`;
+  }
+}
+
+function renderDistrict() {
+  cardsHost.innerHTML = '';
+  charts = [];
+
+  const idx = monthIndex(AGG, AGG.latest_settled_month);
+  asOf.textContent = `${active} district · latest settled month ${prettyMonth(AGG.latest_settled_month)} · built ${AGG.generated}`;
+
+  for (const [key, sig] of Object.entries(AGG.signals)) {
+    renderCard(key, sig, AGG, idx);
+  }
+
+  renderExclusion(AGG);
+  renderReportingNote(AGG);
+  renderFootnotes(PROV);
+
+  const draw = () => charts.forEach(fn => fn());
+  draw();
+}
+
 function chip(label, detail, pct) {
   const t = reportTone(pct);
   return `
@@ -30,24 +63,31 @@ function chip(label, detail, pct) {
 }
 
 function renderCard(key, sig, agg, idx) {
-  const N = sig.northern;
+  // Get district-specific data from new structure
+  const districtData = sig.series?.[active];
+  if (!districtData) {
+    console.warn(`No data for ${active} in signal ${key}`);
+    return;
+  }
+
+  const reported = districtData.reported;
+  const arrests = districtData.arrests;
+
   const month = agg.months[idx];
-  const trend = trailingYoY(N.reported, idx);   // de-noised 12-mo trend → badge
+  const trend = trailingYoY(reported, idx);
   const v = trendVerdict(trend.pct);
 
-  const vsLast = compareMonth(N.reported, idx, idx - 1);
-  const vsYear = compareMonth(N.reported, idx, idx - 12);
-  const vsAvg = compareToAverage(N.reported, idx);
+  const vsLast = compareMonth(reported, idx, idx - 1);
+  const vsYear = compareMonth(reported, idx, idx - 12);
+  const vsAvg = compareToAverage(reported, idx);
   const startYear = agg.months[0].slice(0, 4);
 
-  // arrests context (secondary)
-  const arrMonth = N.arrests[idx];
-  const arrYear = compareMonth(N.arrests, idx, idx - 12);
+  const arrMonth = arrests[idx];
+  const arrYear = compareMonth(arrests, idx, idx - 12);
 
-  // SF context: citywide trend (did SF overall move?) + Northern's share over time
   const cityTrend = trailingYoY(sig.citywide.reported, idx);
-  const shareNow = shareAt(N.reported, sig.citywide.reported, idx);
-  const shareAvg = shareAllTime(N.reported, sig.citywide.reported);  // robust baseline (all years)
+  const shareNow = shareAt(reported, sig.citywide.reported, idx);
+  const shareAvg = shareAllTime(reported, sig.citywide.reported);
   const dShare = (shareNow != null && shareAvg != null) ? shareNow - shareAvg : null;
   const shareArrow = dShare == null ? '' : dShare > 0.005 ? '▲' : dShare < -0.005 ? '▼' : '▬';
 
@@ -66,7 +106,7 @@ function renderCard(key, sig, agg, idx) {
         <span class="evaluating__tag" title="The most recent month complete enough to trust — see the note below the charts.">latest settled month</span>
       </div>
       <div class="primary__figure">
-        <span class="primary__num">${fmtNum(N.reported[idx])}</span>
+        <span class="primary__num">${fmtNum(reported[idx])}</span>
         <span class="primary__unit">reports</span>
         <span class="primary__trend trend--${v.tone}">12-mo trend ${fmtPct(trend.pct)}</span>
       </div>
@@ -92,7 +132,7 @@ function renderCard(key, sig, agg, idx) {
         <span class="sf-context__val delta--${reportTone(cityTrend.pct)}">${fmtPct(cityTrend.pct)}</span>
       </div>
       <div class="sf-context__row">
-        <span class="sf-context__label">Northern share of SF</span>
+        <span class="sf-context__label">${active} share of SF</span>
         <span class="sf-context__val">${fmtSharePct(shareNow)}
           <span class="sf-context__sub">${shareArrow} vs ${fmtSharePct(shareAvg)} all-time avg</span>
         </span>
@@ -123,21 +163,20 @@ function renderCard(key, sig, agg, idx) {
   charts.push(() => drawChart(
     card.querySelector(`#chart-${key}`), agg.months,
     [
-      { values: avg(N.reported), color: chartColor('--chart-trend'), width: 2.5, label: 'Reported 12mo' },
-      { values: N.arrests, color: chartColor('--chart-arrests'), width: 1.5, opacity: 0.85, label: 'Arrests' },
-      { values: N.reported, color: chartColor('--chart-monthly'), width: 2.25, label: 'Reported monthly' },
+      { values: avg(reported), color: chartColor('--chart-trend'), width: 2.5, label: 'Reported 12mo' },
+      { values: arrests, color: chartColor('--chart-arrests'), width: 1.5, opacity: 0.85, label: 'Arrests' },
+      { values: reported, color: chartColor('--chart-monthly'), width: 2.25, label: 'Reported monthly' },
     ],
-    { unsettledFromIdx: settledIdx + 1 },  // shade months still filling in (reporting lag)
+    { unsettledFromIdx: settledIdx + 1 },
   ));
 }
 
 function renderExclusion(agg) {
   if (!agg.excluded || !agg.excluded.length) return;
   exclHost.innerHTML = agg.excluded.map(e =>
-    `<strong>Excluded:</strong> the “${e.code}” incident code. ${e.reason}`).join('<br>');
+    `<strong>Excluded:</strong> the "${e.code}" incident code. ${e.reason}`).join('<br>');
 }
 
-// Prominent note: why recent months aren't final + which month we evaluate (built from measured lag).
 function renderReportingNote(agg) {
   const host = document.getElementById('reporting-note');
   const s = agg.settling;
@@ -145,7 +184,7 @@ function renderReportingNote(agg) {
   const settled = prettyMonth(agg.latest_settled_month);
   const complete = prettyMonth(agg.latest_complete_month);
   host.innerHTML = `
-    <div class="callout__title">⚠ Recent months aren’t final — that’s why we evaluate ${settled}</div>
+    <div class="callout__title">Recent months aren't final — that's why we evaluate ${settled}</div>
     <p>SFPD reports enter this dataset only after a supervisor approves them, so a month keeps filling in
     for weeks after it ends. Across a fully-settled period (${s.ref_window}, n=${s.n} reports), the
     median report lands in ${s.median_days} day${s.median_days === 1 ? '' : 's'} and
@@ -158,7 +197,6 @@ function renderReportingNote(agg) {
     follows the de-noised <strong>12-month trend</strong>, not any one month.</p>`;
 }
 
-// Source footnotes: per-signal & per-axis rationale + the exact, runnable Socrata query.
 function renderFootnotes(prov) {
   const host = document.getElementById('footnotes');
   if (!host || !prov) return;
@@ -193,21 +231,14 @@ function renderFootnotes(prov) {
 
 (async function main() {
   try {
-    const [agg, prov] = await Promise.all([loadAggregates(), loadProvenance().catch(() => null)]);
-    const idx = monthIndex(agg, agg.latest_settled_month);
-    asOf.textContent = `${agg.district} district · latest settled month ${prettyMonth(agg.latest_settled_month)} · built ${agg.generated}`;
+    [AGG, PROV] = await Promise.all([loadAggregates(), loadProvenance().catch(() => null)]);
 
-    for (const [key, sig] of Object.entries(agg.signals)) renderCard(key, sig, agg, idx);
-    renderExclusion(agg);
-    renderReportingNote(agg);
-    renderFootnotes(prov);
+    initDistrict();
+    renderDistrict();
 
-    const draw = () => charts.forEach(fn => fn());
-    draw();
     let t;
-    window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(draw, 150); });
-    // redraw on light/dark switch (OS change or manual toggle) so the chart colors re-theme
-    window.addEventListener('themechange', () => setTimeout(draw, 0));
+    window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => charts.forEach(fn => fn()), 150); });
+    window.addEventListener('themechange', () => setTimeout(() => charts.forEach(fn => fn()), 0));
   } catch (err) {
     document.getElementById('cards').innerHTML =
       `<p class="error">Could not load data: ${err.message}</p>`;

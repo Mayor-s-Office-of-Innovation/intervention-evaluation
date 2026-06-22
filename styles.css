@@ -265,255 +265,151 @@ html.wa-dark .district-tab.is-active {
   min-height: 200px;
 }
 
-/* ───────────── Intervention log ───────────── */
-.iv-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
+/* ───────────── Intervention table ───────────── */
+.intervention-table-wrap {
+  overflow-x: auto;
+  margin: 0 -1.25rem;
+  padding: 0 1.25rem;
 }
-.iv-title {
-  margin: 0 0 .25rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-.iv-subtitle {
-  margin: 0;
-  font-size: .85rem;
-  color: var(--muted);
-  max-width: 48ch;
-}
-.iv-header__actions {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
-}
-.iv-count {
-  background: var(--surface);
-  border: 1px solid var(--c-line);
-  color: var(--muted);
-  font-size: .72rem;
-  font-weight: 700;
-  padding: .35rem .65rem;
-  border-radius: 999px;
-}
-.iv-add-btn {
-  background: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.4);
-  color: var(--c-blue);
-  font-size: .82rem;
-  font-weight: 600;
-  padding: .5rem .9rem;
-  border-radius: 9px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.iv-add-btn:hover { background: rgba(59, 130, 246, 0.25); }
-html.wa-dark .iv-add-btn { background: #1d2c4d; border-color: #2c4b85; color: #cfe0ff; }
 
-/* Intervention table */
-.iv-table-wrap {
-  background: var(--surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.iv-table {
+.intervention-table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
-  font-size: .85rem;
-}
-.iv-table th {
-  text-align: left;
-  color: var(--muted);
-  font-weight: 600;
-  font-size: .68rem;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  padding: .75rem 1rem;
-  border-bottom: 1px solid var(--c-line);
-  background: var(--bg);
-}
-.iv-table td {
-  padding: .9rem 1rem;
-  border-bottom: 1px solid var(--c-line);
-  vertical-align: top;
-}
-.iv-table tr:last-child td { border-bottom: none; }
-.iv-table .iv-empty-row td {
-  text-align: center;
-  color: var(--muted);
-  font-style: italic;
-  padding: 2rem 1rem;
-}
-
-.iv-name { font-weight: 650; color: var(--text); }
-.iv-problem { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
-.iv-owner { color: var(--muted); }
-.iv-agencies { font-size: .7rem; color: var(--muted); margin-top: .15rem; }
-.iv-kr { font-weight: 600; }
-.iv-unmapped { color: #b45309; font-weight: 600; }
-
-.iv-lever {
-  display: inline-block;
-  font-size: .68rem;
-  font-weight: 700;
-  padding: .2rem .5rem;
-  border-radius: 6px;
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--c-blue);
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-.iv-lever.outreach { background: #dcfce7; color: #15803d; border-color: #86efac; }
-.iv-lever.cleaning { background: #cffafe; color: #0e7490; border-color: #67e8f9; }
-.iv-lever.env { background: #ede9fe; color: #7c3aed; border-color: #c4b5fd; }
-.iv-lever.infra { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
-
-.iv-effect {
-  font-size: .72rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.iv-effect--good { color: var(--c-green); }
-.iv-effect--bad { color: #ef4444; }
-.iv-effect--amber { color: #b45309; }
-.iv-effect--gray { color: var(--muted); }
-
-.iv-outcome {
-  display: inline-block;
-  font-size: .68rem;
-  font-weight: 700;
-  padding: .2rem .5rem;
-  border-radius: 6px;
-  background: var(--c-line);
-  color: var(--muted);
-  border: 1px solid var(--c-line);
-}
-.iv-outcome.good { background: #dcfce7; color: #15803d; border-color: #86efac; }
-.iv-outcome.bad { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
-
-/* Add intervention form */
-.iv-form {
-  background: var(--surface);
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-  margin-bottom: 1rem;
-}
-.iv-form h3 { margin: 0 0 .25rem; font-size: 1rem; font-weight: 700; }
-.iv-form__desc { margin: 0 0 1rem; font-size: .82rem; color: var(--muted); }
-.iv-form__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: .9rem;
-}
-@media (max-width: 600px) { .iv-form__grid { grid-template-columns: 1fr; } }
-.iv-field { display: flex; flex-direction: column; gap: .35rem; }
-.iv-field--full { grid-column: 1 / -1; }
-.iv-field label {
-  font-size: .68rem;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 700;
-}
-.iv-field label .req { color: #b45309; }
-.iv-field input,
-.iv-field select,
-.iv-field textarea {
-  background: var(--bg);
-  border: 1px solid var(--c-line);
-  color: var(--text);
-  border-radius: 9px;
-  padding: .6rem .75rem;
-  font-size: .85rem;
-  font-family: inherit;
-}
-.iv-field textarea { resize: vertical; min-height: 3.5rem; }
-.iv-field--kr select {
-  border-color: rgba(59, 130, 246, 0.4);
-  background: rgba(59, 130, 246, 0.08);
-  color: var(--c-blue);
-  font-weight: 600;
-}
-.iv-form__note {
-  font-size: .75rem;
-  color: var(--muted);
-  margin: 1rem 0 0;
-  line-height: 1.5;
-}
-.iv-form__actions {
-  display: flex;
-  gap: .6rem;
-  margin-top: 1rem;
-}
-.btn-primary {
-  background: var(--c-blue);
-  border: 1px solid var(--c-blue);
-  color: #fff;
-  border-radius: 9px;
-  padding: .6rem 1rem;
-  font-size: .85rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-.btn-primary:hover { filter: brightness(1.1); }
-.btn-ghost {
-  background: none;
-  border: 1px solid var(--c-line);
-  color: var(--muted);
-  border-radius: 9px;
-  padding: .6rem 1rem;
-  font-size: .85rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-ghost:hover { border-color: var(--text); color: var(--text); }
-
-/* Dark mode for intervention elements */
-html.wa-dark .iv-lever { background: #1d2c4d; border-color: #2c4b85; }
-html.wa-dark .iv-lever.outreach { background: #14532d; color: #86efac; border-color: #22c55e; }
-html.wa-dark .iv-lever.cleaning { background: #164e63; color: #67e8f9; border-color: #22d3ee; }
-html.wa-dark .iv-lever.env { background: #2e1065; color: #c4b5fd; border-color: #8b5cf6; }
-html.wa-dark .iv-lever.infra { background: #1e3a5f; color: #93c5fd; border-color: #3b82f6; }
-html.wa-dark .iv-outcome.good { background: #14532d; color: #86efac; border-color: #22c55e; }
-html.wa-dark .iv-outcome.bad { background: #450a0a; color: #fca5a5; border-color: #ef4444; }
-html.wa-dark .iv-field--kr select { background: #1d2c4d; border-color: #2c4b85; color: #cfe0ff; }
-html.wa-dark .intervention-status--completed { background: #14532d; color: #86efac; }
-html.wa-dark .intervention-working--yes { background: #14532d; color: #86efac; }
-html.wa-dark .intervention-working--no { background: #450a0a; color: #fca5a5; }
-html.wa-dark .intervention-working--inconclusive { background: #451a03; color: #fcd34d; }
-
-.intervention-desc {
-  margin: 0 0 .5rem;
-  font-size: .88rem;
-  color: var(--muted);
-}
-
-.intervention-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .75rem;
   font-size: .82rem;
 }
 
-.intervention-okr {
+.intervention-table th {
+  text-align: left;
+  padding: .6rem .5rem;
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
   color: var(--muted);
+  border-bottom: 2px solid var(--c-line);
+  white-space: nowrap;
 }
 
-.intervention-eval {
-  display: inline-flex;
-  align-items: center;
-  gap: .25rem;
-  color: var(--c-blue);
-  text-decoration: none;
+.intervention-table td {
+  padding: .7rem .5rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--c-line);
+  color: var(--text);
+}
+
+.intervention-row:hover td {
+  background: rgba(59, 130, 246, 0.04);
+}
+html.wa-dark .intervention-row:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.intervention-cell--name {
+  min-width: 130px;
   font-weight: 500;
 }
-.intervention-eval:hover { text-decoration: underline; }
-.intervention-eval wa-icon { font-size: .75rem; }
+
+.intervention-cell--kr {
+  min-width: 110px;
+  color: var(--c-blue);
+  font-weight: 500;
+}
+
+.intervention-cell--tactics {
+  min-width: 180px;
+  max-width: 280px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.intervention-cell--owner {
+  min-width: 100px;
+  white-space: nowrap;
+}
+
+.intervention-cell--agencies {
+  min-width: 90px;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.intervention-cell--status {
+  min-width: 75px;
+}
+
+.intervention-cell--start,
+.intervention-cell--eval {
+  min-width: 90px;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+.intervention-cell--eval.is-stale {
+  color: var(--c-gray);
+}
+
+.intervention-cell--actions {
+  min-width: 70px;
+  text-align: center;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  font-size: .68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  padding: .2rem .5rem;
+  border-radius: 4px;
+  background: var(--c-line);
+  color: var(--muted);
+}
+.status--active { background: #dbeafe; color: #1d4ed8; }
+.status--completed { background: #dcfce7; color: #15803d; }
+.status--planned { background: #fef3c7; color: #b45309; }
+
+html.wa-dark .status--active { background: #1e3a5f; color: #93c5fd; }
+html.wa-dark .status--completed { background: #14532d; color: #86efac; }
+html.wa-dark .status--planned { background: #451a03; color: #fcd34d; }
+
+/* Stale evaluation flag */
+.stale-flag {
+  display: inline-block;
+  font-size: .6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  padding: .1rem .35rem;
+  margin-left: .35rem;
+  border-radius: 3px;
+  background: #fee2e2;
+  color: #b91c1c;
+  cursor: help;
+}
+html.wa-dark .stale-flag {
+  background: #450a0a;
+  color: #fca5a5;
+}
+
+/* Eval link */
+.eval-link {
+  display: inline-block;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--c-blue);
+  text-decoration: none;
+  padding: .25rem .5rem;
+  border-radius: 4px;
+  border: 1px solid var(--c-blue);
+  transition: all .15s ease;
+}
+.eval-link:hover {
+  background: var(--c-blue);
+  color: #fff;
+}
 
 .intervention-empty {
   color: var(--muted);

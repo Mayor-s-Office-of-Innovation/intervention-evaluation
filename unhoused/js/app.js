@@ -255,10 +255,8 @@ function renderHSOC() {
     <p class="rb__note">${read}</p>`;
 }
 
-// ── render one district ──
-function renderDistrict(name) {
-  active = name;
-  document.querySelectorAll('.district-nav a').forEach(a => a.classList.toggle('is-active', a.dataset.d === name));
+// ── render the district ──
+function renderDistrict() {
   renderSummary();
   buildChartSelector();
   renderFocusChart();
@@ -326,13 +324,12 @@ function buildMapControls() {
     b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
 }
 
-// ── nav ──
-function buildNav() {
-  $('#district-nav').innerHTML = DISTRICTS.map(d => `<a href="#${d.toLowerCase()}" data-d="${d}">${d}</a>`).join('');
-}
-function routeFromHash() {
+// ── district (locked from homepage selection) ──
+function initDistrict() {
   const h = (location.hash || '').replace('#', '').toLowerCase();
-  renderDistrict(DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern');
+  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
+  const eyebrow = document.querySelector('.app-header__eyebrow');
+  if (eyebrow) eyebrow.textContent = `San Francisco · ${active} district · Unhoused presence`;
 }
 
 // ── methodology (D7) — what's in/out, why, and the runnable queries ──
@@ -400,14 +397,12 @@ async function main() {
       mapSignal = pendingRestore.sig;
     }
     onMapState(onMapStateChange);
-    buildNav();
+    initDistrict();
     buildMapControls();
     renderScrubber();
     renderMethodology();
     $('#enc-only-toggle').addEventListener('change', (e) => { encOnly = e.target.checked; renderFocusChart(); });
-    // Manual district navigation abandons any restore + clears stale map params (the new district is zoomed out).
-    window.addEventListener('hashchange', () => { pendingRestore = null; lastMapState = null; syncUrl(); routeFromHash(); });
-    routeFromHash();
+    renderDistrict();
   } catch (e) {
     const s = $('#status'); s.hidden = false; s.textContent = 'Failed to load data: ' + e.message;
     console.error(e);

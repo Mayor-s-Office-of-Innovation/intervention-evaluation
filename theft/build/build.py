@@ -17,7 +17,7 @@ import os
 import urllib.parse
 
 from httpget import get_json
-from signals import (SIGNALS, EXCLUDED, DATASET, DOMAIN, DISTRICT, DATE_COL,
+from signals import (SIGNALS, EXCLUDED, DATASET, DOMAIN, DISTRICTS, DATE_COL,
                      HISTORY_START, RES_REPORTED, RES_ARREST)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -44,11 +44,11 @@ def first_of_month(months_back):
     return datetime.date(total // 12, total % 12 + 1, 1)
 
 
-def reporting_lag():
+def reporting_lag(district="Northern"):
     """Measure incident→report-filed lag over a fully-settled 12-mo window (ended ≥12mo ago),
     so the dashboard can show why recent months are incomplete with real, current numbers."""
     lo, hi = first_of_month(24), first_of_month(12)
-    where = (f"({MERCHANT_WHERE}) AND police_district='{DISTRICT}' "
+    where = (f"({MERCHANT_WHERE}) AND police_district='{district}' "
              f"AND {DATE_COL} >= '{lo}' AND {DATE_COL} < '{hi}'")
     rows = soql(select="incident_date, report_datetime", where=where)
     lags = []
@@ -95,9 +95,9 @@ def month_axis(start_ym, end_ym):
     return months
 
 
-def monthly_by_resolution(where):
+def monthly_by_resolution(where, district):
     """{ym: {resolution: n}} for incidents matching `where` in the target district."""
-    full = f"({where}) AND police_district='{DISTRICT}' AND {DATE_COL} >= '{HISTORY_START}'"
+    full = f"({where}) AND police_district='{district}' AND {DATE_COL} >= '{HISTORY_START}'"
     rows = soql(
         select=f"date_trunc_ym({DATE_COL}) AS ym, resolution, count(*) AS n",
         where=full, group="ym, resolution", order="ym",
@@ -109,9 +109,9 @@ def monthly_by_resolution(where):
     return out
 
 
-def monthly_count(where, extra=""):
+def monthly_count(where, district, extra=""):
     """{ym: n} for incidents matching `where` (+ optional extra clause) in the district."""
-    full = f"({where}) AND police_district='{DISTRICT}' AND {DATE_COL} >= '{HISTORY_START}'"
+    full = f"({where}) AND police_district='{district}' AND {DATE_COL} >= '{HISTORY_START}'"
     if extra:
         full += f" AND {extra}"
     rows = soql(
@@ -140,15 +140,15 @@ if __name__ == "__main__":
     latest_complete = months[-2]                     # current month is partial
     latest_settled = months[-2 - SETTLE_LAG_MONTHS]  # + recent months still under-reporting
 
-    def signal_query(where):
+    def signal_query(where, district):
         return (f"SELECT date_trunc_ym({DATE_COL}) AS month, resolution, count(*) AS n "
-                f"WHERE ({where}) AND police_district='{DISTRICT}' AND {DATE_COL} >= '{HISTORY_START}' "
+                f"WHERE ({where}) AND police_district='{district}' AND {DATE_COL} >= '{HISTORY_START}' "
                 f"GROUP BY month, resolution ORDER BY month")
 
     agg = {
         "generated": TODAY.isoformat(),
         "dataset": DATASET,
-        "district": DISTRICT,
+        "districts": DISTRICTS,
         "months": months,
         "latest_complete_month": latest_complete,
         "latest_settled_month": latest_settled,
@@ -163,7 +163,7 @@ if __name__ == "__main__":
           f"p90 {agg['settling']['p90_days']}d")
     provenance = {
         "generated": TODAY.isoformat(),
-        "dataset": DATASET, "domain": DOMAIN, "district": DISTRICT,
+        "dataset": DATASET, "domain": DOMAIN, "districts": DISTRICTS,
         "dataset_url": f"https://{DOMAIN}/d/{DATASET}",
         "history_start": HISTORY_START,
         "latest_settled_month": latest_settled,
@@ -186,35 +186,32 @@ if __name__ == "__main__":
 
     for key, sig in SIGNALS.items():
         print(f"Building '{key}' …")
-        by_res = monthly_by_resolution(sig["where"])
-        reported = series(months, {ym: d.get(RES_REPORTED, 0) for ym, d in by_res.items()})
-        arrests = series(months, {ym: d.get(RES_ARREST, 0) for ym, d in by_res.items()})
-        online = series(months, monthly_count(sig["where"], "filed_online = true"))
         city_reported = series(months, monthly_count_citywide(sig["where"]))
 
         node = {
             "label": sig["label"], "desc": sig["desc"],
-            "northern": {"reported": reported, "arrests": arrests, "online": online},
+            "series": {},
             "citywide": {"reported": city_reported},
         }
-        # commercial: keep the burglary/robbery split so it can decompose on demand (../plan.md D1)
-        if "components" in sig:
-            node["components"] = {
-                name: series(months, monthly_count(w)) for name, w in sig["components"].items()
-            }
+
+        for district in DISTRICTS:
+            print(f"  {district}…")
+            by_res = monthly_by_resolution(sig["where"], district)
+            reported = series(months, {ym: d.get(RES_REPORTED, 0) for ym, d in by_res.items()})
+            arrests = series(months, {ym: d.get(RES_ARREST, 0) for ym, d in by_res.items()})
+            node["series"][district] = {"reported": reported, "arrests": arrests}
+            print(f"    reported={sum(reported):,}  arrests={sum(arrests):,}")
+
         agg["signals"][key] = node
 
         provenance["signals"][key] = {
             "label": sig["label"], "why": sig["why"], "filter": sig["where"],
-            "query_url": query_url(signal_query(sig["where"])),
-            "northern_reported_total": sum(reported),
-            "northern_arrests_total": sum(arrests),
+            "query_url": query_url(signal_query(sig["where"], "Northern")),
         }
-        print(f"  reported={sum(reported):,}  arrests={sum(arrests):,}  online={sum(online):,}")
 
     for e in EXCLUDED:
         eq = (f"SELECT incident_year, count(*) AS n WHERE ({e['where']}) "
-              f"AND police_district='{DISTRICT}' GROUP BY incident_year ORDER BY incident_year")
+              f"GROUP BY incident_year ORDER BY incident_year")
         provenance["excluded"].append({**e, "query_url": query_url(eq)})
 
     os.makedirs(DATA, exist_ok=True)
