@@ -50,11 +50,20 @@ def check_aggregates(dash, errs):
         if not isinstance(sig, dict) or "series" not in sig:
             continue   # non-standard aggregate schema (e.g. the hypothesis/okr-map tools) — out of scope
         series = sig["series"]
-        for dist, arr in series.items():
-            if len(arr) != n:
-                errs.append(f"{dash}/{sk}: series[{dist}] length {len(arr)} != months {n}")
-            if any((v is None or not isinstance(v, (int, float)) or v < 0) for v in arr):
-                errs.append(f"{dash}/{sk}: series[{dist}] has a negative/None/non-numeric value")
+        for dist, val in series.items():
+            if dist == "citywide":
+                continue
+            # Handle both flat arrays and nested {reported: [...], arrests: [...]} structures
+            if isinstance(val, dict):
+                arrays_to_check = [(k, v) for k, v in val.items() if isinstance(v, list)]
+            else:
+                arrays_to_check = [(None, val)]
+            for subkey, arr in arrays_to_check:
+                label = f"{dist}.{subkey}" if subkey else dist
+                if len(arr) != n:
+                    errs.append(f"{dash}/{sk}: series[{label}] length {len(arr)} != months {n}")
+                if any((v is None or not isinstance(v, (int, float)) or v < 0) for v in arr):
+                    errs.append(f"{dash}/{sk}: series[{label}] has a negative/None/non-numeric value")
         # citywide counts ALL districts, so it must be ≥ the sum of the target-district series each month
         if "Citywide" in series and target and not sig.get("citywide_only"):
             cw = series["Citywide"]
