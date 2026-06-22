@@ -67,6 +67,19 @@ function getOKRsForDistrict(district) {
 const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
 const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Inconclusive' };
 
+// Map KR labels to their parent OKR for color-coding
+const KR_TO_OKR = {
+  '911 drug complaints': 'drug',
+  'Dealer arrests': 'drug',
+  'Encampment reports': 'unhoused',
+  '911 unhoused calls': 'unhoused',
+  'Shoplifting': 'theft',
+  'Commercial burglary & robbery': 'theft',
+  'Fraud reports': 'theft',
+  'Dog bites': 'theft',
+  'Street robbery': 'theft',
+};
+
 // Socrata queries for district-specific emerging signals (fetched live)
 const EMERGING_SIGNALS = {
   fraud: {
@@ -222,6 +235,24 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function renderImpactBadge(impact) {
+  if (!impact) return '—';
+  const num = parseFloat(impact);
+  if (isNaN(num)) return esc(impact);
+  const isGood = num < 0;
+  const cls = isGood ? 'impact-badge--good' : 'impact-badge--bad';
+  const arrow = isGood ? '↓' : '↑';
+  const display = Math.abs(num) + '%';
+  return `<span class="impact-badge ${cls}">${arrow}${display}</span>`;
+}
+
+function renderKRBadge(kr) {
+  if (!kr) return '—';
+  const okrId = KR_TO_OKR[kr];
+  const cls = okrId ? `kr-badge--${okrId}` : '';
+  return `<span class="kr-badge ${cls}">${esc(kr)}</span>`;
+}
+
 function renderInterventionRow(i) {
   const statusClass = i.status ? `status--${i.status}` : '';
   const lastEval = i.last_evaluated ? formatDate(i.last_evaluated) : '—';
@@ -232,7 +263,7 @@ function renderInterventionRow(i) {
       <td class="intervention-cell intervention-cell--name">
         <strong>${esc(i.intervention || '')}</strong>
       </td>
-      <td class="intervention-cell intervention-cell--kr">${esc(i.target_kr || '')}</td>
+      <td class="intervention-cell intervention-cell--kr">${renderKRBadge(i.target_kr)}</td>
       <td class="intervention-cell intervention-cell--tactics">${esc(i.tactics || '')}</td>
       <td class="intervention-cell intervention-cell--owner">${esc(i.owner || '')}</td>
       <td class="intervention-cell intervention-cell--agencies">${esc(i.agencies || '')}</td>
@@ -240,6 +271,7 @@ function renderInterventionRow(i) {
         <span class="status-badge ${statusClass}">${STATUS_LABELS[i.status] || i.status || '—'}</span>
       </td>
       <td class="intervention-cell intervention-cell--start">${formatDate(i.start_date)}</td>
+      <td class="intervention-cell intervention-cell--impact">${renderImpactBadge(i.impact)}</td>
       <td class="intervention-cell intervention-cell--eval ${isStale ? 'is-stale' : ''}">
         ${lastEval}
         ${isStale ? '<span class="stale-flag" title="Over 30 days since last evaluation">stale</span>' : ''}
@@ -268,6 +300,7 @@ function renderInterventions() {
             <th>Agencies</th>
             <th>Status</th>
             <th>Started</th>
+            <th>Impact</th>
             <th>Last Evaluated</th>
             <th></th>
           </tr>
