@@ -216,24 +216,38 @@ function renderOKRCards() {
   `;
 }
 
-function renderIntervention(i) {
-  const statusClass = i.status ? `intervention-status--${i.status}` : '';
-  const workingClass = i.working ? `intervention-working--${i.working}` : '';
-  const okrLabel = OKR_DEFS[i.target_okr]?.title || i.target_okr;
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function renderInterventionRow(i) {
+  const statusClass = i.status ? `status--${i.status}` : '';
+  const lastEval = i.last_evaluated ? formatDate(i.last_evaluated) : '—';
+  const isStale = i.last_evaluated && (Date.now() - new Date(i.last_evaluated).getTime()) > 30 * 24 * 60 * 60 * 1000;
 
   return `
-    <li class="intervention-item">
-      <div class="intervention-item__header">
-        <span class="intervention-name">${esc(i.name)}</span>
-        ${i.status ? `<span class="intervention-status ${statusClass}">${STATUS_LABELS[i.status] || i.status}</span>` : ''}
-        ${i.working ? `<span class="intervention-working ${workingClass}">${WORKING_LABELS[i.working] || i.working}</span>` : ''}
-      </div>
-      <p class="intervention-desc">${esc(i.description)}</p>
-      <div class="intervention-meta">
-        <span class="intervention-okr">Target: ${esc(okrLabel)}</span>
-        ${i.eval_link ? `<a class="intervention-eval" href="${esc(i.eval_link)}">View evaluation <wa-icon name="arrow-right"></wa-icon></a>` : ''}
-      </div>
-    </li>
+    <tr class="intervention-row">
+      <td class="intervention-cell intervention-cell--name">
+        <strong>${esc(i.intervention || '')}</strong>
+      </td>
+      <td class="intervention-cell intervention-cell--kr">${esc(i.target_kr || '')}</td>
+      <td class="intervention-cell intervention-cell--tactics">${esc(i.tactics || '')}</td>
+      <td class="intervention-cell intervention-cell--owner">${esc(i.owner || '')}</td>
+      <td class="intervention-cell intervention-cell--agencies">${esc(i.agencies || '')}</td>
+      <td class="intervention-cell intervention-cell--status">
+        <span class="status-badge ${statusClass}">${STATUS_LABELS[i.status] || i.status || '—'}</span>
+      </td>
+      <td class="intervention-cell intervention-cell--start">${formatDate(i.start_date)}</td>
+      <td class="intervention-cell intervention-cell--eval ${isStale ? 'is-stale' : ''}">
+        ${lastEval}
+        ${isStale ? '<span class="stale-flag" title="Over 30 days since last evaluation">stale</span>' : ''}
+      </td>
+      <td class="intervention-cell intervention-cell--actions">
+        ${i.eval_link ? `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>` : '—'}
+      </td>
+    </tr>
   `;
 }
 
@@ -243,9 +257,26 @@ function renderInterventions() {
     return '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
   }
   return `
-    <ul class="intervention-list">
-      ${interventions.map(renderIntervention).join('')}
-    </ul>
+    <div class="intervention-table-wrap">
+      <table class="intervention-table">
+        <thead>
+          <tr>
+            <th>Intervention</th>
+            <th>Target KR</th>
+            <th>Tactics</th>
+            <th>Owner</th>
+            <th>Agencies</th>
+            <th>Status</th>
+            <th>Started</th>
+            <th>Last Evaluated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${interventions.map(renderInterventionRow).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
