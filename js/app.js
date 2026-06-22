@@ -2,8 +2,9 @@ import { parseTSV, groupBy } from './tsv.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
-const OKRS = [
-  {
+// Base OKR definitions (shared across districts)
+const OKR_DEFS = {
+  drug: {
     id: 'drug',
     title: 'Reduce visible disorder: Drugs',
     href: './drug/',
@@ -14,7 +15,7 @@ const OKRS = [
       { signal: 'dealer_arrests', label: 'Dealer arrests', goal: 'up' },
     ]
   },
-  {
+  unhoused: {
     id: 'unhoused',
     title: 'Reduce unsheltered homelessness',
     href: './unhoused/',
@@ -25,7 +26,7 @@ const OKRS = [
       { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
     ]
   },
-  {
+  theft: {
     id: 'theft',
     title: 'Reduce property & street crime',
     href: './theft/',
@@ -36,15 +37,54 @@ const OKRS = [
       { signal: 'commercial', label: 'Commercial burglary & robbery', goal: 'down' },
     ]
   },
-];
+};
+
+// District-specific KR #3 for property & street crime
+// Each district tracks shoplifting + commercial (shared) plus one emerging local issue
+const DISTRICT_KR3 = {
+  Northern: { signal: 'fraud', label: 'Fraud reports', goal: 'down' },
+  Central: { signal: 'dog_bites', label: 'Dog bites', goal: 'down' },
+  Mission: { signal: 'street_robbery', label: 'Street robbery', goal: 'down' },
+  Tenderloin: { signal: 'dog_bites', label: 'Dog bites', goal: 'down' },
+};
+
+// Build district-specific OKRs
+function getOKRsForDistrict(district) {
+  const kr3 = DISTRICT_KR3[district];
+  return [
+    OKR_DEFS.drug,
+    OKR_DEFS.unhoused,
+    {
+      ...OKR_DEFS.theft,
+      krs: [
+        ...OKR_DEFS.theft.krs,
+        kr3,
+      ]
+    },
+  ];
+}
 
 const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
 const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Inconclusive' };
+
+// Socrata queries for district-specific emerging signals (fetched live)
+const EMERGING_SIGNALS = {
+  fraud: {
+    where: "incident_category = 'Fraud'",
+  },
+  dog_bites: {
+    where: "incident_description = 'Dog, Bite or Attack'",
+  },
+  street_robbery: {
+    where: "incident_subcategory = 'Robbery - Street'",
+  },
+};
 
 let currentDistrict = DISTRICTS[0];
 let currentTab = 'okrs';
 let interventionsByDistrict = {};
 let aggregatesData = {};
+let emergingSignalsCache = {};
 
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -61,6 +101,13 @@ function pctChange(current, previous) {
 }
 
 function getKRData(okrId, kr, district) {
+  // Check if this is an emerging signal (fetched from Socrata)
+  if (EMERGING_SIGNALS[kr.signal]) {
+    const cached = emergingSignalsCache[`${kr.signal}_${district}`];
+    if (!cached) return null;
+    return { change: cached.change, goal: kr.goal };
+  }
+
   const data = aggregatesData[okrId];
   if (!data) return null;
 
@@ -147,10 +194,11 @@ function renderContentTabs() {
 }
 
 function renderOKRCards() {
+  const okrs = getOKRsForDistrict(currentDistrict);
   return `
     <div class="okr-grid">
-      ${OKRS.map(o => `
-        <a class="okr-card" href="${o.href}">
+      ${okrs.map(o => `
+        <a class="okr-card" href="${o.href}#${currentDistrict.toLowerCase()}">
           <div class="okr-card__body">
             <span class="okr-card__eyebrow">${esc(o.eyebrow)}</span>
             <h3 class="okr-card__title">${esc(o.title)}</h3>
@@ -166,7 +214,7 @@ function renderOKRCards() {
 function renderIntervention(i) {
   const statusClass = i.status ? `intervention-status--${i.status}` : '';
   const workingClass = i.working ? `intervention-working--${i.working}` : '';
-  const okrLabel = OKRS.find(o => o.id === i.target_okr)?.title || i.target_okr;
+  const okrLabel = OKR_DEFS[i.target_okr]?.title || i.target_okr;
 
   return `
     <li class="intervention-item">
@@ -228,8 +276,9 @@ function wireEvents(container) {
 }
 
 async function loadAggregates() {
+  const allOkrs = [OKR_DEFS.drug, OKR_DEFS.unhoused, OKR_DEFS.theft];
   const results = await Promise.allSettled(
-    OKRS.map(async o => {
+    allOkrs.map(async o => {
       const res = await fetch(o.dataPath);
       if (!res.ok) return null;
       return { id: o.id, data: await res.json() };
@@ -243,6 +292,56 @@ async function loadAggregates() {
   }
 }
 
+async function fetchEmergingSignal(signalKey, district) {
+  const sig = EMERGING_SIGNALS[signalKey];
+  if (!sig) return null;
+
+  const now = new Date();
+  const last3End = new Date(now.getFullYear(), now.getMonth(), 1);
+  const last3Start = new Date(last3End.getFullYear(), last3End.getMonth() - 3, 1);
+  const prior3End = new Date(last3End.getFullYear() - 1, last3End.getMonth(), 1);
+  const prior3Start = new Date(prior3End.getFullYear(), prior3End.getMonth() - 3, 1);
+
+  const fmt = d => d.toISOString().slice(0, 10);
+  const base = `https://data.sfgov.org/resource/wg3w-h783.json`;
+
+  const countQuery = (start, end) => {
+    const where = `${sig.where} AND police_district='${district}' AND incident_date>='${fmt(start)}' AND incident_date<'${fmt(end)}'`;
+    return `${base}?$select=count(*)&$where=${encodeURIComponent(where)}`;
+  };
+
+  try {
+    const [last3Res, prior3Res] = await Promise.all([
+      fetch(countQuery(last3Start, last3End)).then(r => r.json()),
+      fetch(countQuery(prior3Start, prior3End)).then(r => r.json()),
+    ]);
+
+    const last3 = parseInt(last3Res[0]?.count || 0, 10);
+    const prior3 = parseInt(prior3Res[0]?.count || 0, 10);
+    const change = pctChange(last3, prior3);
+
+    return { last3, prior3, change };
+  } catch (e) {
+    console.error(`Failed to fetch ${signalKey} for ${district}:`, e);
+    return null;
+  }
+}
+
+async function loadEmergingSignals() {
+  const tasks = [];
+  for (const district of DISTRICTS) {
+    const kr3 = DISTRICT_KR3[district];
+    if (kr3 && EMERGING_SIGNALS[kr3.signal]) {
+      tasks.push(
+        fetchEmergingSignal(kr3.signal, district).then(data => {
+          if (data) emergingSignalsCache[`${kr3.signal}_${district}`] = data;
+        })
+      );
+    }
+  }
+  await Promise.allSettled(tasks);
+}
+
 async function init() {
   const container = document.getElementById('districts-container');
   if (!container) return;
@@ -250,7 +349,8 @@ async function init() {
   try {
     const [interventionsRes] = await Promise.all([
       fetch('./data/interventions.tsv'),
-      loadAggregates()
+      loadAggregates(),
+      loadEmergingSignals(),
     ]);
 
     const text = await interventionsRes.text();
