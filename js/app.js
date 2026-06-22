@@ -27,9 +27,9 @@ const OKRS = [
   },
   {
     id: 'theft',
-    title: 'Restore merchant confidence',
+    title: 'Reduce property & street crime',
     href: './theft/',
-    eyebrow: 'Theft from merchants',
+    eyebrow: 'Property & street crime',
     dataPath: './theft/data/aggregates.json',
     krs: [
       { signal: 'shoplifting', label: 'Shoplifting', goal: 'down' },
