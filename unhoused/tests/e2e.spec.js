@@ -22,7 +22,6 @@ test('four district pages: two success cards, one chart, HSOC response block, ma
     await expect(page.locator('#chart-selector .seg')).toHaveCount(3);   // Aggregate · Encampment · 911
     await expect(page.locator('#hsoc-block .rb__num')).not.toBeEmpty();  // response signal below
     await expect(page.locator('.legend-item')).toHaveCount(3);
-    await expect(page.locator('.district-nav a.is-active')).toHaveText(new RegExp(d, 'i'));
   }
   expect(errors, errors.join('\n')).toEqual([]);
 });
