@@ -60,7 +60,7 @@ test('shows a prominent reporting-lag note and the evaluated month on each card'
 
   // the note explains the lag and names the evaluated (settled) month
   const note = page.locator('#reporting-note');
-  await expect(note).toContainText('aren’t final');
+  await expect(note).toContainText(/aren.t final/);
   await expect(note).toContainText('within 30 days');
   await expect(note).toContainText('12-month trend');
 
