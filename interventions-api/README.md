@@ -7,12 +7,24 @@ See [`../plan-saved-interventions.md`](../plan-saved-interventions.md) for the d
 - [`../js/saved-interventions.js`](../js/saved-interventions.js) — homepage list + per-row soft-delete.
 - [`../hypothesis/js/save.js`](../hypothesis/js/save.js) — the hypothesis tool's "Save this intervention" button (a `<dialog>` that POSTs `{url, email}`).
 
-## The save → list → delete loop (local)
+## Where the front-end points
+
+`js/interventions-client.js` targets the **deployed Worker by default — everywhere, including local
+dev** — so the homepage list and Save button work without running `wrangler dev`. (Saves from a local
+site therefore go to **production** KV.) To point the site at a **local** Worker instead, in the
+browser console:
+
+```js
+localStorage.interventionsApi = 'http://localhost:8787'   // clear it (removeItem) to go back to prod
+```
+
+## The save → list → delete loop against a LOCAL Worker
 
 1. `cd interventions-api && npx wrangler dev` (Worker on :8787, local KV).
-2. Serve the site (`npm run dev` → :8090) and open the hypothesis tool, run a report, click
-   **Save this intervention**, enter a city email → it POSTs the current URL.
-3. The homepage's "Saved intervention evaluations" now lists it; the trash button soft-deletes it.
+2. In the site's browser console: `localStorage.interventionsApi = 'http://localhost:8787'`.
+3. Serve the site (`npm run dev` → :8090), open the hypothesis tool, run a report, click
+   **Save this intervention**, enter a city email → it POSTs the current URL to the local Worker.
+4. The homepage's "Saved intervention evaluations" now lists it; the trash button soft-deletes it.
 
 ## Run locally (no Cloudflare account needed)
 
