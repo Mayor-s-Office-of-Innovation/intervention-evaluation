@@ -18,6 +18,7 @@ import urllib.parse
 from collections import defaultdict
 
 from httpget import get_json
+from tod import BUCKETS, tod_bucket
 from signals import (
     SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL, HISTORY_START,
     LURIE_INAUGURATION, DATASET_NAME, query_url,
@@ -62,23 +63,37 @@ def rollup(signal_key, agg, points_out, provenance):
     with open(os.path.join(CACHE, f"{signal_key}_assigned.json")) as f:
         records = json.load(f)
 
-    # citywide + per-district monthly counts
+    # citywide + per-district monthly counts. `city`/`by_dist` stay the totals (also used by the
+    # provenance break-audit below); `*_tod` carry the Day/Night split (plan-time-of-day.md §3).
     city = defaultdict(int)
     by_dist = {d: defaultdict(int) for d in TARGET_DISTRICTS}
+    city_tod = {b: defaultdict(int) for b in BUCKETS}
+    by_dist_tod = {d: {b: defaultdict(int) for b in BUCKETS} for d in TARGET_DISTRICTS}
     dist_idx = {d: i for i, d in enumerate(TARGET_DISTRICTS)}
+    tod_code = {"day": 0, "night": 1}
     pts = []
     for r in records:
         ym = r["ym"]
+        b = tod_bucket(r.get("hour"))
         city[ym] += 1
+        city_tod[b][ym] += 1
         d = r["district"]
         if d in by_dist:
             by_dist[d][ym] += 1
+            by_dist_tod[d][b][ym] += 1
             if r["lat"] is not None:
                 day = (datetime.date.fromisoformat(r["date"]) - EPOCH).days
-                pts.append([r["lat"], r["lng"], day, dist_idx[d]])
+                pts.append([r["lat"], r["lng"], day, dist_idx[d], tod_code[b]])
 
-    series = {DISTRICT_LABEL[d]: [by_dist[d].get(mo, 0) for mo in agg["months"]] for d in TARGET_DISTRICTS}
-    series["Citywide"] = [city.get(mo, 0) for mo in agg["months"]]
+    months = agg["months"]
+
+    def _ser(bd, ct):
+        s = {DISTRICT_LABEL[d]: [bd[d].get(mo, 0) for mo in months] for d in TARGET_DISTRICTS}
+        s["Citywide"] = [ct.get(mo, 0) for mo in months]
+        return s
+
+    series = _ser(by_dist, city)
+    series_tod = {b: _ser({d: by_dist_tod[d][b] for d in TARGET_DISTRICTS}, city_tod[b]) for b in BUCKETS}
 
     agg["signals"][signal_key] = {
         "label": sig["label"],
@@ -88,6 +103,7 @@ def rollup(signal_key, agg, points_out, provenance):
         "caveat": sig.get("caveat"),
         "breaks": sig.get("breaks", []),
         "series": series,
+        "series_tod": series_tod,
     }
     points_out[signal_key] = pts
 
@@ -123,15 +139,21 @@ def build_groups(agg, provenance):
         if not members:
             continue
         labels = list(agg["signals"][members[0]]["series"].keys())
+        nmonths = len(agg["months"])
         series = {}
         for lab in labels:
             series[lab] = [
                 sum(agg["signals"][m]["series"][lab][i] for m in members)
-                for i in range(len(agg["months"]))
+                for i in range(nmonths)
             ]
+        # Sum the per-bucket member series too (so the group can be filtered by day/night).
+        series_tod = {}
+        if all(agg["signals"][m].get("series_tod") for m in members):
+            series_tod = {b: {lab: [sum(agg["signals"][m]["series_tod"][b][lab][i] for m in members)
+                                    for i in range(nmonths)] for lab in labels} for b in BUCKETS}
         agg["groups"][gkey] = {
             "label": g["label"], "tier": g.get("tier"),
-            "members": members, "note": g["note"], "series": series,
+            "members": members, "note": g["note"], "series": series, "series_tod": series_tod,
         }
         provenance["groups"][gkey] = {
             "label": g["label"],

@@ -13,7 +13,7 @@ import {
 } from '../../shared/rollup.js';
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
-  onMapState, notifyState, queueRestore, restoreMapView,
+  onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -63,6 +63,7 @@ let active = 'Northern';
 let focus = 'aggregate';          // 'aggregate' | 'encampment' | 'cfs_presence'
 let encOnly = false;              // dedicated-category sub-view (only when focus === 'encampment')
 let mapSignal = 'encampment';
+let todFilter = 'both';            // 'both' | 'day' | 'night' — the page-level time-of-day filter
 const visibleCats = new Set(['persistent', 'cooled', 'emerged']);
 const transitionData = {};
 
@@ -78,8 +79,11 @@ const clampToAxis = r => ({
 
 // ── series helpers ──
 const lastIdx = () => monthIndex(AGG, AGG.latest_complete_month);
-const seriesFor = (sigKey, dist) => AGG.signals[sigKey].series[dist];
-const groupSeries = (gKey, dist) => AGG.groups[gKey].series[dist];
+// Day/Night filter (plan-time-of-day.md §3): 'both' → total series (unchanged); a single bucket →
+// that day/night slice. Falls back to total if a node has no split. Works for signal & group nodes.
+const seriesBlock = node => (todFilter === 'both' ? node.series : (node.series_tod?.[todFilter] || node.series));
+const seriesFor = (sigKey, dist) => seriesBlock(AGG.signals[sigKey])[dist];
+const groupSeries = (gKey, dist) => seriesBlock(AGG.groups[gKey])[dist];
 // Aggregate = summed total: encampment union (311) + 911 group. Distinct channels, no overlap (D15).
 const aggSeries = dist => seriesFor('encampment', dist).map((v, i) => v + groupSeries('cfs_presence', dist)[i]);
 
@@ -277,7 +281,12 @@ async function renderMap() {
   const winSpan = [AGG.months[win.lo], AGG.months[win.hi]];
   const w = clampToAxis(ymRange(TMETA.months, winSpan));
   const b = ymRange(TMETA.months, TMETA.pre_window);
-  const classified = classifyCells(transitionData[mapSignal], sigMeta.district_monthly, w, b, knobs);
+  // Day/Night filter: classify off the matching histogram + district tide (plan §3/§5).
+  const monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
+  const dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
+             || sigMeta.district_monthly;
+  setTodFilter(todFilter);   // marker layer + cell-details honor the same filter
+  const classified = classifyCells(transitionData[mapSignal], dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
   setMapWindow(winSpan, TMETA.pre_window);
   setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded on first zoom-in
@@ -293,7 +302,7 @@ async function renderMap() {
     </button>`).join('');
   $('#map-legend').querySelectorAll('.legend-item').forEach(b =>
     b.onclick = () => { const c = b.dataset.cat; visibleCats.has(c) ? visibleCats.delete(c) : visibleCats.add(c); renderMap(); });
-  const tide = +districtTide(sigMeta.district_monthly[active], w, b).toFixed(2);
+  const tide = +districtTide(dm[active], w, b).toFixed(2);
   const hot = sigMeta.hot_rate_per_month;
   const span = `${prettyMonth(AGG.months[win.lo])}–${prettyMonth(AGG.months[win.hi])}`;
   $('#map-note').innerHTML =
@@ -322,6 +331,32 @@ function buildMapControls() {
     <button class="seg ${mapSignal === 'cfs_presence' ? 'is-active' : ''}" data-s="cfs_presence">911 unhoused calls</button>`;
   $('#map-controls').querySelectorAll('.seg').forEach(b =>
     b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
+}
+
+// ── page-level Day/Night filter (plan-time-of-day.md §5) ──
+// Two independent include/exclude chips at the top of the page; ≥1 must stay on. Changing the filter
+// re-renders every viz off the selected day/night slice (cards, citywide, chart, HSOC, map).
+function applyTod() {
+  const on = [...document.querySelectorAll('#tod-controls .tod-toggle')]
+    .filter(b => b.classList.contains('is-active')).map(b => b.dataset.tod);
+  todFilter = on.length === 2 ? 'both' : on[0];
+  const hint = $('.tod-filter__hint');
+  if (hint) hint.textContent =
+    `Day 6am–8pm · Night 8pm–6am · showing ${todFilter === 'both' ? 'both' : todFilter + ' only'}`;
+  renderSummary();
+  renderFocusChart();   // also refreshes the citywide card
+  renderHSOC();
+  renderMap();
+}
+function wireTodToggles() {
+  const btns = [...document.querySelectorAll('#tod-controls .tod-toggle')];
+  btns.forEach(btn => btn.onclick = () => {
+    const active = btns.filter(b => b.classList.contains('is-active'));
+    if (btn.classList.contains('is-active') && active.length === 1) return;   // keep ≥1 selected
+    btn.classList.toggle('is-active');
+    btn.setAttribute('aria-pressed', btn.classList.contains('is-active'));
+    applyTod();
+  });
 }
 
 // ── district (locked from homepage selection) ──
@@ -398,6 +433,7 @@ async function main() {
     }
     onMapState(onMapStateChange);
     initDistrict();
+    wireTodToggles();
     buildMapControls();
     renderScrubber();
     renderMethodology();

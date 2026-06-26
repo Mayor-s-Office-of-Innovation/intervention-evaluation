@@ -74,6 +74,18 @@
   <main class="app-main wa-stack wa-gap-l">
     <small id="data-asof" class="field-hint"></small>
 
+    <!-- Page-level time-of-day filter — governs every viz below (plan-time-of-day.md §5). -->
+    <section class="tod-filter" id="tod-filter" aria-label="Time of day filter">
+      <span class="tod-filter__label">Time of day</span>
+      <div class="tod-toggles" id="tod-controls" role="group" aria-label="Include day or night">
+        <button class="tod-toggle is-active" data-tod="day" aria-pressed="true">
+          <span class="tod-toggle__check" aria-hidden="true">✓</span>☀ Day</button>
+        <button class="tod-toggle is-active" data-tod="night" aria-pressed="true">
+          <span class="tod-toggle__check" aria-hidden="true">✓</span>☾ Night</button>
+      </div>
+      <span class="tod-filter__hint field-hint">Day 6am–8pm · Night 8pm–6am · showing both</span>
+    </section>
+
     <!-- Success metrics — we want these to go DOWN. Click a card to focus the chart. -->
     <section class="summary" id="summary-cards" aria-label="Success metrics"></section>
 

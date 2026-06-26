@@ -24,6 +24,7 @@ import os
 import sys
 from collections import defaultdict, Counter
 
+from tod import BUCKETS, tod_bucket
 from signals import SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL
 
 
@@ -107,14 +108,19 @@ def classify(key, latest, nowset, summary):
     recs = load_records(MAP_SIGNALS[key])
     # per cell: pre & now counts + a full monthly histogram (for the popup sparkline);
     # track district so we can normalize against the district "tide".
+    # `m` is the total monthly histogram (the parity oracle, unchanged); `m_day`/`m_night` are the
+    # day/night splits the frontend filter selects (plan-time-of-day.md §3). m == m_day + m_night.
     cells = defaultdict(lambda: {"pre": 0, "now": 0, "lat": 0.0, "lng": 0.0, "n": 0, "dist": None,
-                                 "m": defaultdict(int), "names": Counter()})
+                                 "m": defaultdict(int), "m_day": defaultdict(int),
+                                 "m_night": defaultdict(int), "names": Counter()})
     dist_pre = defaultdict(int)
     dist_now = defaultdict(int)
     # Full per-district monthly histogram (every in-district report, aligned to MONTHS). The browser
     # sums this over any scrubbed window to recompute the district "tide" — so it lives in the data
-    # file and parity-matches the fixed-preset tide computed below (D7 / classify.js).
+    # file and parity-matches the fixed-preset tide computed below (D7 / classify.js). Split by bucket
+    # too so the tide can be recomputed within the selected day/night window.
     dist_month = defaultdict(lambda: defaultdict(int))
+    dist_month_tod = {b: defaultdict(lambda: defaultdict(int)) for b in BUCKETS}
     for r in recs:
         cy = round(r["lat"], CELL_DECIMALS)
         cx = round(r["lng"], CELL_DECIMALS)
@@ -125,8 +131,11 @@ def classify(key, latest, nowset, summary):
         if loc:
             c["names"][clean_loc(loc)] += 1
         ym = r["ym"]
+        b = tod_bucket(r.get("hour"))
         c["m"][ym] += 1
+        c["m_" + b][ym] += 1
         dist_month[r["district"]][ym] += 1
+        dist_month_tod[b][r["district"]][ym] += 1
         if in_pre(ym):
             c["pre"] += 1; dist_pre[r["district"]] += 1
         elif ym in nowset:
@@ -184,6 +193,8 @@ def classify(key, latest, nowset, summary):
             "expectedRate": round(expected, 2),
             "total": c["n"],                                  # all-time volume (window-independent)
             "monthly": [c["m"].get(mo, 0) for mo in MONTHS],  # aligned to meta.months — the raw material
+            "monthly_day": [c["m_day"].get(mo, 0) for mo in MONTHS],     # day/night splits (sum == monthly)
+            "monthly_night": [c["m_night"].get(mo, 0) for mo in MONTHS],
         })
 
     classified = sum(counts.values())
@@ -195,6 +206,11 @@ def classify(key, latest, nowset, summary):
         # per-district monthly totals (aligned to MONTHS) so the browser recomputes the tide per window
         "district_monthly": {DISTRICT_LABEL[d]: [dist_month[d].get(mo, 0) for mo in MONTHS]
                              for d in TARGET_DISTRICTS},
+        # day/night splits of the district tide (sum == district_monthly), for the time-of-day filter
+        "district_monthly_day": {DISTRICT_LABEL[d]: [dist_month_tod["day"][d].get(mo, 0) for mo in MONTHS]
+                                 for d in TARGET_DISTRICTS},
+        "district_monthly_night": {DISTRICT_LABEL[d]: [dist_month_tod["night"][d].get(mo, 0) for mo in MONTHS]
+                                   for d in TARGET_DISTRICTS},
         "counts": dict(counts),
         "cells": len(out),
         "classified_fixed_preset": classified,
