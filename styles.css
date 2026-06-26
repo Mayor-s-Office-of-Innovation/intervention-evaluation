@@ -182,11 +182,25 @@ html.wa-dark .kr-ticker--bad {
 .saved-evals__label { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 700; color: var(--muted); margin: 1.25rem 0 .25rem; }
 .saved-evals__intro { margin: 0 0 .7rem; color: var(--muted); font-size: .88rem; max-width: 72ch; }
 .saved-evals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .1rem; }
+.saved-evals__item { display: flex; align-items: center; gap: .5rem; }
 .saved-eval {
+  flex: 1 1 auto; min-width: 0;
   display: inline-flex; align-items: center; gap: .5rem;
   text-decoration: none; color: var(--c-blue);
   font-size: .92rem; padding: .25rem 0;
 }
+.saved-evals__empty { color: var(--muted); font-size: .9rem; padding: .25rem 0; }
+/* soft-delete control — real button, color-independent (icon + label), visible focus (WCAG 2.2) */
+.saved-eval__delete {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 1.9rem; height: 1.9rem; padding: 0;
+  border: none; border-radius: 6px; background: transparent;
+  color: var(--muted); cursor: pointer; font-size: .9rem;
+  transition: background .12s, color .12s;
+}
+.saved-eval__delete:hover { background: color-mix(in srgb, var(--c-red, #d64545) 12%, transparent); color: var(--c-red, #d64545); }
+.saved-eval__delete:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+.saved-eval__delete:disabled { opacity: .5; cursor: default; }
 .saved-eval__name { border-bottom: 1px solid transparent; }
 .saved-eval:hover .saved-eval__name { border-bottom-color: currentColor; }
 .saved-eval:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }
