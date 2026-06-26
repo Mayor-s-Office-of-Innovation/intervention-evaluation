@@ -16,8 +16,42 @@
 //   DELETE /interventions/:id   → soft delete → 200 { ok:true }  (idempotent)
 // ──────────────────────────────────────────────────────────────────────────
 
+import DISTRICTS from "./districts.js";   // [{district, rings:[[[lng,lat],…]]}] — 4 target SF districts
+
 const ACTIVE = "intervention:";
 const DELETED = "deleted:";
+
+// ── district from a pin (point-in-polygon) — ports build/02_assign.py's verified ray-casting ──
+function pointInRing(lng, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) && (lng < ((xj - xi) * (lat - yi)) / (yj - yi + 1e-12) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/** Police district for a pin, or "Other" if outside the 4 target districts / coords missing. */
+export function districtFor(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return "Other";
+  for (const d of DISTRICTS) {
+    for (const ring of d.rings) if (pointInRing(lng, lat, ring)) return d.district;
+  }
+  return "Other";
+}
+
+/** Pull lat/lng out of a saved hypothesis URL (params are `lat` / `lng`). */
+function coordsOf(urlStr) {
+  try {
+    const q = new URL(urlStr).searchParams;
+    return { lat: parseFloat(q.get("lat")), lng: parseFloat(q.get("lng")) };
+  } catch {
+    return { lat: NaN, lng: NaN };
+  }
+}
 
 export default {
   async fetch(request, env) {
@@ -61,7 +95,7 @@ const json = (body, status, cors) =>
 
 const listVar = v => (v || "").split(",").map(s => s.trim()).filter(Boolean);
 
-// ── public projection: derive what/dp/date from the saved URL; NEVER expose email ──
+// ── public projection: derive what/dp/date/district from the saved URL; NEVER expose email ──
 function publicItem(id, rec) {
   let what = null, dp = null, date = null;
   try {
@@ -70,7 +104,10 @@ function publicItem(id, rec) {
     dp = q.get("dp");
     date = q.get("date");
   } catch { /* malformed url — leave fields null */ }
-  return { id, url: rec.url, what, dp, date, created: rec.created };
+  // Prefer the stored district; fall back to computing it (back-compat for pre-Phase-1 records).
+  const { lat, lng } = coordsOf(rec.url);
+  const district = rec.district || districtFor(lat, lng);
+  return { id, url: rec.url, what, dp, date, district, created: rec.created };
 }
 
 async function listActive(env) {
@@ -97,8 +134,11 @@ async function create(request, env, cors) {
   const cityDomain = (env.CITY_EMAIL_DOMAIN || "").toLowerCase();
   const cityEmailGuess = !!cityDomain && email.toLowerCase().endsWith("@" + cityDomain);
 
+  const { lat, lng } = coordsOf(urlStr);
+  const district = districtFor(lat, lng);   // computed from the pin, stored on the record
+
   const id = crypto.randomUUID();
-  const rec = { url: urlStr, created: new Date().toISOString(), deleted: false, email, cityEmailGuess };
+  const rec = { url: urlStr, created: new Date().toISOString(), deleted: false, email, cityEmailGuess, district };
   await env.INTERVENTIONS.put(ACTIVE + id, JSON.stringify(rec));
   return json({ id, item: publicItem(id, rec) }, 201, cors);
 }

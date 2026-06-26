@@ -352,11 +352,18 @@ function render(container) {
   wireEvents(container);
 }
 
+// Broadcast the active district so independent modules (e.g. the saved-interventions list) can filter
+// to it without coupling to this module's internals.
+function emitDistrict() {
+  document.dispatchEvent(new CustomEvent('districtchange', { detail: { district: currentDistrict } }));
+}
+
 function wireEvents(container) {
   container.querySelectorAll('.district-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentDistrict = btn.dataset.district;
       render(container);
+      emitDistrict();
     });
   });
 
@@ -451,6 +458,7 @@ async function init() {
     interventionsByDistrict = groupBy(interventions, 'district');
 
     render(container);
+    emitDistrict();   // announce the initial district so the saved-interventions list filters on load
   } catch (err) {
     console.error('Failed to load data:', err);
     container.innerHTML = '<p class="error">Failed to load data.</p>';
