@@ -48,18 +48,37 @@ test('landing page renders links to every dashboard without errors', async ({ pa
   expect(errors).toEqual([]);
 });
 
-test('saved evaluations filter by the selected district', async ({ page }) => {
+test('the Interventions table lists saved interventions per district', async ({ page }) => {
   await page.goto('/index.html');
   await expect(page.locator('.district-tab')).toHaveCount(4);
+  await page.locator('.content-tab[data-tab="interventions"]').click();
 
-  // default district is Northern → only its saved item shows
-  await expect(page.locator('.saved-eval__name')).toHaveText('Alpha report');
+  // default district Northern → its saved item, with the Target KR derived from dp=drug
+  const table = page.locator('.intervention-table');
+  await expect(table).toContainText('Alpha report');
+  await expect(table).toContainText('Drug-related complaints');
 
-  // switch to Central → its item replaces Northern's
+  // switch to Central → Beta replaces Alpha
   await page.locator('.district-tab[data-district="Central"]').click();
-  await expect(page.locator('.saved-eval__name')).toHaveText('Beta report');
+  await expect(page.locator('.intervention-table')).toContainText('Beta report');
+  await expect(page.locator('.intervention-table')).not.toContainText('Alpha report');
 
-  // a district with no saved items shows the per-district empty state
+  // a district with no saved items → per-district empty state
   await page.locator('.district-tab[data-district="Mission"]').click();
-  await expect(page.locator('.saved-evals__empty')).toContainText('Mission');
+  await expect(page.locator('.intervention-empty')).toBeVisible();
+});
+
+test('deleting a saved intervention removes its row', async ({ page }) => {
+  await page.route('**/interventions/*', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ ok: true }),
+  }));
+  page.on('dialog', d => d.accept());   // accept the confirm()
+
+  await page.goto('/index.html');
+  await page.locator('.content-tab[data-tab="interventions"]').click();  // Northern → only "Alpha report"
+  await expect(page.locator('.intervention-table')).toContainText('Alpha report');
+
+  await page.locator('.intervention-delete').first().click();
+  await expect(page.locator('.intervention-empty')).toBeVisible();       // row gone → empty state
 });

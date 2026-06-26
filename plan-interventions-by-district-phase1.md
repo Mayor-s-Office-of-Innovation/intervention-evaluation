@@ -26,11 +26,21 @@ list to the active district and enriches each row.
       `Northern`) and `kv bulk put --remote`.
 
 ### Homepage (`js/app.js` + `js/saved-interventions.js`)
-- [ ] `app.js` dispatches a `districtchange` CustomEvent (with the selected district) on tab change.
-- [ ] `saved-interventions.js` fetches once, filters items by the active district, re-renders on
-      `districtchange`. Enrich each row: **name · Target KR · Started · open-link**
-      (a `dp`→label lookup lives in the client). Per-district empty state.
-- [ ] Keep the progressive-enhancement fallback; extend the homepage e2e stub to include `district`.
+- [x] `app.js` dispatches a `districtchange` CustomEvent (with the selected district) on tab change.
+- [x] `saved-interventions.js` fetches once (single source of truth, always live from the Worker),
+      filters items by the active district, re-renders on `districtchange`. Enrich each row:
+      **name · Target KR · Started · open-link** (a `dp`→label lookup lives in the client). Per-district
+      empty state.
+- [x] **Pulled forward from Phase 3 (user choice):** the saved items render in the **Interventions-tab
+      table** per district, merged with the (empty) TSV rows. The table is **data-driven** — only
+      columns with data render, so empty curation columns (tactics/owner/agencies/status/impact/last-
+      eval) are hidden until filled.
+- [x] **Consolidated (user choice):** the separate saved-evaluations list below the hypothesis card was
+      removed; `js/app.js` is now the single owner — it fetches the saved items live (`loadSaved`,
+      isolated from the main render so a Worker outage can't break the page) and the **soft-delete moved
+      into each saved table row** (`.intervention-delete`; curated rows have no `id` → no button).
+      `js/saved-interventions.js` was retired.
+- [x] Homepage e2e covers: table lists/filters saved items per district (with Target KR) + row delete.
 
 ### Tests
 - [ ] Unit `districtFor` (a Tenderloin point → `"Tenderloin"`; an out-of-area point → `"Other"`).

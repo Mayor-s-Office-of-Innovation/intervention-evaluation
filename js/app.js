@@ -1,4 +1,5 @@
 import { parseTSV, groupBy } from './tsv.js';
+import { listInterventions, deleteIntervention } from './interventions-client.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
@@ -98,6 +99,7 @@ let currentTab = 'okrs';
 let interventionsByDistrict = {};
 let aggregatesData = {};
 let emergingSignalsCache = {};
+let savedInterventions = [];   // saved hypotheses fetched live from the Worker (see loadSaved)
 
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -277,61 +279,71 @@ function renderKRBadge(kr) {
   return `<span class="kr-badge ${cls}">${esc(kr)}</span>`;
 }
 
-function renderInterventionRow(i) {
-  const statusClass = i.status ? `status--${i.status}` : '';
-  const lastEval = i.last_evaluated ? formatDate(i.last_evaluated) : '—';
-  const isStale = i.last_evaluated && (Date.now() - new Date(i.last_evaluated).getTime()) > 30 * 24 * 60 * 60 * 1000;
+const isStaleEval = i => i.last_evaluated && (Date.now() - new Date(i.last_evaluated).getTime()) > 30 * 24 * 60 * 60 * 1000;
 
-  return `
-    <tr class="intervention-row">
-      <td class="intervention-cell intervention-cell--name">
-        <strong>${esc(i.intervention || '')}</strong>
-      </td>
-      <td class="intervention-cell intervention-cell--kr">${renderKRBadge(i.target_kr)}</td>
-      <td class="intervention-cell intervention-cell--tactics">${esc(i.tactics || '')}</td>
-      <td class="intervention-cell intervention-cell--owner">${esc(i.owner || '')}</td>
-      <td class="intervention-cell intervention-cell--agencies">${esc(i.agencies || '')}</td>
-      <td class="intervention-cell intervention-cell--status">
-        <span class="status-badge ${statusClass}">${STATUS_LABELS[i.status] || i.status || '—'}</span>
-      </td>
-      <td class="intervention-cell intervention-cell--start">${formatDate(i.start_date)}</td>
-      <td class="intervention-cell intervention-cell--impact">${renderImpactBadge(i.impact)}</td>
-      <td class="intervention-cell intervention-cell--eval ${isStale ? 'is-stale' : ''}">
-        ${lastEval}
-        ${isStale ? '<span class="stale-flag" title="Over 30 days since last evaluation">stale</span>' : ''}
-      </td>
-      <td class="intervention-cell intervention-cell--actions">
-        ${i.eval_link ? `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>` : '—'}
-      </td>
-    </tr>
-  `;
+// Table columns in order. `always` columns always render; the rest render only when at least one row
+// has a value — so columns we don't have data for yet (tactics/owner/agencies/status/impact/last-eval)
+// are hidden, and reappear automatically once curated data fills them.
+const INTERVENTION_COLUMNS = [
+  { header: 'Intervention', cls: 'name', always: true, cell: i => `<strong>${esc(i.intervention || '')}</strong>` },
+  { header: 'Target KR', cls: 'kr', has: i => i.target_kr, cell: i => renderKRBadge(i.target_kr) },
+  { header: 'Tactics', cls: 'tactics', has: i => i.tactics, cell: i => esc(i.tactics || '') },
+  { header: 'Owner', cls: 'owner', has: i => i.owner, cell: i => esc(i.owner || '') },
+  { header: 'Agencies', cls: 'agencies', has: i => i.agencies, cell: i => esc(i.agencies || '') },
+  { header: 'Status', cls: 'status', has: i => i.status, cell: i => `<span class="status-badge status--${i.status}">${STATUS_LABELS[i.status] || i.status}</span>` },
+  { header: 'Started', cls: 'start', has: i => i.start_date, cell: i => formatDate(i.start_date) },
+  { header: 'Impact', cls: 'impact', has: i => i.impact, cell: i => renderImpactBadge(i.impact) },
+  { header: 'Last Evaluated', cls: 'eval', has: i => i.last_evaluated, tdClass: i => isStaleEval(i) ? 'is-stale' : '',
+    cell: i => `${formatDate(i.last_evaluated)}${isStaleEval(i) ? ' <span class="stale-flag" title="Over 30 days since last evaluation">stale</span>' : ''}` },
+  { header: '', cls: 'actions', always: true, cell: i =>
+    `${i.eval_link ? `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>` : ''}` +
+    `${i.id ? `<button class="intervention-delete" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}" aria-label="Remove ${esc(i.intervention)}" title="Remove"><wa-icon name="trash" label=""></wa-icon></button>` : ''}` || '—' },
+];
+
+function renderInterventionRow(i, cols) {
+  return `<tr class="intervention-row">${cols.map(c =>
+    `<td class="intervention-cell intervention-cell--${c.cls}${c.tdClass ? ' ' + c.tdClass(i) : ''}">${c.cell(i)}</td>`
+  ).join('')}</tr>`;
+}
+
+// Target KR label per hypothesis datapoint — mirrors the titles in hypothesis/js/datapoints.js.
+const KR_LABEL = {
+  drug: 'Drug-related complaints', overflow: 'Overflowing trash cans', dumping: 'Illegal dumping',
+  hazard: 'Health-hazard waste', homeless_presence: 'Homelessness presence',
+};
+const sentenceCase = s => { s = (s || '').trim(); return s ? s[0].toUpperCase() + s.slice(1) : s; };
+
+// Map a saved hypothesis (KV) to an interventions-table row. URL-derived columns are filled; the
+// curation columns (tactics/owner/agencies/status) and impact/last-evaluated are blank → render as "—"
+// (Phases 2–4). `eval_link` reopens the saved evaluation.
+function savedToRow(s) {
+  return {
+    id: s.id,   // present only on saved (KV) rows → enables the delete button
+    intervention: sentenceCase(s.what) || 'Saved intervention',
+    target_kr: KR_LABEL[s.dp] || (s.dp ? sentenceCase(s.dp) : ''),
+    tactics: '', owner: '', agencies: '', status: '',
+    start_date: s.date || '', impact: '', last_evaluated: '',
+    eval_link: s.url,
+  };
 }
 
 function renderInterventions() {
-  const interventions = interventionsByDistrict[currentDistrict] || [];
-  if (interventions.length === 0) {
-    return '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
+  const curated = interventionsByDistrict[currentDistrict] || [];
+  const saved = savedInterventions
+    .filter(s => (s.district || 'Other') === currentDistrict)
+    .map(savedToRow);
+  const rows = [...curated, ...saved];
+  const head = `<p class="interventions-head">${esc(currentDistrict)} — ${rows.length} intervention${rows.length === 1 ? '' : 's'}</p>`;
+  if (rows.length === 0) {
+    return head + '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
   }
-  return `
+  // Only show columns that have data in at least one row (plus the always-on ones).
+  const cols = INTERVENTION_COLUMNS.filter(c => c.always || rows.some(r => c.has(r)));
+  return head + `
     <div class="intervention-table-wrap">
       <table class="intervention-table">
-        <thead>
-          <tr>
-            <th>Intervention</th>
-            <th>Target KR</th>
-            <th>Tactics</th>
-            <th>Owner</th>
-            <th>Agencies</th>
-            <th>Status</th>
-            <th>Started</th>
-            <th>Impact</th>
-            <th>Last Evaluated</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          ${interventions.map(renderInterventionRow).join('')}
-        </tbody>
+        <thead><tr>${cols.map(c => `<th>${c.header}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(r => renderInterventionRow(r, cols)).join('')}</tbody>
       </table>
     </div>
   `;
@@ -352,18 +364,11 @@ function render(container) {
   wireEvents(container);
 }
 
-// Broadcast the active district so independent modules (e.g. the saved-interventions list) can filter
-// to it without coupling to this module's internals.
-function emitDistrict() {
-  document.dispatchEvent(new CustomEvent('districtchange', { detail: { district: currentDistrict } }));
-}
-
 function wireEvents(container) {
   container.querySelectorAll('.district-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentDistrict = btn.dataset.district;
       render(container);
-      emitDistrict();
     });
   });
 
@@ -371,6 +376,23 @@ function wireEvents(container) {
     btn.addEventListener('click', () => {
       currentTab = btn.dataset.tab;
       render(container);
+    });
+  });
+
+  // Soft-delete a saved intervention from its table row (curated TSV rows have no id → no button).
+  container.querySelectorAll('.intervention-delete').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { id, name } = btn.dataset;
+      if (!confirm(`Remove "${name}"?`)) return;
+      btn.disabled = true;
+      try {
+        await deleteIntervention(id);
+        savedInterventions = savedInterventions.filter(s => s.id !== id);
+        render(container);
+      } catch (e) {
+        btn.disabled = false;
+        alert('Could not remove — please try again.');
+      }
     });
   });
 }
@@ -442,6 +464,18 @@ async function loadEmergingSignals() {
   await Promise.allSettled(tasks);
 }
 
+// Saved hypotheses — always live from the Worker. Fetched independently of the main render so a Worker
+// outage never blocks the homepage; the table re-renders once they arrive (if it's the visible tab).
+async function loadSaved(container) {
+  try {
+    savedInterventions = await listInterventions();
+  } catch (e) {
+    console.warn('saved interventions unavailable —', e.message);
+    return;   // table degrades to curated (TSV) rows only
+  }
+  if (currentTab === 'interventions') render(container);
+}
+
 async function init() {
   const container = document.getElementById('districts-container');
   if (!container) return;
@@ -458,7 +492,7 @@ async function init() {
     interventionsByDistrict = groupBy(interventions, 'district');
 
     render(container);
-    emitDistrict();   // announce the initial district so the saved-interventions list filters on load
+    loadSaved(container);   // fire-and-forget; re-renders the table when the saved items arrive
   } catch (err) {
     console.error('Failed to load data:', err);
     container.innerHTML = '<p class="error">Failed to load data.</p>';

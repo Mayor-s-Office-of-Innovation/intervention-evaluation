@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 // Shared client for the interventions-api Worker (../interventions-api/).
 // One place to set the deployed Worker URL after `wrangler deploy`.
-// Used by the homepage list (js/saved-interventions.js) and the hypothesis tool's
+// Used by the homepage interventions table (js/app.js) and the hypothesis tool's
 // Save button (hypothesis/js/save.js).
 // ──────────────────────────────────────────────────────────────────────────
 
