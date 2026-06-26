@@ -20,6 +20,7 @@ import urllib.parse
 from collections import defaultdict
 
 from httpget import get_json
+from tod import BUCKETS, tod_bucket, tod_case_sql
 from signals import (
     SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL, HISTORY_START,
     LURIE_INAUGURATION, DATASET_NAME, SETTLE_LAG_MONTHS, query_url,
@@ -52,32 +53,51 @@ def soql(domain, dataset, params):
     return get_json(url)
 
 
+def _series(by_dist_month, city_month, months):
+    """Shape {ym:count} accumulators into the frontend series dict (per-district labels + Citywide)."""
+    s = {DISTRICT_LABEL[d]: [by_dist_month[d].get(mo, 0) for mo in months] for d in TARGET_DISTRICTS}
+    s["Citywide"] = [city_month.get(mo, 0) for mo in months]
+    return s
+
+
 # ── point signal (cfs_drug): from the assigned cache, + compact points for the map ──
 def rollup_point(key, agg, points_out, provenance, months):
     sig = SIGNALS[key]
     with open(os.path.join(CACHE, f"{key}_assigned.json")) as f:
         records = json.load(f)
 
-    city = defaultdict(int)
-    by_dist = {d: defaultdict(int) for d in TARGET_DISTRICTS}
+    # Day/Night split (plan-time-of-day.md §3): accumulate per bucket; total = day+night.
+    city = {b: defaultdict(int) for b in BUCKETS}
+    by_dist = {d: {b: defaultdict(int) for b in BUCKETS} for d in TARGET_DISTRICTS}
     dist_idx = {d: i for i, d in enumerate(TARGET_DISTRICTS)}
+    tod_code = {"day": 0, "night": 1}
     pts = []
     for r in records:
         ym = r["ym"]
-        city[ym] += 1
+        b = tod_bucket(r.get("hour"))
+        city[b][ym] += 1
         d = r["district"]
         if d in by_dist:
-            by_dist[d][ym] += 1
+            by_dist[d][b][ym] += 1
             if r["lat"] is not None:
                 day = (datetime.date.fromisoformat(r["date"]) - EPOCH).days
-                pts.append([r["lat"], r["lng"], day, dist_idx[d]])
+                pts.append([r["lat"], r["lng"], day, dist_idx[d], tod_code[b]])
 
-    series = {DISTRICT_LABEL[d]: [by_dist[d].get(mo, 0) for mo in months] for d in TARGET_DISTRICTS}
-    series["Citywide"] = [city.get(mo, 0) for mo in months]
-    _store_signal(key, sig, series, agg)
+    def merged(get):  # {ym: count} summed across buckets for the (unchanged) total series
+        out = defaultdict(int)
+        for b in BUCKETS:
+            for mo, n in get(b).items():
+                out[mo] += n
+        return out
+
+    series = _series({d: merged(lambda b: by_dist[d][b]) for d in TARGET_DISTRICTS},
+                     merged(lambda b: city[b]), months)
+    series_tod = {b: _series({d: by_dist[d][b] for d in TARGET_DISTRICTS}, city[b], months) for b in BUCKETS}
+    _store_signal(key, sig, series, agg, series_tod)
     points_out[key] = pts
     _store_provenance(key, sig, len(records), provenance)
-    print(f"  [{key}] point · {len(pts):,} in-district points · citywide total {sum(series['Citywide']):,}")
+    print(f"  [{key}] point · {len(pts):,} in-district points · citywide total {sum(series['Citywide']):,} "
+          f"(day {sum(series_tod['day']['Citywide']):,} · night {sum(series_tod['night']['Citywide']):,})")
 
 
 # ── agg_only signal: grouped count straight from Socrata ──
@@ -86,41 +106,62 @@ def rollup_agg(key, agg, provenance, months):
     cnt = f"count(distinct {sig['id_col']})" if sig.get("distinct") else "count(*)"
     full_where = f"({sig['where']}) AND {sig['date_col']} >= '{HISTORY_START}'"
     dfield = sig.get("district_field")
+    # Day/Night split done server-side: an extra CASE grouping dimension on the hour. Each incident
+    # has one timestamp → one bucket, so a distinct-incident count splits cleanly and day+night==total.
+    tod_sql = tod_case_sql(sig["date_col"])
 
     if dfield and not sig.get("citywide_only"):
         rows = soql(sig["domain"], sig["dataset"], {
-            "$select": f"date_trunc_ym({sig['date_col']}) AS ym, {dfield} AS dist, {cnt} AS n",
-            "$where": full_where, "$group": f"ym, {dfield}", "$order": "ym", "$limit": "50000",
+            "$select": f"date_trunc_ym({sig['date_col']}) AS ym, {dfield} AS dist, {tod_sql} AS tod, {cnt} AS n",
+            "$where": full_where, "$group": f"ym, {dfield}, {tod_sql}", "$order": "ym", "$limit": "50000",
         })
-        by_dist = {d: defaultdict(int) for d in TARGET_DISTRICTS}
-        city = defaultdict(int)
+        by_dist = {d: {b: defaultdict(int) for b in BUCKETS} for d in TARGET_DISTRICTS}
+        city = {b: defaultdict(int) for b in BUCKETS}
         total_records = 0
         for r in rows:
             ym = r["ym"][:7]
             n = int(r["n"])
+            b = r.get("tod") or "night"
             total_records += n
-            city[ym] += n                       # citywide = every district, not just the target 4
+            city[b][ym] += n                    # citywide = every district, not just the target 4
             canon = (r.get("dist") or "").upper()
             if canon in by_dist:
-                by_dist[canon][ym] += n
-        series = {DISTRICT_LABEL[d]: [by_dist[d].get(mo, 0) for mo in months] for d in TARGET_DISTRICTS}
-        series["Citywide"] = [city.get(mo, 0) for mo in months]
+                by_dist[canon][b][ym] += n
+
+        def merged(get):
+            out = defaultdict(int)
+            for b in BUCKETS:
+                for mo, n in get(b).items():
+                    out[mo] += n
+            return out
+
+        series = _series({d: merged(lambda b: by_dist[d][b]) for d in TARGET_DISTRICTS},
+                         merged(lambda b: city[b]), months)
+        series_tod = {b: _series({d: by_dist[d][b] for d in TARGET_DISTRICTS}, city[b], months) for b in BUCKETS}
     else:
         rows = soql(sig["domain"], sig["dataset"], {
-            "$select": f"date_trunc_ym({sig['date_col']}) AS ym, {cnt} AS n",
-            "$where": full_where, "$group": "ym", "$order": "ym", "$limit": "50000",
+            "$select": f"date_trunc_ym({sig['date_col']}) AS ym, {tod_sql} AS tod, {cnt} AS n",
+            "$where": full_where, "$group": f"ym, {tod_sql}", "$order": "ym", "$limit": "50000",
         })
-        city = {r["ym"][:7]: int(r["n"]) for r in rows}
-        total_records = sum(city.values())
-        series = {"Citywide": [city.get(mo, 0) for mo in months]}
+        city = {b: defaultdict(int) for b in BUCKETS}
+        for r in rows:
+            city[r.get("tod") or "night"][r["ym"][:7]] += int(r["n"])
+        total_records = sum(sum(c.values()) for c in city.values())
+        merged = defaultdict(int)
+        for b in BUCKETS:
+            for mo, n in city[b].items():
+                merged[mo] += n
+        series = {"Citywide": [merged.get(mo, 0) for mo in months]}
+        series_tod = {b: {"Citywide": [city[b].get(mo, 0) for mo in months]} for b in BUCKETS}
 
-    _store_signal(key, sig, series, agg)
+    _store_signal(key, sig, series, agg, series_tod)
     _store_provenance(key, sig, total_records, provenance)
     tag = "citywide-only" if sig.get("citywide_only") else "by-district"
-    print(f"  [{key}] agg ({tag}) · citywide total {sum(series['Citywide']):,}")
+    print(f"  [{key}] agg ({tag}) · citywide total {sum(series['Citywide']):,} "
+          f"(day {sum(series_tod['day']['Citywide']):,} · night {sum(series_tod['night']['Citywide']):,})")
 
 
-def _store_signal(key, sig, series, agg):
+def _store_signal(key, sig, series, agg, series_tod=None):
     agg["signals"][key] = {
         "label": sig["label"],
         "tier": sig.get("tier"),
@@ -131,7 +172,8 @@ def _store_signal(key, sig, series, agg):
         "citywide_only": sig.get("citywide_only", False),
         "excluded_from_trend": sig.get("excluded_from_trend", False),
         "caveat": sig.get("caveat"),
-        "series": series,
+        "series": series,                       # total (day+night) — unchanged shape
+        "series_tod": series_tod or {},         # {day:{...}, night:{...}} (plan-time-of-day.md §3)
     }
 
 
@@ -154,10 +196,17 @@ def build_groups(agg, provenance):
         if not members:
             continue
         labels = list(agg["signals"][members[0]]["series"].keys())
+        nmonths = len(agg["months"])
         series = {lab: [sum(agg["signals"][m]["series"][lab][i] for m in members)
-                        for i in range(len(agg["months"]))] for lab in labels}
+                        for i in range(nmonths)] for lab in labels}
+        # Sum the per-bucket member series too, so the composition view can filter by day/night.
+        series_tod = {}
+        if all(agg["signals"][m].get("series_tod") for m in members):
+            series_tod = {b: {lab: [sum(agg["signals"][m]["series_tod"][b][lab][i] for m in members)
+                                    for i in range(nmonths)] for lab in labels} for b in BUCKETS}
         agg["groups"][gkey] = {
-            "label": g["label"], "members": members, "note": g["note"], "series": series,
+            "label": g["label"], "members": members, "note": g["note"],
+            "series": series, "series_tod": series_tod,
         }
         provenance["groups"][gkey] = {
             "label": g["label"], "note": g["note"],
