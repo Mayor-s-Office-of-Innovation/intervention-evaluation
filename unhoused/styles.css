@@ -215,6 +215,31 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .seg:hover { color: var(--text); }
 .seg.is-active { color: #fff; background: var(--c-slate); }
 .seg:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+/* page-level time-of-day filter strip (top of <main>, above the headline cards) */
+.tod-filter {
+  display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+  margin: -.25rem 0 .25rem;
+}
+.tod-filter__label { font-size: .82rem; font-weight: 700; color: var(--text); }
+.tod-filter__hint { white-space: nowrap; }
+/* two INDEPENDENT include/exclude toggles — each its own pill (not a shared segmented container) */
+.tod-toggles { display: inline-flex; gap: .5rem; }
+.tod-toggle {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; white-space: nowrap;
+  padding: .32rem .85rem; border-radius: 999px;
+  border: 1px solid var(--c-line); background: var(--bg); color: var(--muted);
+  transition: background .12s, color .12s, border-color .12s, opacity .12s;
+}
+.tod-toggle:hover { color: var(--text); border-color: var(--c-slate); }
+/* active (= included): filled slate pill (the header color) + check, so "both on" is unmistakable. */
+.tod-toggle.is-active {
+  background: var(--c-slate); border-color: var(--c-slate); color: #fff;
+}
+.tod-toggle:not(.is-active) { opacity: .55; }
+.tod-toggle:not(.is-active) .tod-toggle__check { display: none; }
+.tod-toggle__check { font-size: .9em; line-height: 1; }
+.tod-toggle:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
 .map-legend {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
   margin-bottom: 1rem; flex: none; align-items: stretch;

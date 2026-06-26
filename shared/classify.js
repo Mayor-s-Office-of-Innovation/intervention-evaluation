@@ -23,17 +23,21 @@ const meanRange = (arr, lo, hi) => sumRange(arr, lo, hi) / (hi - lo + 1);
  * Classify one cell for an analysis window vs a baseline (inclusive index ranges into the month axis).
  * @returns {category, preRate, nowRate, expected, tide, total} — category null if not classified.
  */
-export function classifyCell(cell, districtMonthly, win, base, knobs) {
+export function classifyCell(cell, districtMonthly, win, base, knobs, monthlyKey = 'monthly') {
   const { hot, floor, band } = knobs;
-  const preRate = meanRange(cell.monthly, base.lo, base.hi);
-  const nowRate = meanRange(cell.monthly, win.lo, win.hi);
+  // `monthlyKey` selects the day/night histogram for the time-of-day filter ('monthly_day' /
+  // 'monthly_night'); the default 'monthly' is the total — so the build's baked `category` oracle
+  // (and validation/parity.mjs) stay byte-identical. Caller passes the matching districtMonthly array.
+  const m = cell[monthlyKey] || cell.monthly;
+  const preRate = meanRange(m, base.lo, base.hi);
+  const nowRate = meanRange(m, win.lo, win.hi);
   const dPre = meanRange(districtMonthly, base.lo, base.hi);
   const dNow = meanRange(districtMonthly, win.lo, win.hi);
   const tide = dPre > 0 ? dNow / dPre : 1.0;
   const expected = preRate * tide;            // "now" rate if the cell had merely tracked its district
 
   // floor gate: enough volume across baseline + window (mirrors Python's pre+now ≥ FLOOR)
-  const vol = sumRange(cell.monthly, base.lo, base.hi) + sumRange(cell.monthly, win.lo, win.hi);
+  const vol = sumRange(m, base.lo, base.hi) + sumRange(m, win.lo, win.hi);
   let category = null;
   if (vol >= floor) {
     const hotBefore = preRate >= hot;
@@ -50,13 +54,13 @@ export function classifyCell(cell, districtMonthly, win, base, knobs) {
     category, tide,
     preRate, nowRate,
     expectedRate: expected,                          // named to match the map's cell consumer
-    total: sumRange(cell.monthly, win.lo, win.hi),   // window volume (for marker sizing)
+    total: sumRange(m, win.lo, win.hi),              // window volume (for marker sizing)
   };
 }
 
 /** Classify a list of cells; each result keeps the cell's static fields + the per-window verdict. */
-export function classifyCells(cells, districtMonthly, win, base, knobs) {
-  return cells.map(c => ({ ...c, ...classifyCell(c, districtMonthly[c.district], win, base, knobs) }));
+export function classifyCells(cells, districtMonthly, win, base, knobs, monthlyKey = 'monthly') {
+  return cells.map(c => ({ ...c, ...classifyCell(c, districtMonthly[c.district], win, base, knobs, monthlyKey) }));
 }
 
 /** Resolve the {lo,hi} index range for a [startYM, endYM] (or [startYM,…,endYM]) against the axis. */

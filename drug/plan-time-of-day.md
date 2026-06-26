@@ -144,16 +144,22 @@ client-note that day/night is derived from the pulled `received_datetime`/`reque
 
 ## 7. Sequencing
 
-1. **drug build** — `tod` helper; record-based split for `cfs_drug`; server-side `CASE` for the
-   arrest signals; emit `series_tod` + `points` tod field + transitions day/night arrays. Re-run
-   build, eyeball counts, confirm `day+night+unknown==total`.
-2. **shared frontend** — `todBucket`, `todFilter`, `classify.js` arg, dot/marker filtering.
-3. **drug app.js** — Day/Night chips + re-render wiring + chart/KR bucket selection.
-4. **validation** — extend trace harness; confirm parity oracle still green (both-on).
-5. **extract → unhoused** — apply the same build splits (all record-based, no server work) and the
-   shared frontend (chips + wiring) to `unhoused`.
-6. **docs/caveats** — methodology footnote with the cutoff + reflexivity note.
+1. ✅ **drug build** — `tod` helper; record-based split for `cfs_drug`; server-side `CASE` for the
+   arrest signals; `series_tod` + `points` tod field + transitions day/night arrays. Verified
+   `day+night==total` (0 mismatches); totals unchanged vs HEAD (only live drift on arrest signals).
+2. ✅ **shared frontend** — `todBucket`, `setTodFilter`, `classify.js` `monthlyKey` arg, dot/marker
+   + cell-details filtering. Parity oracle still green (default `monthlyKey='monthly'`).
+3. ✅ **drug app.js** — Day/Night chips (top of `<main>`) + `seriesBlock` bucket selection across
+   cards/citywide/chart/composition/map + re-render wiring.
+4. ✅ **extract → unhoused** — `tod.py`, record-based splits in 03/04, toggle strip + app.js wiring.
+   Verified `day+night==total`, totals **identical** to HEAD (cache-based), parity oracle green (both signals).
+5. ⏳ **validation** — extend trace harness with a live `series_day+series_night==series` assertion
+   (deferred — needs network).
+6. ⏳ **docs/caveats** — optional methodology footnote (cutoff + reflexivity note). Not yet added.
 7. **theft** — deferred (§8).
+
+Hot-rate threshold stays absolute (decided): day/night views legitimately show fewer/zero hotspots
+since a smaller slice rarely clears the per-month bar — more honest + comparable across views.
 
 ## 8. Deferred: theft
 

@@ -14,7 +14,7 @@ import {
 } from '../../shared/rollup.js';
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
-  onMapState, notifyState, queueRestore, restoreMapView,
+  onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -34,6 +34,7 @@ let active = 'Northern';
 let focus = 'cfs_drug';                 // 'cfs_drug' | 'dealer_arrests' | 'needles'
 let compScope = 'district';             // 'district' | 'citywide'
 let mapSignal = 'cfs_drug';
+let todFilter = 'both';                  // 'both' | 'day' | 'night' — the page-level time-of-day filter
 const visibleCats = new Set(['persistent', 'cooled', 'emerged']);
 const transitionData = {};
 
@@ -84,7 +85,10 @@ function onMapStateChange(state) { lastMapState = state; syncUrl(); }
 
 // ── series helpers ──
 const sig = key => AGG.signals[key];
-const seriesFor = (key, dist) => sig(key).series[dist] || sig(key).series.Citywide;
+// Day/Night filter (plan-time-of-day.md §3): 'both' → the total series (unchanged); a single bucket →
+// that day/night slice. Works for both signal and group nodes; falls back to total if no split exists.
+const seriesBlock = node => (todFilter === 'both' ? node.series : (node.series_tod?.[todFilter] || node.series));
+const seriesFor = (key, dist) => { const s = seriesBlock(sig(key)); return s[dist] || s.Citywide; };
 // each signal evaluates at the freshest month it can trust: settling signals hold back the lag months.
 const evalIdx = key =>
   monthIndex(AGG, sig(key).settles ? AGG.latest_settled_month : AGG.latest_complete_month);
@@ -152,7 +156,7 @@ function renderSummary() {
 // whose comparisons now live on the card pills (plan: cards decoupled, citywide gets its own slot).
 function renderCitywide(key) {
   const cwOnly = sig(key).citywide_only;
-  const city = sig(key).series.Citywide;
+  const city = seriesBlock(sig(key)).Citywide;
   const idx = evalIdx(key);
   const cur = city[idx];
   let shareLine = '';
@@ -175,8 +179,8 @@ function renderCitywide(key) {
 // ── focused chart ──
 function renderFocusChart() {
   const fi = focusInfo();
-  const series = fi.citywideOnly ? sig(fi.key).series.Citywide : seriesFor(fi.key, active);
-  const city = sig(fi.key).series.Citywide;
+  const series = fi.citywideOnly ? seriesBlock(sig(fi.key)).Citywide : seriesFor(fi.key, active);
+  const city = seriesBlock(sig(fi.key)).Citywide;
   const months = AGG.months, partialIdx = months.indexOf(AGG.current_partial_month);
   const maxD = Math.max(1, ...series), maxC = Math.max(1, ...city);
   const unsettledFromIdx = sig(fi.key).settles ? monthIndex(AGG, AGG.latest_settled_month) + 1 : undefined;
@@ -273,13 +277,13 @@ function renderComposition() {
   buildCompositionControls();
   const dist = compScope === 'citywide' ? 'Citywide' : active;
   const months = AGG.months, partialIdx = months.indexOf(AGG.current_partial_month);
-  const layers = COMP.map(c => ({ label: c.label, color: c.color, values: AGG.signals[c.key].series[dist] }));
+  const layers = COMP.map(c => ({ label: c.label, color: c.color, values: seriesBlock(AGG.signals[c.key])[dist] }));
   renderStacked($('#composition-chart'), { months, layers, partialIdx });
 
   const idx = monthIndex(AGG, AGG.latest_settled_month);
-  const dealer = AGG.signals.dealer_arrests.series[dist];
-  const para = AGG.signals.paraphernalia.series[dist];
-  const total = COMP.reduce((s, c) => s + AGG.signals[c.key].series[dist][idx], 0);
+  const dealer = seriesBlock(AGG.signals.dealer_arrests)[dist];
+  const para = seriesBlock(AGG.signals.paraphernalia)[dist];
+  const total = COMP.reduce((s, c) => s + seriesBlock(AGG.signals[c.key])[dist][idx], 0);
   const dealerShare = total ? Math.round(dealer[idx] / total * 100) : 0;
   const paraShare = total ? Math.round(para[idx] / total * 100) : 0;
   const dT = trend12(dealer, idx), pT = trend12(para, idx);
@@ -306,7 +310,12 @@ async function renderMap() {
   const winSpan = [AGG.months[win.lo], AGG.months[win.hi]];
   const w = clampToAxis(ymRange(TMETA.months, winSpan));
   const b = ymRange(TMETA.months, TMETA.pre_window);
-  const classified = classifyCells(transitionData[mapSignal], sigMeta.district_monthly, w, b, knobs);
+  // Day/Night filter: classify the cells off the matching histogram + district tide (plan §3/§5).
+  const monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
+  const dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
+             || sigMeta.district_monthly;
+  setTodFilter(todFilter);   // marker layer + cell-details honor the same filter
+  const classified = classifyCells(transitionData[mapSignal], dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
   setMapWindow(winSpan, TMETA.pre_window);
   setMarkers(mapSignal, () => loadMarkers(mapSignal));
@@ -319,7 +328,7 @@ async function renderMap() {
     </button>`).join('');
   $('#map-legend').querySelectorAll('.legend-item').forEach(b =>
     b.onclick = () => { const c = b.dataset.cat; visibleCats.has(c) ? visibleCats.delete(c) : visibleCats.add(c); renderMap(); });
-  const tide = +districtTide(sigMeta.district_monthly[active], w, b).toFixed(2);
+  const tide = +districtTide(dm[active], w, b).toFixed(2);
   const hot = sigMeta.hot_rate_per_month;
   const span = `${prettyMonth(AGG.months[win.lo])}–${prettyMonth(AGG.months[win.hi])}`;
   $('#map-note').innerHTML =
@@ -336,6 +345,32 @@ async function renderMap() {
     $('#map').scrollIntoView({ behavior: 'smooth', block: 'center' });
     restoreMapView(r.center, r.zoom);
   }
+}
+
+// ── page-level Day/Night filter (plan-time-of-day.md §5) ──
+// Two independent include/exclude chips at the top of the page; ≥1 must stay on. Changing the filter
+// re-renders every viz off the selected day/night slice (cards, citywide, chart, composition, map).
+function applyTod() {
+  const on = [...document.querySelectorAll('#tod-controls .tod-toggle')]
+    .filter(b => b.classList.contains('is-active')).map(b => b.dataset.tod);
+  todFilter = on.length === 2 ? 'both' : on[0];
+  const hint = $('.tod-filter__hint');
+  if (hint) hint.textContent =
+    `Day 6am–8pm · Night 8pm–6am · showing ${todFilter === 'both' ? 'both' : todFilter + ' only'}`;
+  renderSummary();
+  renderFocusChart();   // also refreshes the citywide card
+  renderComposition();
+  renderMap();
+}
+function wireTodToggles() {
+  const btns = [...document.querySelectorAll('#tod-controls .tod-toggle')];
+  btns.forEach(btn => btn.onclick = () => {
+    const active = btns.filter(b => b.classList.contains('is-active'));
+    if (btn.classList.contains('is-active') && active.length === 1) return;   // keep ≥1 selected
+    btn.classList.toggle('is-active');
+    btn.setAttribute('aria-pressed', btn.classList.contains('is-active'));
+    applyTod();
+  });
 }
 
 // ── district (locked from homepage selection) ──
@@ -446,6 +481,7 @@ async function main() {
     if (pendingRestore && pendingRestore.sig === 'cfs_drug') mapSignal = pendingRestore.sig;
     onMapState(onMapStateChange);
     initDistrict();
+    wireTodToggles();
     renderScrubber();
     renderMethodology();
     renderDistrict();

@@ -50,6 +50,22 @@ function getTimeBucket(hour) {
   return null;
 }
 
+// ── global Day/Night filter (plan-time-of-day.md §2) — mirrors build/tod.py exactly ──
+// DAY = 06:00–19:59, NIGHT = 20:00–05:59. Drives the marker layer + cell-details; the cell
+// classification is filtered upstream by the orchestrator (via classify.js monthlyKey).
+const DAY_START = 6, NIGHT_START = 20;
+export function todBucket(hour) {
+  if (hour == null || hour < 0) return 'night';   // never happens (0 nulls verified); safety net
+  return hour >= DAY_START && hour < NIGHT_START ? 'day' : 'night';
+}
+let todFilter = 'both';   // 'both' | 'day' | 'night'
+/** Set the global day/night filter; re-renders the zoom-in markers if they're showing. */
+export function setTodFilter(f) {
+  todFilter = f === 'day' || f === 'night' ? f : 'both';
+  if (inMarkerMode()) renderMarkers();
+}
+const passesTod = hour => todFilter === 'both' || todBucket(hour) === todFilter;
+
 let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = null, hintEl = null;
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
@@ -252,6 +268,7 @@ function renderMarkers() {
   // details. Deterministic (no grey/red flicker) and the cluster size shows volume.
   const groups = new Map();
   for (const p of pts) {
+    if (!passesTod(p[3])) continue;         // global Day/Night filter (p[3] = hour)
     const d = p[2];
     const isWin = inWin(d), isBase = inBase(d);
     if (!isWin && !isBase) continue;        // outside the window AND its baseline → not shown
@@ -312,7 +329,8 @@ function getMarkersForCell(lat, lng, data) {
   const cellLat = Math.round(lat * 1000) / 1000;
   const cellLng = Math.round(lng * 1000) / 1000;
   return pts.filter(pt => {
-    const mLat = Math.round((pt[0] / coordScale) * 1000) / 1000;
+    if (!passesTod(pt[3])) return false;   // honor the global Day/Night filter (the popup's own
+    const mLat = Math.round((pt[0] / coordScale) * 1000) / 1000;   // 4 chips then refine within it)
     const mLng = Math.round((pt[1] / coordScale) * 1000) / 1000;
     return mLat === cellLat && mLng === cellLng;
   });
