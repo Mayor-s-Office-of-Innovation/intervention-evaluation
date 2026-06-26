@@ -188,7 +188,16 @@ function renderKRTicker(okr, district) {
     `;
   });
 
-  return `<div class="kr-tickers">${items.join('')}</div>`;
+  const header = `
+    <div class="kr-ticker kr-ticker--header" aria-hidden="true">
+      <span class="kr-ticker__label"></span>
+      <span class="kr-ticker__badges">
+        <span class="kr-ticker__col">1mo</span>
+        <span class="kr-ticker__col">3mo</span>
+      </span>
+    </div>
+  `;
+  return `<div class="kr-tickers">${header}${items.join('')}</div>`;
 }
 
 function renderDistrictTabs() {
