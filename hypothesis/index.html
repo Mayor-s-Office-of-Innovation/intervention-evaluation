@@ -80,14 +80,37 @@
     <!-- ───────────── Results (hidden until first run) ───────────── -->
     <section id="results" class="wa-stack wa-gap-xl" hidden>
 
-      <!-- Save / share — copy a link that re-creates this exact report -->
+      <!-- Save / share — copy a link, or save this report to the homepage list -->
       <div class="share-bar">
         <wa-button id="copy-link-btn" size="small" appearance="outlined" variant="brand">
           <wa-icon id="copy-icon" slot="start" name="copy"></wa-icon>
           <span id="copy-label">Copy shareable link</span>
         </wa-button>
+        <wa-button id="save-btn" size="small" appearance="outlined" variant="brand">
+          <wa-icon slot="start" name="bookmark"></wa-icon>
+          Save this intervention
+        </wa-button>
         <small id="copy-status" class="copy-status" role="status" aria-live="polite"></small>
       </div>
+
+      <!-- Save dialog — native <dialog> (accessible: focus trap, Esc, backdrop). POSTs {url,email}. -->
+      <dialog id="save-dialog" class="save-dialog" aria-labelledby="save-dialog-title">
+        <form id="save-form" method="dialog">
+          <h2 id="save-dialog-title" class="save-dialog__title">Save this intervention</h2>
+          <p class="save-dialog__intro">Adds <strong id="save-preview">this evaluation</strong> to the
+            homepage list. The full report state is saved in its link.</p>
+          <label class="save-dialog__label" for="save-email">City email</label>
+          <input id="save-email" name="email" type="email" required autocomplete="email"
+                 class="save-dialog__input" placeholder="you@sfgov.org" />
+          <small class="save-dialog__hint">Recorded with your save for accountability. Unverified and
+            kept internal — not shown publicly.</small>
+          <p id="save-error" class="save-dialog__error" role="alert" hidden></p>
+          <div class="save-dialog__actions">
+            <wa-button type="button" id="save-cancel" size="small" appearance="outlined">Cancel</wa-button>
+            <wa-button type="button" id="save-submit" size="small" appearance="accent" variant="brand">Save</wa-button>
+          </div>
+        </form>
+      </dialog>
 
       <!-- Verdict slot — deterministic descriptive line now; AI synthesis drops in here later -->
       <wa-callout id="verdict" variant="neutral" size="l">
@@ -137,5 +160,6 @@
   </main>
 
   <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/save.js"></script>
 </body>
 </html>
