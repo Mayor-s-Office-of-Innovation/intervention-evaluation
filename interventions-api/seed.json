@@ -1,6 +1,6 @@
 [
   {
     "key": "intervention:seed-plain-clothes-hayes",
-    "value": "{\"url\":\"https://mayor-s-office-of-innovation.github.io/intervention-evaluation/hypothesis/?dp=drug&date=2026-05-11&lat=37.78900&lng=-122.41598&r=200&from=2025-11-01&to=2026-06-16&what=plain+clothes+officer+deployment+in+Hayes\",\"created\":\"2026-06-22T00:00:00.000Z\",\"deleted\":false,\"email\":\"team@sfgov.org\",\"cityEmailGuess\":true}"
+    "value": "{\"url\":\"https://mayor-s-office-of-innovation.github.io/intervention-evaluation/hypothesis/?dp=drug&date=2026-05-11&lat=37.78900&lng=-122.41598&r=200&from=2025-11-01&to=2026-06-16&what=plain+clothes+officer+deployment+in+Hayes\",\"created\":\"2026-06-22T00:00:00.000Z\",\"deleted\":false,\"email\":\"team@sfgov.org\",\"cityEmailGuess\":true,\"district\":\"Central\"}"
   }
 ]
