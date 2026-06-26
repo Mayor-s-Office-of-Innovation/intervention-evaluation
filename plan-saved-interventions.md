@@ -134,7 +134,17 @@ writes. The static site stays on GitHub Pages (web-dev §9) — only the Worker 
    prod URL; CORS already scoped to the Pages origin.
 3. ✅ **Homepage list + delete** — `js/saved-interventions.js` renders `.saved-evals` from the Worker
    (reusing the markup), with per-row soft-delete (confirm) and a PE fallback to the static `<li>`.
-   `API` auto-targets `localhost:8787` in dev. CSS: row layout + accessible delete button.
+   CSS: row layout + accessible delete button.
+
+   **API resolution (`js/interventions-client.js`):** defaults to the **deployed Worker everywhere**,
+   including local dev — so the list/save work without running `wrangler dev`. To develop against a
+   local worker, set `localStorage.interventionsApi = 'http://localhost:8787'` (clear to revert). This
+   replaced an earlier `localhost`-on-localhost default, which errored (connection refused) whenever the
+   site ran locally without wrangler — and broke the homepage e2e's zero-console-errors gate.
+
+   **CI/e2e:** the homepage list is a progressive enhancement, so `homepage/tests/e2e.spec.js` stubs
+   `**/interventions` with an empty `{items:[]}` (+ CORS header) — hermetic, no Worker dependency, no
+   console errors.
 4. ✅ **Save button** — `hypothesis/js/save.js` + a "Save this intervention" button in the share-bar
    that opens a native `<dialog>` (city-email field, accessible: focus trap/Esc/backdrop), POSTs
    `{url: location.href, email}` via the shared `js/interventions-client.js`. Email remembered in

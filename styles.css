@@ -84,17 +84,14 @@ a { color: var(--c-blue); }
   gap: .4rem;
   margin-bottom: .25rem;
 }
-.kr-tickers::before {
-  content: '1mo   3mo';
-  display: block;
-  text-align: right;
+.kr-ticker__col {
+  min-width: 2.8rem;
+  text-align: center;
   font-size: .58rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--c-gray);
-  padding-right: .1rem;
-  margin-bottom: -.15rem;
 }
 .kr-ticker {
   display: flex;

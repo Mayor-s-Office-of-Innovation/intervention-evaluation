@@ -11,6 +11,15 @@ test.beforeEach(async ({ page }) => {
   errors.length = 0;
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(String(e)));
+  // The "Saved intervention evaluations" list is a progressive enhancement fetched from the
+  // interventions-api Worker, which isn't running in CI. Stub it with an empty list (+ CORS header so
+  // the cross-origin GET isn't blocked) — keeps the page hermetic and error-free without the Worker.
+  await page.route('**/interventions', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ items: [] }),
+  }));
 });
 
 test('landing page renders links to every dashboard without errors', async ({ page }) => {

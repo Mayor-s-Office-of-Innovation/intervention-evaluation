@@ -5,10 +5,13 @@
 // Save button (hypothesis/js/save.js).
 // ──────────────────────────────────────────────────────────────────────────
 
-const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-export const API = isLocal
-  ? 'http://localhost:8787'
-  : 'https://interventions-api.safestreetssf.workers.dev';
+// Default to the deployed Worker everywhere — including local dev — so viewing/saving works without
+// running `wrangler dev`. To develop against a LOCAL worker, set in the browser console:
+//   localStorage.interventionsApi = 'http://localhost:8787'   (and clear it to go back to prod)
+const PROD_API = 'https://interventions-api.safestreetssf.workers.dev';
+export const API = (() => {
+  try { return localStorage.getItem('interventionsApi') || PROD_API; } catch { return PROD_API; }
+})();
 
 export async function listInterventions() {
   const res = await fetch(`${API}/interventions`);
