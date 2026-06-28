@@ -14,6 +14,7 @@ import {
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
+  TIME_BUCKETS, setMapTodFilter, buildCellsFromMarkers,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -66,6 +67,43 @@ let mapSignal = 'encampment';
 let todFilter = 'both';            // 'both' | 'day' | 'night' — the page-level time-of-day filter
 const visibleCats = new Set(['persistent', 'cooled', 'emerged']);
 const transitionData = {};
+const markerDataCache = {};        // cache marker data per signal for filtered cell building
+
+// ── map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
+let mapTodFilter = null;           // null = all, or Set of bucket names
+
+// Point-in-polygon test using ray casting
+function pointInPolygon(lat, lng, coords) {
+  let inside = false;
+  for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+    const [xi, yi] = coords[i], [xj, yj] = coords[j];
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function getDistrictForPoint(lat, lng) {
+  if (!GEO?.features) return '';
+  for (const feature of GEO.features) {
+    const district = feature.properties?.district;
+    if (!district || !DISTRICTS.map(d => d.toUpperCase()).includes(district)) continue;
+    const geom = feature.geometry;
+    if (geom.type === 'Polygon') {
+      if (pointInPolygon(lat, lng, geom.coordinates[0])) {
+        return district.charAt(0) + district.slice(1).toLowerCase();
+      }
+    } else if (geom.type === 'MultiPolygon') {
+      for (const poly of geom.coordinates) {
+        if (pointInPolygon(lat, lng, poly[0])) {
+          return district.charAt(0) + district.slice(1).toLowerCase();
+        }
+      }
+    }
+  }
+  return '';
+}
 
 // ── global time window (the scrubber) — indices into AGG.months. Drives ONLY the map; the chart hosts
 // it (band); the cards ignore it. Baseline is the FIXED pre-Lurie normal (TMETA.pre_window). ──
@@ -274,22 +312,49 @@ async function renderMap() {
   if (pendingRestore) queueRestore(pendingRestore.cell);   // so renderCells re-opens the shared cell
   focusDistrict($('#map'), GEO, active);
 
-  // Reclassify every candidate block against the SELECTED window vs the fixed pre-Lurie baseline,
-  // normalized by the district tide recomputed over the same window (classify.js — parity-checked).
   const sigMeta = TMETA.signals[mapSignal];
   const knobs = { hot: sigMeta.hot_rate_per_month, floor: TMETA.knobs.floor, band: TMETA.knobs.tide_band };
   const winSpan = [AGG.months[win.lo], AGG.months[win.hi]];
   const w = clampToAxis(ymRange(TMETA.months, winSpan));
   const b = ymRange(TMETA.months, TMETA.pre_window);
+
   // Day/Night filter: classify off the matching histogram + district tide (plan §3/§5).
   const monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
   const dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
              || sigMeta.district_monthly;
   setTodFilter(todFilter);   // marker layer + cell-details honor the same filter
-  const classified = classifyCells(transitionData[mapSignal], dm, w, b, knobs, monthlyKey);
+  setMapTodFilter(mapTodFilter);  // granular time-of-day filter for markers
+
+  let cellsToClassify;
+
+  // If map-level time-of-day filter is active, build cells from filtered markers
+  if (mapTodFilter) {
+    if (!markerDataCache[mapSignal]) {
+      markerDataCache[mapSignal] = await loadMarkers(mapSignal);
+    }
+    const filteredCells = buildCellsFromMarkers(markerDataCache[mapSignal], mapTodFilter, TMETA.months);
+    // Assign districts
+    for (const cell of filteredCells) {
+      cell.district = getDistrictForPoint(cell.lat, cell.lng);
+    }
+    cellsToClassify = filteredCells.filter(c => c.district);
+  } else {
+    cellsToClassify = transitionData[mapSignal];
+  }
+
+  const classified = classifyCells(cellsToClassify, dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
   setMapWindow(winSpan, TMETA.pre_window);
-  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded on first zoom-in
+
+  // Set up markers with caching
+  if (!markerDataCache[mapSignal]) {
+    setMarkers(mapSignal, async () => {
+      markerDataCache[mapSignal] = await loadMarkers(mapSignal);
+      return markerDataCache[mapSignal];
+    });
+  } else {
+    setMarkers(mapSignal, () => Promise.resolve(markerDataCache[mapSignal]));
+  }
   $('#map-legend').innerHTML = Object.entries(CATEGORY).map(([k, m]) => `
     <button class="legend-item ${visibleCats.has(k) ? '' : 'is-off'}" data-cat="${k}"
             style="--cat:${m.color}" title="Click to show/hide on the map" aria-pressed="${visibleCats.has(k)}">
@@ -331,6 +396,41 @@ function buildMapControls() {
     <button class="seg ${mapSignal === 'cfs_presence' ? 'is-active' : ''}" data-s="cfs_presence">911 unhoused calls</button>`;
   $('#map-controls').querySelectorAll('.seg').forEach(b =>
     b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
+}
+
+// ── map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
+function buildMapTodFilter() {
+  const chips = Object.entries(TIME_BUCKETS).map(([key, { label }]) => {
+    const active = mapTodFilter ? mapTodFilter.has(key) : false;
+    return `<button class="map-tod-chip ${active ? 'is-active' : ''}" data-tod="${key}">${label}</button>`;
+  }).join('');
+
+  $('#map-tod-filter').innerHTML = `
+    <span class="map-tod-filter__label">Time of day</span>
+    <button class="map-tod-chip ${!mapTodFilter ? 'is-active' : ''}" data-tod-all>All</button>
+    ${chips}`;
+
+  $('#map-tod-filter').querySelector('[data-tod-all]').onclick = async () => {
+    mapTodFilter = null;
+    buildMapTodFilter();
+    await renderMap();
+  };
+
+  $('#map-tod-filter').querySelectorAll('[data-tod]').forEach(btn => {
+    btn.onclick = async () => {
+      const key = btn.dataset.tod;
+      if (!mapTodFilter) {
+        mapTodFilter = new Set([key]);
+      } else if (mapTodFilter.has(key)) {
+        mapTodFilter.delete(key);
+        if (!mapTodFilter.size) mapTodFilter = null;
+      } else {
+        mapTodFilter.add(key);
+      }
+      buildMapTodFilter();
+      await renderMap();
+    };
+  });
 }
 
 // ── page-level Day/Night filter (plan-time-of-day.md §5) ──
@@ -435,6 +535,7 @@ async function main() {
     initDistrict();
     wireTodToggles();
     buildMapControls();
+    buildMapTodFilter();
     renderScrubber();
     renderMethodology();
     $('#enc-only-toggle').addEventListener('change', (e) => { encOnly = e.target.checked; renderFocusChart(); });

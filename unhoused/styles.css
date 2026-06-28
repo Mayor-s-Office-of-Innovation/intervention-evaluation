@@ -215,6 +215,22 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .seg:hover { color: var(--text); }
 .seg.is-active { color: #fff; background: var(--c-slate); }
 .seg:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+
+/* Map time-of-day filter (below signal toggle, above legend) */
+.map-tod-filter {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+  margin-bottom: .75rem; padding: .1rem 0;
+}
+.map-tod-filter:empty { display: none; }
+.map-tod-filter__label { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin-right: .2rem; }
+.map-tod-chip {
+  padding: .18rem .55rem; border: 1px solid var(--c-line); border-radius: 999px;
+  background: transparent; color: var(--muted); font: inherit; font-size: .72rem; font-weight: 500;
+  cursor: pointer; transition: all .12s; white-space: nowrap;
+}
+.map-tod-chip:hover { color: var(--text); border-color: var(--c-gray); }
+.map-tod-chip.is-active { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
+
 /* page-level time-of-day filter strip (top of <main>, above the headline cards) */
 .tod-filter {
   display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
