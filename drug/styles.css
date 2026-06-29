@@ -238,6 +238,69 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .tod-toggle:not(.is-active) .tod-toggle__check { display: none; }
 .tod-toggle__check { font-size: .9em; line-height: 1; }
 .tod-toggle:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+
+/* ───────────── Hour slider (PR #32 — granular time-of-day) ───────────── */
+.hour-slider-wrap { display: flex; flex-direction: column; gap: .35rem; margin-top: .5rem; }
+.hour-slider-label { font-size: .78rem; color: var(--muted); }
+.hour-slider-bar { position: relative; height: 32px; border: 1px solid var(--c-line); border-radius: 8px; background: var(--bg); display: flex; overflow: hidden; }
+.hour-slider-bar .hour-seg { flex: 1; border-right: 1px solid var(--c-line); }
+.hour-slider-bar .hour-seg:last-child { border-right: none; }
+.hour-slider-bar .hour-seg.is-night { background: rgba(79,70,229,.12); }
+.hour-slider-sel { position: absolute; top: 0; bottom: 0; background: rgba(79,70,229,.22); border-left: 2px solid var(--c-blue); border-right: 2px solid var(--c-blue); pointer-events: none; }
+.hour-slider-range { font-family: var(--font-mono); font-size: .72rem; font-weight: 700; color: var(--c-blue); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none; }
+.hour-ticks { display: flex; justify-content: space-between; font-size: .66rem; color: var(--muted); font-family: var(--font-mono); padding: 0 2px; }
+
+/* ───────────── Day vs Night split view (PR #32) ───────────── */
+.split-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .78rem; color: var(--muted); margin-bottom: .5rem; }
+.split-legend .k { display: inline-flex; align-items: center; gap: .35rem; }
+.split-legend .sw { width: .7rem; height: .7rem; border-radius: 50%; }
+.split-legend .sw.day { background: #e08a1e; }
+.split-legend .sw.night { background: #4f46e5; }
+.split-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.split-row { display: grid; grid-template-columns: 130px 1fr 80px; gap: .5rem; align-items: center; font-size: .78rem; }
+.split-row .nm { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.split-bar { height: 10px; border-radius: 4px; overflow: hidden; display: flex; border: 1px solid var(--c-line); }
+.split-bar .d { background: #e08a1e; }
+.split-bar .n { background: #4f46e5; }
+.split-row .tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; text-align: right; }
+.split-row .tag.night { color: #4f46e5; }
+.split-row .tag.day { color: #e08a1e; }
+.split-row .tag.even { color: var(--muted); }
+
+/* ───────────── Docked detail panel (PR #32) ───────────── */
+.map-with-panel { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.map-with-panel.has-panel { grid-template-columns: 1.2fr .9fr; }
+@media (max-width: 800px) { .map-with-panel.has-panel { grid-template-columns: 1fr; } }
+.detail-panel { display: none; flex-direction: column; gap: .75rem; background: var(--surface); border: 1px solid var(--c-line); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+.map-with-panel.has-panel .detail-panel { display: flex; }
+.detail-panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+.detail-panel__name { font-weight: 700; font-size: 1rem; color: var(--text); line-height: 1.25; }
+.detail-panel__close { background: none; border: none; font-size: 1.1rem; color: var(--muted); cursor: pointer; padding: .2rem; line-height: 1; }
+.detail-panel__close:hover { color: var(--text); }
+.detail-panel__clf { display: inline-flex; align-items: center; gap: .5rem; }
+.detail-panel__clf .clf-badge { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: .2rem .5rem; border-radius: 4px; }
+.clf-badge.persistent { background: rgba(220,38,38,.12); color: #dc2626; }
+.clf-badge.emerged { background: rgba(245,158,11,.12); color: #b45309; }
+.clf-badge.cooled { background: rgba(37,99,235,.12); color: #1d4ed8; }
+.detail-panel__clf span { font-size: .78rem; color: var(--muted); }
+.detail-panel__metrics { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.detail-panel__metric { display: flex; flex-direction: column; }
+.detail-panel__metric .label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.detail-panel__metric .value { font-size: 1.1rem; font-weight: 800; color: var(--text); font-family: var(--font-sans); }
+.detail-panel__section { display: flex; flex-direction: column; gap: .25rem; }
+.detail-panel__section .sh { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.detail-panel__spark { width: 100%; }
+.detail-panel__spark svg { width: 100%; height: 60px; }
+.detail-panel__split { margin-top: .25rem; }
+.detail-panel__split .split-bar { height: 12px; }
+.detail-panel__split .split-labels { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: .25rem; }
+
+/* Hourly distribution chart in detail panel */
+.hourly-dist { display: flex; align-items: flex-end; gap: 1px; height: 50px; }
+.hourly-dist .hbar { flex: 1; background: #cbd5e1; border-radius: 2px 2px 0 0; min-height: 2px; }
+.hourly-dist .hbar.is-night { background: #4f46e5; }
+.hourly-axis { display: flex; justify-content: space-between; font-size: .62rem; color: var(--muted); font-family: var(--font-mono); margin-top: .15rem; }
+
 .seg:hover { color: var(--text); }
 .seg.is-active { color: #fff; background: var(--c-slate); }
 .seg:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }

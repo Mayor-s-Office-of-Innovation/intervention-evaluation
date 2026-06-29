@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hotspots view — proposed changes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --slate:#1f2937; --blue:#3b82f6; --green:#22c55e; --gray:#6b7280;
+    --line:#e5e7eb; --bg:#f4f4f6; --surface:#ffffff;
+    --ink:#1b2230; --soft:#4a5365; --faint:#8b93a3;
+    --paper:#f1efe9; --mark:#e8590c; --mark-bg:#fdebdd;
+    --day:#e08a1e; --day-bg:#fdefd9; --night:#4f46e5; --night-bg:#e4e3fb;
+    --heat:#d6492b;
+    --sys:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sys);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 26px 90px;}
+  .mono{font-family:"IBM Plex Mono",monospace;}
+
+  header.mast{border-bottom:1px solid #d8d3c8;}
+  .mast .wrap{padding:32px 26px 22px;}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mark);font-weight:600;margin:0 0 8px;}
+  h1{font-family:"Archivo",sans-serif;font-weight:800;font-size:clamp(26px,4.4vw,36px);line-height:1.05;letter-spacing:-.02em;margin:0 0 10px;}
+  .mast p{margin:0;color:var(--soft);max-width:70ch;}
+  .applies{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+  .applies .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;color:var(--blue);background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);border-radius:999px;padding:4px 11px;}
+
+  .legend{background:var(--surface);border:1px solid #e3ddd1;border-radius:12px;padding:18px 20px;margin:28px 0 8px;box-shadow:0 12px 30px -20px rgba(27,34,48,.3);}
+  .legend h3{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin:0 0 12px;font-weight:600;}
+  .legend .li{display:flex;gap:10px;align-items:baseline;font-size:14px;color:var(--soft);margin:6px 0;}
+  .legend .scr{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);white-space:nowrap;}
+
+  section.screen{border-top:1px solid #d8d3c8;margin-top:46px;padding-top:34px;}
+  .screen .eyebrow{color:var(--blue);}
+  .screen h2{font-family:"Archivo",sans-serif;font-weight:700;letter-spacing:-.018em;font-size:clamp(20px,3vw,26px);margin:0 0 8px;}
+  .screen .lead{color:var(--soft);max-width:74ch;margin:0 0 22px;}
+
+  .pin{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--mark);color:#fff;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:11px;line-height:1;vertical-align:middle;box-shadow:0 1px 2px rgba(0,0,0,.2);}
+
+  .mock{background:var(--bg);border:1px solid #d8d3c8;border-radius:12px;overflow:hidden;box-shadow:0 18px 40px -26px rgba(27,34,48,.4);font-family:var(--sys);}
+  .mock__bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#e9e7e1;border-bottom:1px solid #d8d3c8;}
+  .mock__bar i{width:9px;height:9px;border-radius:50%;background:#cbc8bf;}
+  .mock__bar span{margin-left:8px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#8a857a;}
+  .mock__body{padding:18px;}
+  .mhead{background:var(--slate);color:#fff;margin:-18px -18px 16px;padding:14px 18px;}
+  .mhead .eb{text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:600;color:#7fb0ff;}
+  .mhead h4{margin:3px 0 0;font-size:16px;font-weight:700;}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;}
+  .panel h5{margin:0 0 10px;font-size:13px;font-weight:700;color:var(--slate);display:flex;align-items:center;gap:8px;justify-content:space-between;}
+  .panel h5 .pt{display:flex;align-items:center;gap:8px;}
+
+  .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .ba-tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin:0 0 7px;}
+  .ba-tag.before{color:var(--faint);} .ba-tag.after{color:var(--green);}
+
+  /* time-of-day filter (current) */
+  .tod{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:9px;padding:10px 12px;}
+  .tod .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);}
+  .todbtn{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--slate);background:#fff;}
+  .todbtn.on{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:var(--blue);}
+  .todbtn .ck{color:var(--green);font-weight:800;}
+  .tod .hint{font-size:11px;color:var(--gray);margin-left:auto;}
+
+  /* granular time control */
+  .bands{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+  .band{font-size:11.5px;font-weight:600;border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--gray);background:#fff;}
+  .band.on{background:var(--night);border-color:var(--night);color:#fff;}
+  .hourbar{position:relative;height:46px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fbfbfc;display:flex;}
+  .hourbar .seg{flex:1;border-right:1px solid #f0f1f3;}
+  .hourbar .night{background:var(--night-bg);}
+  .hourbar .sel{position:absolute;top:0;bottom:0;background:rgba(79,70,229,.22);border-left:2px solid var(--night);border-right:2px solid var(--night);}
+  .hourbar .sellabel{position:absolute;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:700;color:var(--night);font-family:"IBM Plex Mono",monospace;}
+  .hourticks{display:flex;justify-content:space-between;font-size:9.5px;color:var(--gray);margin-top:4px;font-family:"IBM Plex Mono",monospace;}
+
+  /* map + hotspots */
+  .hmap{position:relative;height:215px;border-radius:9px;border:1px solid var(--line);
+    background:repeating-linear-gradient(0deg,#eef1f4,#eef1f4 13px,#e7ebef 13px,#e7ebef 14px),repeating-linear-gradient(90deg,#eef1f4,#eef1f4 13px,#e7ebef 13px,#e7ebef 14px);overflow:hidden;}
+  .hspot{position:absolute;transform:translate(-50%,-50%);border-radius:50%;background:var(--heat);opacity:.82;box-shadow:0 0 0 3px rgba(214,73,43,.18);}
+  .hspot.lab::after{content:attr(data-l);position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);font-size:9.5px;font-weight:700;color:var(--slate);white-space:nowrap;font-family:"IBM Plex Mono",monospace;background:rgba(255,255,255,.85);padding:0 3px;border-radius:3px;}
+  .hspot.sel{outline:2px solid var(--night);outline-offset:2px;}
+  /* day/night split markers */
+  .hsplit{position:absolute;transform:translate(-50%,-50%);border-radius:50%;
+    background:conic-gradient(var(--night) 0 var(--n,50%), var(--day) var(--n,50%) 100%);box-shadow:0 0 0 3px rgba(31,41,55,.08);}
+  .maplegend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--gray);margin-bottom:10px;}
+  .maplegend .k{display:inline-flex;align-items:center;gap:5px;}
+  .maplegend .sw{width:11px;height:11px;border-radius:50%;}
+
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .seg button{font-size:11.5px;font-weight:600;padding:5px 11px;background:#fff;color:var(--gray);border:none;border-right:1px solid var(--line);}
+  .seg button:last-child{border-right:none;}
+  .seg button.on{background:var(--slate);color:#fff;}
+
+  /* hotspot detail card */
+  .hdetail{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fff;}
+  .hdetail .nm{font-weight:700;font-size:13px;color:var(--slate);display:flex;align-items:center;justify-content:space-between;}
+  .hdetail .meta{font-size:11.5px;color:var(--gray);margin:3px 0 9px;}
+  .mini{display:flex;align-items:flex-end;gap:2px;height:42px;}
+  .mini .b{flex:1;background:#cbd5e1;border-radius:2px 2px 0 0;}
+  .mini .b.n{background:var(--night);}
+  .mini-ax{display:flex;justify-content:space-between;font-size:9px;color:var(--gray);margin-top:3px;font-family:"IBM Plex Mono",monospace;}
+
+  /* day/night split list */
+  .splitlist{display:flex;flex-direction:column;gap:9px;}
+  .splitrow{display:grid;grid-template-columns:130px 1fr 84px;gap:10px;align-items:center;font-size:12px;}
+  .splitrow .nm{font-weight:600;color:var(--slate);}
+  .splitbar{height:13px;border-radius:4px;overflow:hidden;display:flex;border:1px solid #eef0f2;}
+  .splitbar .d{background:var(--day);} .splitbar .n{background:var(--night);}
+  .splitrow .tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;text-align:right;}
+  .tag.night{color:var(--night);} .tag.day{color:var(--day);}
+
+  .scrub{display:flex;gap:6px;align-items:center;margin-bottom:10px;}
+  .scrub .p{font-size:11px;font-weight:600;border:1px solid var(--line);border-radius:7px;padding:4px 9px;color:var(--gray);background:#fff;}
+  .scrub .p.on{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.4);color:var(--blue);}
+
+  /* current state: classification cards + map popup */
+  .statcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;}
+  .statcard{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px 12px;border-top:3px solid var(--c);}
+  .statcard .lab{display:flex;align-items:center;gap:7px;font-weight:700;font-size:12px;color:var(--slate);}
+  .statcard .lab .d{width:9px;height:9px;border-radius:50%;background:var(--c);}
+  .statcard .n{font-family:"Archivo",sans-serif;font-weight:800;font-size:24px;color:var(--c);line-height:1.1;margin:4px 0 2px;}
+  .statcard .ds{font-size:10.5px;color:var(--gray);line-height:1.35;}
+  .popup{position:absolute;left:46%;top:30%;transform:translateX(-50%);width:236px;background:#fff;border-radius:10px;box-shadow:0 12px 30px rgba(16,24,40,.3);padding:12px 13px;z-index:3;}
+  .popup .x{position:absolute;right:9px;top:7px;color:var(--gray);font-size:13px;}
+  .popup .t{font-weight:700;font-size:12px;color:var(--slate);letter-spacing:.01em;}
+  .popup .c{font-size:11px;color:var(--gray);margin:3px 0;}
+  .popup .c b{color:var(--slate);}
+  .popup .ax{display:flex;justify-content:space-between;font-size:8.5px;color:var(--gray);font-family:"IBM Plex Mono",monospace;}
+  .popup .see{margin-top:8px;text-align:center;font-size:11.5px;font-weight:600;color:var(--slate);background:#f1f1f3;border-radius:6px;padding:6px;}
+  .popup .tail{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%) rotate(45deg);width:12px;height:12px;background:#fff;}
+  .cap{font-size:11px;color:var(--gray);line-height:1.5;margin-top:10px;}
+  .cap b{color:var(--slate);}
+
+  /* after: docked detail panel */
+  .withpanel{display:grid;grid-template-columns:1.2fr .92fr;gap:12px;align-items:stretch;}
+  .sidepanel{border:1px solid var(--line);border-radius:9px;background:#fff;padding:13px;display:flex;flex-direction:column;gap:11px;}
+  .sidepanel .ph{display:flex;align-items:flex-start;justify-content:space-between;}
+  .sidepanel .ph .nm{font-weight:700;font-size:14px;color:var(--slate);}
+  .sidepanel .ph .x{color:var(--gray);font-size:14px;}
+  .clf{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:4px;}
+  .clf.cool{background:#dbeafe;color:#1d4ed8;} .clf.hot{background:#fee2e2;color:#b91c1c;} .clf.emerg{background:#fef3c7;color:#b45309;}
+  .metricrow{display:flex;gap:18px;font-size:12px;color:var(--slate);}
+  .metricrow b{font-family:"Archivo",sans-serif;font-weight:800;}
+  .subhd{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);margin:2px 0 1px;}
+  .panelbtns{display:flex;gap:8px;margin-top:auto;}
+  .panelbtns span{flex:1;text-align:center;font-size:11px;font-weight:600;border-radius:7px;padding:7px;}
+  .panelbtns .pri{background:var(--slate);color:#fff;} .panelbtns .sec{background:#f1f1f3;color:var(--slate);}
+
+  .ann{margin:16px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;}
+  .ann li{display:flex;gap:11px;align-items:baseline;}
+  .ann .txt{font-size:13.5px;color:var(--ink);}
+  .ann .txt b{font-weight:700;}
+  .capnote{margin-top:16px;font-size:12.5px;color:var(--soft);background:#fff;border:1px solid #e3ddd1;border-left:3px solid var(--mark);border-radius:7px;padding:11px 13px;}
+  figcaption{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);margin-top:9px;}
+  figure{margin:0;}
+  footer{border-top:1px solid #d8d3c8;margin-top:48px;padding-top:18px;color:var(--faint);font-size:12.5px;}
+
+  @media(max-width:760px){
+    .ba-grid{grid-template-columns:1fr;}
+    .splitrow{grid-template-columns:104px 1fr 70px;}
+  }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap">
+    <p class="eyebrow">Mayor's Office of Innovation · Public Safety Pods</p>
+    <h1>Hotspots view — proposed changes</h1>
+    <p>Static spec for revamping the hotspots map inside the OKR dashboards. Orange pins on each mock map to the numbered change list below, so the still and the change number can be read together.</p>
+    <div class="applies">
+      <span class="tag">Drugs OKR</span>
+      <span class="tag">Unsheltered homelessness OKR</span>
+      <span class="tag">All pods · Northern · Central · Mission · Tenderloin</span>
+      <span class="tag" style="color:var(--gray);background:#eef0f2;border-color:#e0e2e6;">Not in property &amp; street crime</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="legend">
+    <h3>The 3 changes</h3>
+    <div class="li"><span class="pin">1</span><span>Filter hotspots by time of day — keep the easy Day/Night button and add a time-of-day slider for any window, with detail explaining each hotspot in it</span><span class="scr">Screen 2</span></div>
+    <div class="li"><span class="pin">2</span><span>See hotspots by day vs. night volume — the day/night split per hotspot, not just an include/exclude toggle</span><span class="scr">Screen 3</span></div>
+    <div class="li"><span class="pin">3</span><span>Open the block detail into a larger, more readable panel instead of the small map popup</span><span class="scr">Screen 4</span></div>
+  </div>
+
+  <!-- SCREEN 1 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 1 · Where this lives</p>
+    <h2>Today's hotspots view</h2>
+    <p class="lead">Inside the Drugs and Unsheltered homelessness dashboards, the "Hotspots: what moved in the selected window" map sits below the chart. It classifies each ~block dot as Persistently hot, Newly emerged, or Cooled. Today, clicking a block opens a small popup anchored to the dot. All three changes build on this view.</p>
+
+    <figure>
+      <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>drugs OKR · Northern · hotspots</span></div>
+        <div class="mock__body">
+          <div class="mhead"><div class="eb">Drugs OKR · Northern district</div><h4>Hotspots: what moved in the selected window</h4></div>
+
+          <div class="statcards">
+            <div class="statcard" style="--c:#d6492b;"><div class="lab"><span class="d"></span>Persistently hot</div><div class="n">1</div><div class="ds">Hot before and still hot now</div></div>
+            <div class="statcard" style="--c:#e0a23c;"><div class="lab"><span class="d"></span>Newly emerged</div><div class="n">7</div><div class="ds">Rose faster than its district since the Lurie inauguration</div></div>
+            <div class="statcard" style="--c:#3b82f6;"><div class="lab"><span class="d"></span>Cooled</div><div class="n">2</div><div class="ds">Was hot, has fallen relative to its district</div></div>
+          </div>
+
+          <div class="hmap">
+            <span class="hspot" style="left:34%;top:62%;width:30px;height:30px;background:#d6492b;"></span>
+            <span class="hspot" style="left:40%;top:72%;width:18px;height:18px;background:#e0a23c;"></span>
+            <span class="hspot" style="left:46%;top:78%;width:18px;height:18px;background:#e0a23c;"></span>
+            <span class="hspot" style="left:52%;top:70%;width:14px;height:14px;background:#e0a23c;"></span>
+            <span class="hspot sel" style="left:49%;top:60%;width:18px;height:18px;background:#3b82f6;"></span>
+            <span class="hspot" style="left:57%;top:58%;width:11px;height:11px;background:#3b82f6;"></span>
+            <div class="popup">
+              <span class="x">✕</span>
+              <div class="t">EDDY ST / VAN NESS AVE</div>
+              <div class="c"><b>Cooled</b> · Northern</div>
+              <div class="c">Before Lurie: <b>6.8</b>/mo · Now: <b>2.1</b>/mo (district-tide 13.8)</div>
+              <svg viewBox="0 0 210 40" width="100%" height="40">
+                <polyline fill="none" stroke="#e8590c" stroke-width="1.6" points="2,30 14,22 26,26 38,14 50,20 62,10 74,24 86,28 98,30 110,26 122,31 134,27 146,32 158,29 170,33 182,31 194,34 206,33"/>
+                <line x1="120" y1="4" x2="120" y2="38" stroke="#9aa0a6" stroke-width="1" stroke-dasharray="3 3"/>
+              </svg>
+              <div class="ax"><span>2023-01</span><span>Lurie '25</span><span>2026-05</span></div>
+              <div class="see">See details</div>
+              <span class="tail"></span>
+            </div>
+          </div>
+          <p class="cap">Each dot is a ~block (<b>≈110 m</b>) reaching at least 2 drug-activity calls/month, classified by how its rate compares to its pre-Lurie baseline, normalized against the district's overall change. Community reports only (never enforcement). <b>Drag the chart above</b> to change the window; <b>click a block</b> to pin a shareable link; <b>zoom in</b> for individual reports.</p>
+        </div>
+      </div>
+      <figcaption>Screen 1 — the current hotspots view (Northern, Drugs OKR), with a block popup open.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">3</span><span class="txt"><b>Clicking a block opens this small popup today,</b> anchored to the dot — the sparkline and numbers are cramped, and there's no room for more detail. Screen 4 opens it into a larger panel.</span></li>
+      <li><span class="pin">1</span><span class="txt"><b>The page-level time-of-day filter</b> (Day / Night) sits above this panel and governs the map. Screen 2 keeps it and adds a slider.</span></li>
+      <li><span class="pin">2</span><span class="txt"><b>Blocks are classified persistently hot / newly emerged / cooled</b> — there's no day-vs-night volume split yet. Screen 3 adds it.</span></li>
+    </ul>
+  </section>
+
+  <!-- SCREEN 2 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 2 · Change 1</p>
+    <h2>Filter hotspots by time of day — with finer windows</h2>
+    <p class="lead">Keep the easy Day/Night button for quick use, and add a time-of-day slider for any specific window. When a window is chosen, show the detail that explains why each hotspot is hot in it.</p>
+
+    <figure>
+      <div class="ba-grid">
+        <div>
+          <p class="ba-tag before">Before — two buckets</p>
+          <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>today</span></div>
+            <div class="mock__body">
+              <div class="tod">
+                <span class="lbl">Time of day</span>
+                <span class="todbtn on"><span class="ck">✓</span>☀ Day</span>
+                <span class="todbtn on"><span class="ck">✓</span>☾ Night</span>
+              </div>
+              <p style="font-size:11.5px;color:var(--gray);margin:10px 2px 0;">Only two 10–14 hour buckets; on or off. A corner that's a problem at 11pm can't be isolated.</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="ba-tag after">After — easy button + slider</p>
+          <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>proposed</span></div>
+            <div class="mock__body">
+              <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gray);margin:0 0 9px;">Time of day <span class="pin">1</span></p>
+              <div class="tod" style="margin-bottom:11px;">
+                <span class="lbl">Quick</span>
+                <span class="todbtn on"><span class="ck">✓</span>☀ Day</span>
+                <span class="todbtn on"><span class="ck">✓</span>☾ Night</span>
+              </div>
+              <p style="font-size:11px;color:var(--gray);margin:0 2px 7px;">…or drag the slider for a specific window:</p>
+              <div class="hourbar">
+                <span class="seg night"></span><span class="seg night"></span><span class="seg night"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+                <span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg night"></span><span class="seg night"></span>
+                <span class="sel" style="left:87.5%;right:0;"></span>
+                <span class="sel" style="left:0;width:4.2%;"></span>
+                <span class="sellabel" style="left:50%;transform:translate(-50%,-50%);">9pm – 1am selected</span>
+              </div>
+              <div class="hourticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 2a — the filter control: before → after.</figcaption>
+    </figure>
+
+    <figure style="margin-top:20px;">
+      <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>drugs OKR · Central · hotspots · 9pm–1am</span></div>
+        <div class="mock__body">
+          <div class="panel" style="margin:0;">
+            <h5><span class="pt">Hotspots · 9pm–1am</span></h5>
+            <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start;">
+              <div class="hmap">
+                <span class="hspot lab sel" style="left:40%;top:44%;width:34px;height:34px;" data-l="Post &amp; Stockton"></span>
+                <span class="hspot" style="left:62%;top:56%;width:16px;height:16px;opacity:.5;"></span>
+                <span class="hspot lab" style="left:55%;top:28%;width:24px;height:24px;" data-l="Jones &amp; Post"></span>
+                <span class="hspot" style="left:74%;top:40%;width:12px;height:12px;opacity:.5;"></span>
+              </div>
+              <div class="hdetail">
+                <div class="nm">Post &amp; Stockton <span class="pin">1</span></div>
+                <div class="meta">18 reports in window · <b>70% fall 9pm–1am</b> · peaks ~11pm</div>
+                <div class="mini">
+                  <span class="b" style="height:18%"></span><span class="b" style="height:12%"></span><span class="b" style="height:8%"></span><span class="b" style="height:6%"></span><span class="b" style="height:10%"></span><span class="b" style="height:14%"></span>
+                  <span class="b" style="height:20%"></span><span class="b" style="height:22%"></span><span class="b" style="height:26%"></span><span class="b" style="height:30%"></span><span class="b" style="height:34%"></span><span class="b" style="height:40%"></span>
+                  <span class="b" style="height:46%"></span><span class="b" style="height:52%"></span><span class="b" style="height:58%"></span><span class="b" style="height:55%"></span><span class="b n" style="height:70%"></span><span class="b n" style="height:84%"></span>
+                  <span class="b n" style="height:100%"></span><span class="b n" style="height:92%"></span><span class="b n" style="height:64%"></span><span class="b n" style="height:30%"></span><span class="b" style="height:16%"></span><span class="b" style="height:10%"></span>
+                </div>
+                <div class="mini-ax"><span>12a</span><span>noon</span><span>12a</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 2b — choosing a window re-weights the map and shows each hotspot's hourly pattern.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">1</span><span class="txt"><b>Both controls.</b> Keep the easy Day/Night button for the common case, and add a draggable time-of-day slider to isolate any specific window (e.g. 9pm–1am). Map markers re-weight to the chosen window.</span></li>
+      <li><span class="pin">1</span><span class="txt"><b>Detail that explains the hotspot.</b> Selecting a hotspot shows its count in the window and its hourly shape — e.g. "70% between 9pm–1am, peaks ~11pm" — so the map answers <i>when</i>, not just <i>where</i>.</span></li>
+    </ul>
+  </section>
+
+  <!-- SCREEN 3 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 3 · Change 2</p>
+    <h2>See hotspots by day vs. night volume</h2>
+    <p class="lead">Add a Day-vs-night view so each hotspot shows its split, and you can tell at a glance which corners are daytime problems and which are nighttime ones.</p>
+
+    <figure>
+      <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>drugs OKR · Central · hotspots · day vs night</span></div>
+        <div class="mock__body">
+          <div class="panel" style="margin:0;">
+            <h5>
+              <span class="pt">Hotspots</span>
+              <span class="seg"><button>Combined</button><button class="on">Day vs night <span class="pin">2</span></button></span>
+            </h5>
+            <div class="maplegend">
+              <span class="k"><span class="sw" style="background:var(--day);"></span>☀ Day 6am–8pm</span>
+              <span class="k"><span class="sw" style="background:var(--night);"></span>☾ Night 8pm–6am</span>
+              <span class="k" style="color:var(--gray);">Marker size = total volume · split = day/night share</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px;align-items:start;">
+              <div class="hmap">
+                <span class="hsplit" style="left:40%;top:44%;width:34px;height:34px;--n:78%;"></span>
+                <span class="hsplit" style="left:62%;top:58%;width:20px;height:20px;--n:35%;"></span>
+                <span class="hsplit" style="left:55%;top:28%;width:26px;height:26px;--n:65%;"></span>
+                <span class="hsplit" style="left:74%;top:40%;width:16px;height:16px;--n:50%;"></span>
+              </div>
+              <div class="splitlist">
+                <div class="splitrow"><span class="nm">Post &amp; Stockton</span><span class="splitbar"><span class="d" style="width:22%"></span><span class="n" style="width:78%"></span></span><span class="tag night">Mostly night</span></div>
+                <div class="splitrow"><span class="nm">Jones &amp; Post</span><span class="splitbar"><span class="d" style="width:35%"></span><span class="n" style="width:65%"></span></span><span class="tag night">Mostly night</span></div>
+                <div class="splitrow"><span class="nm">Powell &amp; Sutter</span><span class="splitbar"><span class="d" style="width:50%"></span><span class="n" style="width:50%"></span></span><span class="tag" style="color:var(--gray);">Even</span></div>
+                <div class="splitrow"><span class="nm">Grant &amp; Pacific</span><span class="splitbar"><span class="d" style="width:65%"></span><span class="n" style="width:35%"></span></span><span class="tag day">Mostly day</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 3 — Day-vs-night view: split markers on the map + a ranked split list.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">2</span><span class="txt"><b>A Day-vs-night toggle</b> on the map. "Combined" is today's behavior; "Day vs night" colors each hotspot by its split instead of just including/excluding a bucket.</span></li>
+      <li><span class="pin">2</span><span class="txt"><b>Split per hotspot.</b> Each marker is sized by total volume and divided into day (amber) vs night (indigo) share; the side list ranks corners and labels them "Mostly night / Even / Mostly day," so staffing can match the time the problem actually happens.</span></li>
+    </ul>
+  </section>
+
+  <!-- SCREEN 4 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 4 · Change 3</p>
+    <h2>Open the block detail into a larger, readable panel</h2>
+    <p class="lead">Today, clicking a block opens a small popup anchored to the dot — the sparkline and numbers are hard to read, and there's no room for the new time-of-day and day/night detail. Open the detail into a larger docked panel beside the map instead.</p>
+
+    <figure>
+      <div class="ba-grid">
+        <div>
+          <p class="ba-tag before">Before — cramped map popup</p>
+          <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>today</span></div>
+            <div class="mock__body">
+              <div class="hmap" style="height:190px;">
+                <span class="hspot sel" style="left:46%;top:62%;width:18px;height:18px;background:#3b82f6;"></span>
+                <div class="popup" style="top:18%;left:50%;width:215px;">
+                  <span class="x">✕</span>
+                  <div class="t">EDDY ST / VAN NESS AVE</div>
+                  <div class="c"><b>Cooled</b> · Northern</div>
+                  <div class="c">Before Lurie: <b>6.8</b>/mo · Now: <b>2.1</b>/mo</div>
+                  <svg viewBox="0 0 190 32" width="100%" height="32"><polyline fill="none" stroke="#e8590c" stroke-width="1.5" points="2,24 16,16 30,20 44,10 58,16 72,8 86,20 100,24 114,22 128,26 142,23 156,27 170,25 186,28"/><line x1="108" y1="3" x2="108" y2="30" stroke="#9aa0a6" stroke-dasharray="3 3"/></svg>
+                  <div class="ax"><span>2023-01</span><span>Lurie '25</span><span>2026-05</span></div>
+                  <div class="see">See details</div>
+                  <span class="tail"></span>
+                </div>
+              </div>
+              <p style="font-size:11px;color:var(--gray);margin:9px 2px 0;">Overlays the map; tiny chart; only room for two numbers.</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="ba-tag after">After — docked detail panel</p>
+          <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>proposed</span></div>
+            <div class="mock__body">
+              <div class="withpanel">
+                <div class="hmap" style="height:240px;">
+                  <span class="hspot" style="left:30%;top:60%;width:22px;height:22px;background:#d6492b;"></span>
+                  <span class="hspot" style="left:42%;top:72%;width:14px;height:14px;background:#e0a23c;"></span>
+                  <span class="hspot sel" style="left:52%;top:54%;width:18px;height:18px;background:#3b82f6;"></span>
+                </div>
+                <div class="sidepanel">
+                  <div class="ph"><span class="nm">Eddy St / Van Ness Ave</span><span class="x">✕</span></div>
+                  <div class="pillrow"><span class="clf cool">Cooled</span><span style="color:var(--gray);">Northern · ≈110 m block</span></div>
+                  <div class="metricrow"><span><span class="subhd">Before Lurie</span><b>6.8</b>/mo</span><span><span class="subhd">Now</span><b>2.1</b>/mo</span><span><span class="subhd">District-tide</span><b>13.8</b></span></div>
+                  <div>
+                    <div class="subhd">Reports over time</div>
+                    <svg viewBox="0 0 300 70" width="100%" height="66"><polyline fill="none" stroke="#e8590c" stroke-width="2" points="4,46 28,30 52,38 76,16 100,28 124,12 148,40 172,48 196,44 220,52 244,46 268,54 292,50"/><line x1="150" y1="6" x2="150" y2="62" stroke="#9aa0a6" stroke-dasharray="4 3"/><text x="150" y="68" font-size="8" fill="#9aa0a6" text-anchor="middle" font-family="monospace">Lurie '25</text></svg>
+                  </div>
+                  <div>
+                    <div class="subhd">Time of day <span class="pin">1</span> · day vs night <span class="pin">2</span></div>
+                    <div class="splitbar" style="height:14px;margin-top:4px;"><span class="d" style="width:30%;background:var(--day);"></span><span class="n" style="width:70%;background:var(--night);"></span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-top:3px;"><span>☀ Day 30%</span><span>☾ Night 70% · peaks ~11pm</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 4 — block detail: cramped popup → docked, readable panel.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">3</span><span class="txt"><b>Open into a docked panel,</b> not an overlay popup. Clicking a block opens a panel beside the map with the full read — classification, district, before/now, district-tide, and a larger chart — so nothing is cramped.</span></li>
+      <li><span class="pin">3</span><span class="txt"><b>This panel is where #1 and #2 live.</b> The bigger surface gives room for the time-of-day breakdown (Change 1) and the day-vs-night split (Change 2) on the selected block — which the small popup has no space for.</span></li>
+    </ul>
+  </section>
+
+  <!-- SCOPE & DECISIONS -->
+  <section class="screen">
+    <p class="eyebrow">Scope &amp; decisions</p>
+    <h2>What's decided</h2>
+    <p class="capnote" style="border-left-color:var(--green);">
+      <b>Controls (#1) — ship both.</b> Keep the easy Day/Night button for quick use, and add a time-of-day slider for any specific window.
+    </p>
+    <p class="capnote" style="border-left-color:var(--green);margin-top:10px;">
+      <b>Block detail (#3) — open it up.</b> Replace the small map popup with a larger docked panel beside the map; it holds the existing read plus the new time-of-day and day/night detail.
+    </p>
+    <p class="capnote" style="border-left-color:var(--green);margin-top:10px;">
+      <b>Scope — Drugs and Unsheltered homelessness only.</b> All three changes apply to these two OKR dashboards across all four pods (Northern, Central, Mission, Tenderloin). <b>Not</b> applied to property &amp; street crime, which has no hotspots map.
+    </p>
+    <p class="capnote" style="border-left-color:var(--blue);margin-top:10px;">
+      <b>To confirm:</b> the Day 6am–8pm · Night 8pm–6am thresholds carry through from today; the day-vs-night split (#2) uses them. Confirm before build if they should change.
+    </p>
+  </section>
+
+  <footer>
+    <span class="mono">Hotspots view · visual spec v1 · 3 changes across 4 screens</span> — pins map 1:1 to the numbered change list.
+  </footer>
+
+</div>
+</body>
+</html>

@@ -59,16 +59,37 @@ export function todBucket(hour) {
   return hour >= DAY_START && hour < NIGHT_START ? 'day' : 'night';
 }
 let todFilter = 'both';   // 'both' | 'day' | 'night'
+let hourRange = null;     // null = use todFilter; [startHour, endHour] = custom range (wraps midnight)
+let splitView = false;    // false = combined view; true = day/night split markers
 /** Set the global day/night filter; re-renders the zoom-in markers if they're showing. */
 export function setTodFilter(f) {
   todFilter = f === 'day' || f === 'night' ? f : 'both';
+  hourRange = null;   // clear custom range when using presets
   if (inMarkerMode()) renderMarkers();
 }
-const passesTod = hour => todFilter === 'both' || todBucket(hour) === todFilter;
+/** Set a custom hour range filter (PR #32); wraps around midnight (e.g. [21, 1] = 9pm–1am). */
+export function setHourRange(start, end) {
+  hourRange = start != null && end != null ? [start, end] : null;
+  if (inMarkerMode()) renderMarkers();
+}
+/** Toggle split view (PR #32): combined vs day/night markers. */
+export function setSplitView(on) {
+  splitView = !!on;
+}
+export function getSplitView() { return splitView; }
+const passesTod = hour => {
+  if (hourRange) {
+    const [s, e] = hourRange;
+    if (s <= e) return hour >= s && hour <= e;
+    return hour >= s || hour <= e;   // wraps midnight
+  }
+  return todFilter === 'both' || todBucket(hour) === todFilter;
+};
 
 let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = null, hintEl = null;
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
+let onCellSelect = null;   // callback for docked panel (PR #32)
 let markerKey = null, markerData = null, markerLoader = null, markerLoading = false;
 // Analysis window + baseline as [startYM,…,endYM] spans — drives the zoom-in marker coloring:
 // in-window = solid, baseline = faded, outside both = hidden. Set by the orchestrator per window.
@@ -121,6 +142,16 @@ export function notifyState() { emitState(); }
 
 /** Queue a cell id to re-open on the next renderCells (call BEFORE renderCells, e.g. on deep-link load). */
 export function queueRestore(cellId) { pendingCellId = cellId || null; }
+
+/** Register a callback for when a cell is selected (PR #32 docked panel). */
+export function onCellSelected(fn) { onCellSelect = fn; }
+
+/** Close the selected cell (called when docked panel closes). */
+export function closeSelectedCell() {
+  if (map) map.closePopup();
+  selectedCellId = null;
+  emitState();
+}
 
 /** Deep-link restore: re-center/zoom the map (the queued cell opens as renderCells draws it). */
 export function restoreMapView(center, zoom) {
@@ -176,6 +207,29 @@ function sparkline(monthly) {
   </svg><div class="spark-axis"><span>${sparkMonths[0] || ''}</span><span>Lurie ’25</span><span>${sparkMonths[sparkMonths.length - 1] || ''}</span></div>`;
 }
 
+/** Compute day/night split for a cell using marker data. */
+async function computeCellSplit(lat, lng) {
+  if (!markerData && markerLoader && !markerLoading) {
+    markerLoading = true;
+    try { markerData = await markerLoader(); } finally { markerLoading = false; }
+  }
+  if (!markerData?.pts) return { day: 0, night: 0, total: 0, hourly: new Array(24).fill(0) };
+  const { coordScale, pts } = markerData;
+  const cellLat = Math.round(lat * 1000) / 1000;
+  const cellLng = Math.round(lng * 1000) / 1000;
+  let day = 0, night = 0;
+  const hourly = new Array(24).fill(0);
+  for (const pt of pts) {
+    const mLat = Math.round((pt[0] / coordScale) * 1000) / 1000;
+    const mLng = Math.round((pt[1] / coordScale) * 1000) / 1000;
+    if (mLat !== cellLat || mLng !== cellLng) continue;
+    const hour = pt[3];
+    hourly[hour] = (hourly[hour] || 0) + 1;
+    if (todBucket(hour) === 'day') day++; else night++;
+  }
+  return { day, night, total: day + night, hourly };
+}
+
 /**
  * Render the transition cells for the active district (zoomed-out view).
  * @returns counts per category (for the active district)
@@ -185,17 +239,33 @@ export function renderCells(cells, districtName, visible) {
   lastCells = cells; lastDistrict = districtName; lastVisible = visible;
   cellLayer.clearLayers();
   const counts = { persistent: 0, cooled: 0, emerged: 0 };
+  const DAY_COLOR = '#e08a1e', NIGHT_COLOR = '#4f46e5';
   for (const c of cells) {
     if (c.district !== districtName) continue;
     counts[c.category] = (counts[c.category] || 0) + 1;
     if (!visible.has(c.category)) continue;
     const meta = CATEGORY[c.category];
     const r = 5 + Math.min(6, Math.sqrt(c.total));
-    // Stable, shareable cell id from its (rounded) center — survives rebuilds.
     const cellId = `${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`;
-    const cm = L.circleMarker([c.lat, c.lng], {
-      radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
-    });
+
+    let cm;
+    if (splitView) {
+      // Day/Night split marker using a custom div icon with conic gradient
+      const nightPct = c.nightPct != null ? c.nightPct : 50;
+      const size = r * 2 + 6;
+      const icon = L.divIcon({
+        className: 'split-marker',
+        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:conic-gradient(${NIGHT_COLOR} 0 ${nightPct}%, ${DAY_COLOR} ${nightPct}% 100%);box-shadow:0 0 0 2px rgba(31,41,55,.15);"></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+      });
+      cm = L.marker([c.lat, c.lng], { icon });
+    } else {
+      cm = L.circleMarker([c.lat, c.lng], {
+        radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
+      });
+    }
+
     cm.bindPopup(
       (c.name ? `<div class="cell-loc">${esc(c.name)}</div>` : '') +
       `<strong>${meta.label}</strong> · ${esc(titleCase(c.district))}` +
@@ -205,15 +275,23 @@ export function renderCells(cells, districtName, visible) {
       `<button class="cell-details-btn" data-lat="${c.lat}" data-lng="${c.lng}">See details</button>` +
       `<div class="cell-details" hidden></div>`, { maxWidth: 230, autoPan: false }
     );
-    cm.on('popupopen', () => {
-      selectedCellId = cellId; emitState();   // click → pin + shareable URL
+    cm.on('popupopen', async () => {
+      selectedCellId = cellId; emitState();
+      // PR #32: Notify docked panel with cell data + day/night split
+      if (onCellSelect) {
+        const split = await computeCellSplit(c.lat, c.lng);
+        onCellSelect({ ...c, ...split, cellId });
+      }
       const popupEl = cm.getPopup()?.getElement();
       const btn = popupEl?.querySelector('.cell-details-btn');
       btn?.addEventListener('click', () => showCellDetails(c.lat, c.lng, popupEl, cm));
     });
-    cm.on('popupclose', () => { if (selectedCellId === cellId) { selectedCellId = null; emitState(); } });
+    cm.on('popupclose', () => {
+      if (selectedCellId === cellId) { selectedCellId = null; emitState(); }
+      if (onCellSelect) onCellSelect(null);
+    });
     cm.addTo(cellLayer);
-    if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }   // deep-link target
+    if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }
   }
   applyZoomMode();
   return counts;

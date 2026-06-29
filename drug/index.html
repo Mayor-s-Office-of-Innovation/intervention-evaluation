@@ -83,6 +83,12 @@
           <span class="tod-toggle__check" aria-hidden="true">✓</span>☾ Night</button>
       </div>
       <span class="tod-filter__hint field-hint">Day 6am–8pm · Night 8pm–6am · showing both</span>
+      <!-- Hour slider for granular time filtering (PR #32) -->
+      <div class="hour-slider-wrap" id="hour-slider-wrap" hidden>
+        <span class="hour-slider-label">…or drag for a specific window:</span>
+        <div class="hour-slider-bar" id="hour-slider-bar"></div>
+        <div class="hour-ticks"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>
+      </div>
     </section>
 
     <!-- Two co-headline cards: drug-activity reports (want DOWN) + dealer arrests (want UP). -->
@@ -111,10 +117,38 @@
     <wa-card class="panel">
       <div slot="header" class="panel__header">
         <h2 class="panel__title">Hotspots: what moved in the selected window</h2>
-        <div class="map-controls" id="map-controls"></div>
+        <div class="map-controls" id="map-controls">
+          <div class="map-controls" id="map-view-toggle"></div>
+        </div>
       </div>
       <div class="map-legend" id="map-legend"></div>
-      <div id="map" class="events-map"></div>
+      <!-- Day vs night split legend (shown in split view) -->
+      <div class="split-legend" id="split-legend" hidden>
+        <span class="k"><span class="sw day"></span>☀ Day 6am–8pm</span>
+        <span class="k"><span class="sw night"></span>☾ Night 8pm–6am</span>
+        <span style="color:var(--muted)">Marker size = total volume · split = day/night share</span>
+      </div>
+      <div class="map-with-panel" id="map-panel-wrap">
+        <div id="map" class="events-map"></div>
+        <div class="detail-panel" id="detail-panel">
+          <div class="detail-panel__head">
+            <span class="detail-panel__name" id="panel-name">—</span>
+            <button class="detail-panel__close" id="panel-close" aria-label="Close panel">✕</button>
+          </div>
+          <div class="detail-panel__clf" id="panel-clf"></div>
+          <div class="detail-panel__metrics" id="panel-metrics"></div>
+          <div class="detail-panel__section">
+            <span class="sh">Reports over time</span>
+            <div class="detail-panel__spark" id="panel-spark"></div>
+          </div>
+          <div class="detail-panel__section">
+            <span class="sh">Time of day · Day vs Night</span>
+            <div class="hourly-dist" id="panel-hourly"></div>
+            <div class="hourly-axis"><span>12a</span><span>noon</span><span>12a</span></div>
+            <div class="detail-panel__split" id="panel-split"></div>
+          </div>
+        </div>
+      </div>
       <small id="map-note" class="repro-note"></small>
     </wa-card>
 

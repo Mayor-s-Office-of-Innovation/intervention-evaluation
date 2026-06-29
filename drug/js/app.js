@@ -15,6 +15,7 @@ import {
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
+  setHourRange, setSplitView, getSplitView, onCellSelected, closeSelectedCell,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -365,12 +366,109 @@ function applyTod() {
 function wireTodToggles() {
   const btns = [...document.querySelectorAll('#tod-controls .tod-toggle')];
   btns.forEach(btn => btn.onclick = () => {
-    const active = btns.filter(b => b.classList.contains('is-active'));
-    if (btn.classList.contains('is-active') && active.length === 1) return;   // keep ≥1 selected
+    const activeBtns = btns.filter(b => b.classList.contains('is-active'));
+    if (btn.classList.contains('is-active') && activeBtns.length === 1) return;   // keep ≥1 selected
     btn.classList.toggle('is-active');
     btn.setAttribute('aria-pressed', btn.classList.contains('is-active'));
     applyTod();
   });
+}
+
+// ── PR #32: Hour slider for granular time-of-day filtering ──
+function buildHourSlider() {
+  const wrap = $('#hour-slider-wrap');
+  const bar = $('#hour-slider-bar');
+  if (!wrap || !bar) return;
+  wrap.hidden = false;
+  const DAY_START = 6, NIGHT_START = 20;
+  let segs = '';
+  for (let h = 0; h < 24; h++) {
+    const isNight = h < DAY_START || h >= NIGHT_START;
+    segs += `<div class="hour-seg${isNight ? ' is-night' : ''}" data-h="${h}"></div>`;
+  }
+  bar.innerHTML = segs;
+}
+
+// ── PR #32: Split view toggle (Combined vs Day vs Night markers) ──
+function buildViewToggle() {
+  const container = $('#map-view-toggle');
+  if (!container) return;
+  container.innerHTML = `
+    <button class="seg ${!getSplitView() ? 'is-active' : ''}" data-v="combined">Combined</button>
+    <button class="seg ${getSplitView() ? 'is-active' : ''}" data-v="split">Day vs night</button>`;
+  container.querySelectorAll('.seg').forEach(btn => {
+    btn.onclick = () => {
+      const isSplit = btn.dataset.v === 'split';
+      setSplitView(isSplit);
+      buildViewToggle();
+      const splitLegend = $('#split-legend');
+      if (splitLegend) splitLegend.hidden = !isSplit;
+      renderMap();
+    };
+  });
+}
+
+// ── PR #32: Docked detail panel for selected hotspot ──
+function wireDockedPanel() {
+  const panelWrap = $('#map-panel-wrap');
+  const closeBtn = $('#panel-close');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      panelWrap?.classList.remove('has-panel');
+      closeSelectedCell();
+    };
+  }
+  onCellSelected(cell => {
+    if (!cell) {
+      panelWrap?.classList.remove('has-panel');
+      return;
+    }
+    panelWrap?.classList.add('has-panel');
+    updateDockedPanel(cell);
+  });
+}
+
+function updateDockedPanel(cell) {
+  const meta = CATEGORY[cell.category];
+  $('#panel-name').textContent = cell.name || `${cell.lat.toFixed(4)}, ${cell.lng.toFixed(4)}`;
+  $('#panel-clf').innerHTML = `
+    <span class="clf-badge ${cell.category}">${meta.label}</span>
+    <span>${cell.district} · ≈110 m block</span>`;
+  const fmtRate = n => (n == null ? '—' : Number(n).toFixed(1));
+  $('#panel-metrics').innerHTML = `
+    <div class="detail-panel__metric"><span class="label">Before Lurie</span><span class="value">${fmtRate(cell.preRate)}/mo</span></div>
+    <div class="detail-panel__metric"><span class="label">Now</span><span class="value">${fmtRate(cell.nowRate)}/mo</span></div>
+    ${cell.expectedRate != null ? `<div class="detail-panel__metric"><span class="label">District-tide</span><span class="value">${fmtRate(cell.expectedRate)}</span></div>` : ''}`;
+  if (cell.monthly?.length) {
+    const W = 280, H = 60, pad = 4;
+    const max = Math.max(1, ...cell.monthly);
+    const n = cell.monthly.length;
+    const x = i => pad + (i / (n - 1)) * (W - 2 * pad);
+    const y = v => H - pad - (v / max) * (H - 2 * pad);
+    let d = '';
+    cell.monthly.forEach((v, i) => { d += `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)} `; });
+    const area = `M${x(0).toFixed(1)} ${H - pad} ` + cell.monthly.map((v, i) => `L${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ') + ` L${x(n - 1).toFixed(1)} ${H - pad} Z`;
+    $('#panel-spark').innerHTML = `<svg viewBox="0 0 ${W} ${H}">
+      <path d="${area}" fill="#f97316" fill-opacity="0.15"/>
+      <path d="${d.trim()}" fill="none" stroke="#f97316" stroke-width="2"/></svg>`;
+  }
+  const hourly = cell.hourly || new Array(24).fill(0);
+  const maxH = Math.max(1, ...hourly);
+  const DAY_START = 6, NIGHT_START = 20;
+  $('#panel-hourly').innerHTML = hourly.map((v, h) => {
+    const pct = Math.max(4, (v / maxH) * 100);
+    const isNight = h < DAY_START || h >= NIGHT_START;
+    return `<div class="hbar${isNight ? ' is-night' : ''}" style="height:${pct}%"></div>`;
+  }).join('');
+  const total = cell.day + cell.night;
+  const dayPct = total ? Math.round((cell.day / total) * 100) : 50;
+  const nightPct = 100 - dayPct;
+  let splitLabel = 'Even';
+  if (dayPct > 60) splitLabel = 'Mostly day';
+  else if (nightPct > 60) splitLabel = 'Mostly night';
+  $('#panel-split').innerHTML = `
+    <div class="split-bar"><span class="d" style="width:${dayPct}%"></span><span class="n" style="width:${nightPct}%"></span></div>
+    <div class="split-labels"><span>☀ Day ${dayPct}%</span><span>☾ Night ${nightPct}%</span></div>`;
 }
 
 // ── district (locked from homepage selection) ──
@@ -482,6 +580,9 @@ async function main() {
     onMapState(onMapStateChange);
     initDistrict();
     wireTodToggles();
+    buildHourSlider();      // PR #32
+    buildViewToggle();      // PR #32
+    wireDockedPanel();      // PR #32
     renderScrubber();
     renderMethodology();
     renderDistrict();
