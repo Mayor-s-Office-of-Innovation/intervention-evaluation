@@ -35,44 +35,110 @@
     <div class="app-header__inner">
       <a class="back-home" href="../"><wa-icon name="arrow-left"></wa-icon> All dashboards</a>
       <span class="app-header__eyebrow">San Francisco · OpenData</span>
-      <h1>Does the data support my hypothesis?</h1>
-      <p class="app-header__sub">
-        Check whether a neighborhood intervention had its intended effect, using live SF 911 dispatch data.
+      <h1 id="page-title">Add a new intervention</h1>
+      <p class="app-header__sub" id="page-sub">
+        Log work done and start tracking its impact using live SF 911 dispatch data.
       </p>
     </div>
   </header>
 
   <main class="app-main wa-stack wa-gap-xl">
 
-    <!-- ───────────── Inputs ───────────── -->
+    <!-- ───────────── Full Intervention Form ───────────── -->
     <wa-card class="panel" id="input-panel">
-      <h2 slot="header" class="panel__title">Describe your intervention</h2>
+      <h2 slot="header" class="panel__title" id="form-title">Add an intervention</h2>
 
       <div class="wa-stack wa-gap-l">
-        <wa-input id="in-what" label="What did you do?"
-                  placeholder="e.g. installed new lighting and trimmed trees for better sight lines"></wa-input>
+        <!-- Title (required) -->
+        <wa-input id="in-what" label="Intervention (title)"
+                  placeholder="e.g. Reduce illegal dumping in Chinatown" required></wa-input>
 
-        <div class="wa-grid" style="--min-column-size: 14rem;">
-          <wa-input id="in-when" type="date" label="When did it happen?"></wa-input>
-          <div class="wa-stack wa-gap-2xs">
-            <wa-select id="in-expect" label="What do you expect to change?"></wa-select>
-            <small id="expect-desc" class="field-hint"></small>
-          </div>
+        <!-- Description -->
+        <wa-textarea id="in-description" label="Description — problem statement"
+                     placeholder="What problem are you addressing?" rows="3"></wa-textarea>
+
+        <!-- Evidence -->
+        <wa-textarea id="in-evidence" label="Evidence"
+                     placeholder="What data or observations support this intervention?" rows="3"></wa-textarea>
+
+        <!-- Levers (expected change) -->
+        <div class="wa-stack wa-gap-2xs">
+          <wa-select id="in-expect" label="Levers — what do you expect to change?" multiple></wa-select>
+          <small id="expect-desc" class="field-hint"></small>
         </div>
 
+        <!-- Tactics -->
+        <wa-textarea id="in-tactics" label="Tactics"
+                     placeholder="What specific actions are being taken?" rows="2"></wa-textarea>
+
+        <!-- Owner & Agencies -->
+        <div class="wa-grid" style="--min-column-size: 14rem;">
+          <wa-input id="in-owner" label="Owner"
+                    placeholder="Who is responsible?"></wa-input>
+          <wa-input id="in-agencies" label="Associated agencies"
+                    placeholder="e.g. SFPD, DPW"></wa-input>
+        </div>
+
+        <!-- Status & District -->
+        <div class="wa-grid" style="--min-column-size: 14rem;">
+          <wa-select id="in-status" label="Status" value="open_in_progress">
+            <wa-option value="open_in_progress">Open · In progress</wa-option>
+            <wa-option value="at_risk_on_hold">At risk · On hold</wa-option>
+          </wa-select>
+          <wa-select id="in-district" label="District" required>
+            <wa-option value="Central">Central</wa-option>
+            <wa-option value="Northern">Northern</wa-option>
+            <wa-option value="Mission">Mission</wa-option>
+            <wa-option value="Tenderloin">Tenderloin</wa-option>
+          </wa-select>
+        </div>
+
+        <!-- Dates -->
+        <div class="wa-grid" style="--min-column-size: 14rem;">
+          <wa-input id="in-when" type="date" label="Start date"></wa-input>
+          <wa-input id="in-end-date" type="date" label="End date" disabled
+                    hint="Set when closing the intervention"></wa-input>
+        </div>
+
+        <!-- Roadblock, Outcomes, Notes -->
+        <wa-textarea id="in-roadblock" label="Roadblock / flag"
+                     placeholder="Any blockers or concerns?" rows="2"></wa-textarea>
+        <wa-textarea id="in-outcomes" label="Outcomes"
+                     placeholder="What results have been observed?" rows="2"></wa-textarea>
+        <wa-textarea id="in-notes" label="Notes"
+                     placeholder="Any additional information" rows="2"></wa-textarea>
+
+        <!-- Location -->
         <div class="wa-stack wa-gap-2xs">
           <label class="field-label">Where did you do it? <span class="field-hint">Click the map to drop a pin.</span></label>
           <div id="picker-map" class="picker-map"></div>
           <small id="coords-readout" class="coords-readout"></small>
         </div>
 
+        <!-- Radius slider (lowered minimum to 10m) -->
         <wa-slider id="radius-slider" label="Area radius (meters)"
-                   min="100" max="1000" value="250" step="50" with-tooltip
+                   min="10" max="1000" value="250" step="10" with-tooltip
                    hint="Size of the circle searched around the pin."></wa-slider>
 
+        <!-- Attachments dropzone -->
+        <div class="wa-stack wa-gap-2xs">
+          <label class="field-label">Attachments</label>
+          <div class="dropzone" id="attachment-drop">
+            <input type="file" id="attachment-input" accept="image/*,.pdf" multiple hidden>
+            <p class="dropzone-text">📎 Drop photos of the work done, or <button type="button" class="dropzone-browse">browse</button></p>
+            <small class="dropzone-hint">JPG, PNG, PDF — max 10 MB each</small>
+          </div>
+          <div id="attachment-preview" class="attachment-preview"></div>
+        </div>
+
+        <!-- Person submitting -->
+        <wa-input id="in-submitter" label="Your name"
+                  placeholder="Who is submitting this?" required></wa-input>
+
+        <!-- Submit button -->
         <wa-button id="run-btn" variant="brand" appearance="accent" size="l">
-          <wa-icon slot="start" name="magnifying-glass-chart"></wa-icon>
-          Check the data
+          <wa-icon slot="start" name="plus"></wa-icon>
+          <span id="submit-label">Submit intervention</span>
         </wa-button>
       </div>
     </wa-card>

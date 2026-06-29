@@ -35,3 +35,68 @@ export async function deleteIntervention(id) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
+
+export async function getIntervention(id) {
+  const res = await fetch(`${API}/interventions/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).item;
+}
+
+export async function createFullIntervention(data) {
+  const res = await fetch(`${API}/interventions/full`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json; // { id, item }
+}
+
+export async function updateIntervention(id, data) {
+  const res = await fetch(`${API}/interventions/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json; // { item }
+}
+
+export async function closeIntervention(id) {
+  const res = await fetch(`${API}/interventions/${encodeURIComponent(id)}/close`, { method: 'POST' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json; // { item }
+}
+
+export async function reopenIntervention(id) {
+  const res = await fetch(`${API}/interventions/${encodeURIComponent(id)}/reopen`, { method: 'POST' });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json; // { item }
+}
+
+export async function uploadAttachment(interventionId, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(`${API}/interventions/${encodeURIComponent(interventionId)}/attachments`, {
+    method: 'POST',
+    body: formData,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+  return json; // { attachment }
+}
+
+export async function listAttachments(interventionId) {
+  const res = await fetch(`${API}/interventions/${encodeURIComponent(interventionId)}/attachments`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return (await res.json()).attachments;
+}
+
+export function getAttachmentUrl(interventionId, filename) {
+  return `${API}/interventions/${encodeURIComponent(interventionId)}/attachments/${encodeURIComponent(filename)}`;
+}

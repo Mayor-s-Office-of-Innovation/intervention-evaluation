@@ -1,5 +1,5 @@
 import { parseTSV, groupBy } from './tsv.js';
-import { listInterventions, deleteIntervention } from './interventions-client.js';
+import { listInterventions, deleteIntervention, closeIntervention, reopenIntervention } from './interventions-client.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
@@ -65,7 +65,14 @@ function getOKRsForDistrict(district) {
   ];
 }
 
-const STATUS_LABELS = { active: 'Active', completed: 'Completed', planned: 'Planned' };
+const STATUS_LABELS = {
+  active: 'Active',
+  completed: 'Completed',
+  planned: 'Planned',
+  open_in_progress: 'Open · In progress',
+  closed_completed: 'Closed · Completed',
+  at_risk_on_hold: 'At risk · On hold',
+};
 const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Inconclusive' };
 
 // Map KR labels to their parent OKR for color-coding
@@ -95,7 +102,7 @@ const EMERGING_SIGNALS = {
 };
 
 let currentDistrict = DISTRICTS[0];
-let currentTab = 'okrs';
+let showClosed = false;           // whether to show closed interventions
 let interventionsByDistrict = {};
 let aggregatesData = {};
 let emergingSignalsCache = {};
@@ -218,24 +225,6 @@ function renderDistrictTabs() {
   `;
 }
 
-function renderContentTabs() {
-  return `
-    <div class="content-tabs" role="tablist" aria-label="View type">
-      <button class="content-tab${currentTab === 'okrs' ? ' is-active' : ''}"
-              role="tab"
-              aria-selected="${currentTab === 'okrs'}"
-              data-tab="okrs">
-        OKRs
-      </button>
-      <button class="content-tab${currentTab === 'interventions' ? ' is-active' : ''}"
-              role="tab"
-              aria-selected="${currentTab === 'interventions'}"
-              data-tab="interventions">
-        Interventions
-      </button>
-    </div>
-  `;
-}
 
 function renderOKRCards() {
   const okrs = getOKRsForDistrict(currentDistrict);
@@ -282,23 +271,56 @@ function renderKRBadge(kr) {
 const isStaleEval = i => i.last_evaluated && (Date.now() - new Date(i.last_evaluated).getTime()) > 30 * 24 * 60 * 60 * 1000;
 
 // Table columns in order. `always` columns always render; the rest render only when at least one row
-// has a value — so columns we don't have data for yet (tactics/owner/agencies/status/impact/last-eval)
-// are hidden, and reappear automatically once curated data fills them.
+// has a value — so columns we don't have data for yet are hidden until data fills them.
 const INTERVENTION_COLUMNS = [
+  { header: 'ID', cls: 'id', always: true, cell: i => `<span class="mono">${esc(i.intervention_id || i.id?.slice(0,8) || '—')}</span>` },
   { header: 'Intervention', cls: 'name', always: true, cell: i => `<strong>${esc(i.intervention || '')}</strong>` },
-  { header: 'Target KR', cls: 'kr', has: i => i.target_kr, cell: i => renderKRBadge(i.target_kr) },
-  { header: 'Tactics', cls: 'tactics', has: i => i.tactics, cell: i => esc(i.tactics || '') },
+  { header: 'Levers', cls: 'levers', has: i => i.levers?.length || i.target_kr, cell: i => renderLeverBadges(i.levers, i.target_kr) },
+  { header: 'Status', cls: 'status', always: true, cell: i => renderStatusBadge(i.status) },
   { header: 'Owner', cls: 'owner', has: i => i.owner, cell: i => esc(i.owner || '') },
-  { header: 'Agencies', cls: 'agencies', has: i => i.agencies, cell: i => esc(i.agencies || '') },
-  { header: 'Status', cls: 'status', has: i => i.status, cell: i => `<span class="status-badge status--${i.status}">${STATUS_LABELS[i.status] || i.status}</span>` },
   { header: 'Started', cls: 'start', has: i => i.start_date, cell: i => formatDate(i.start_date) },
-  { header: 'Impact', cls: 'impact', has: i => i.impact, cell: i => renderImpactBadge(i.impact) },
-  { header: 'Last Evaluated', cls: 'eval', has: i => i.last_evaluated, tdClass: i => isStaleEval(i) ? 'is-stale' : '',
-    cell: i => `${formatDate(i.last_evaluated)}${isStaleEval(i) ? ' <span class="stale-flag" title="Over 30 days since last evaluation">stale</span>' : ''}` },
-  { header: '', cls: 'actions', always: true, cell: i =>
-    `${i.eval_link ? `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>` : ''}` +
-    `${i.id ? `<button class="intervention-delete" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}" aria-label="Remove ${esc(i.intervention)}" title="Remove"><wa-icon name="trash" label=""></wa-icon></button>` : ''}` || '—' },
+  { header: 'Submitted by', cls: 'submitted', always: true, cell: i => esc(i.person_submitted || '—') },
+  { header: 'Last edited', cls: 'edited', always: true, cell: i => formatDate(i.last_edited) },
+  { header: '', cls: 'actions', always: true, cell: renderActions },
 ];
+
+function renderLeverBadges(levers, targetKr) {
+  if (levers?.length) {
+    return levers.map(l => {
+      const okrId = KR_TO_OKR[l] || 'default';
+      return `<span class="kr-badge kr-badge--${okrId}">${esc(l)}</span>`;
+    }).join(' ');
+  }
+  if (targetKr) return renderKRBadge(targetKr);
+  return '—';
+}
+
+function renderStatusBadge(status) {
+  const s = status || 'open_in_progress';
+  const label = STATUS_LABELS[s] || s;
+  const cls = s.replace(/_/g, '-');
+  return `<span class="status-badge status--${cls}">${label}</span>`;
+}
+
+function renderActions(i) {
+  const parts = [];
+  // Edit link
+  if (i.id) {
+    parts.push(`<a href="./hypothesis/?edit=${esc(i.id)}" class="action-link">Edit</a>`);
+  } else if (i.eval_link) {
+    parts.push(`<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>`);
+  }
+  // Close/Reopen button
+  if (i.id) {
+    const isClosed = i.status === 'closed_completed';
+    if (isClosed) {
+      parts.push(`<button class="action-btn action-reopen" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}">Reopen</button>`);
+    } else {
+      parts.push(`<button class="action-btn action-close" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}">Close</button>`);
+    }
+  }
+  return parts.join(' ') || '—';
+}
 
 function renderInterventionRow(i, cols) {
   return `<tr class="intervention-row">${cols.map(c =>
@@ -313,16 +335,27 @@ const KR_LABEL = {
 };
 const sentenceCase = s => { s = (s || '').trim(); return s ? s[0].toUpperCase() + s.slice(1) : s; };
 
-// Map a saved hypothesis (KV) to an interventions-table row. URL-derived columns are filled; the
-// curation columns (tactics/owner/agencies/status) and impact/last-evaluated are blank → render as "—"
-// (Phases 2–4). `eval_link` reopens the saved evaluation.
+// Map a saved hypothesis (KV) to an interventions-table row. Now includes all tracker fields.
 function savedToRow(s) {
   return {
-    id: s.id,   // present only on saved (KV) rows → enables the delete button
-    intervention: sentenceCase(s.what) || 'Saved intervention',
+    id: s.id,
+    intervention_id: s.intervention_id || null,
+    intervention: s.intervention || sentenceCase(s.what) || 'Saved intervention',
+    description: s.description || '',
+    evidence: s.evidence || '',
+    tactics: s.tactics || '',
+    owner: s.owner || '',
+    agencies: s.agencies || '',
+    levers: s.levers || [],
     target_kr: KR_LABEL[s.dp] || (s.dp ? sentenceCase(s.dp) : ''),
-    tactics: '', owner: '', agencies: '', status: '',
-    start_date: s.date || '', impact: '', last_evaluated: '',
+    status: s.status || 'open_in_progress',
+    start_date: s.start_date || s.date || '',
+    end_date: s.end_date || '',
+    roadblock: s.roadblock || '',
+    outcomes: s.outcomes || '',
+    notes: s.notes || '',
+    person_submitted: s.person_submitted || '',
+    last_edited: s.last_edited || s.created || '',
     eval_link: s.url,
   };
 }
@@ -332,13 +365,31 @@ function renderInterventions() {
   const saved = savedInterventions
     .filter(s => (s.district || 'Other') === currentDistrict)
     .map(savedToRow);
-  const rows = [...curated, ...saved];
-  const head = `<p class="interventions-head">${esc(currentDistrict)} — ${rows.length} intervention${rows.length === 1 ? '' : 's'}</p>`;
-  if (rows.length === 0) {
+  const allRows = [...curated, ...saved];
+
+  // Split into open and closed
+  const openRows = allRows.filter(r => r.status !== 'closed_completed');
+  const closedRows = allRows.filter(r => r.status === 'closed_completed');
+  const rows = showClosed ? allRows : openRows;
+
+  const openCount = openRows.length;
+  const closedCount = closedRows.length;
+  const head = `<p class="interventions-head">
+    ${esc(currentDistrict)} — ${allRows.length} intervention${allRows.length === 1 ? '' : 's'}
+    <span class="interventions-counts">${openCount} open · ${closedCount} closed</span>
+  </p>`;
+
+  if (rows.length === 0 && closedCount === 0) {
     return head + '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
   }
+
   // Only show columns that have data in at least one row (plus the always-on ones).
   const cols = INTERVENTION_COLUMNS.filter(c => c.always || rows.some(r => c.has(r)));
+
+  const toggleLink = closedCount > 0
+    ? `<button class="view-closed-toggle" type="button">${showClosed ? 'Hide' : 'View'} closed interventions (${closedCount})</button>`
+    : '';
+
   return head + `
     <div class="intervention-table-wrap">
       <table class="intervention-table">
@@ -346,20 +397,23 @@ function renderInterventions() {
         <tbody>${rows.map(r => renderInterventionRow(r, cols)).join('')}</tbody>
       </table>
     </div>
+    ${toggleLink}
   `;
 }
 
-function renderContent() {
-  return currentTab === 'okrs' ? renderOKRCards() : renderInterventions();
-}
 
 function render(container) {
   container.innerHTML = `
     ${renderDistrictTabs()}
-    ${renderContentTabs()}
-    <div class="tab-content">
-      ${renderContent()}
-    </div>
+    <section class="section-okrs">
+      <p class="section-label">OKRs</p>
+      ${renderOKRCards()}
+    </section>
+    <div class="section-divider"></div>
+    <section class="section-interventions">
+      <p class="section-label">Interventions</p>
+      ${renderInterventions()}
+    </section>
   `;
   wireEvents(container);
 }
@@ -372,29 +426,51 @@ function wireEvents(container) {
     });
   });
 
-  container.querySelectorAll('.content-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      currentTab = btn.dataset.tab;
-      render(container);
-    });
-  });
 
-  // Soft-delete a saved intervention from its table row (curated TSV rows have no id → no button).
-  container.querySelectorAll('.intervention-delete').forEach(btn => {
+  // Close an intervention
+  container.querySelectorAll('.action-close').forEach(btn => {
     btn.addEventListener('click', async () => {
       const { id, name } = btn.dataset;
-      if (!confirm(`Remove "${name}"?`)) return;
+      if (!confirm(`Close "${name}"?`)) return;
       btn.disabled = true;
       try {
-        await deleteIntervention(id);
-        savedInterventions = savedInterventions.filter(s => s.id !== id);
+        const { item } = await closeIntervention(id);
+        // Update local cache
+        const idx = savedInterventions.findIndex(s => s.id === id);
+        if (idx >= 0) savedInterventions[idx] = item;
         render(container);
       } catch (e) {
         btn.disabled = false;
-        alert('Could not remove — please try again.');
+        alert('Could not close — please try again.');
       }
     });
   });
+
+  // Reopen an intervention
+  container.querySelectorAll('.action-reopen').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const { id, name } = btn.dataset;
+      btn.disabled = true;
+      try {
+        const { item } = await reopenIntervention(id);
+        const idx = savedInterventions.findIndex(s => s.id === id);
+        if (idx >= 0) savedInterventions[idx] = item;
+        render(container);
+      } catch (e) {
+        btn.disabled = false;
+        alert('Could not reopen — please try again.');
+      }
+    });
+  });
+
+  // Toggle showing closed interventions
+  const toggleBtn = container.querySelector('.view-closed-toggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      showClosed = !showClosed;
+      render(container);
+    });
+  }
 }
 
 async function loadAggregates() {
@@ -465,7 +541,7 @@ async function loadEmergingSignals() {
 }
 
 // Saved hypotheses — always live from the Worker. Fetched independently of the main render so a Worker
-// outage never blocks the homepage; the table re-renders once they arrive (if it's the visible tab).
+// outage never blocks the homepage; the table re-renders once they arrive.
 async function loadSaved(container) {
   try {
     savedInterventions = await listInterventions();
@@ -473,7 +549,7 @@ async function loadSaved(container) {
     console.warn('saved interventions unavailable —', e.message);
     return;   // table degrades to curated (TSV) rows only
   }
-  if (currentTab === 'interventions') render(container);
+  render(container);
 }
 
 async function init() {

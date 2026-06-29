@@ -60,6 +60,17 @@ a { color: var(--c-blue); }
 .app-main { max-width: 1040px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
 .section-label { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 700; color: var(--muted); margin: 0 0 1rem; }
 
+/* Section divider between OKRs and Interventions */
+.section-divider {
+  height: 1px;
+  background: var(--c-line);
+  margin: 2rem 0;
+}
+.section-okrs,
+.section-interventions {
+  margin-bottom: 0;
+}
+
 /* ───────────── OKR dashboard cards ───────────── */
 .okr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1.1rem; }
 
@@ -376,14 +387,28 @@ html.wa-dark .intervention-row:hover td {
   border-radius: 4px;
   background: var(--c-line);
   color: var(--muted);
+  white-space: nowrap;
 }
-.status--active { background: #dbeafe; color: #1d4ed8; }
-.status--completed { background: #dcfce7; color: #15803d; }
-.status--planned { background: #fef3c7; color: #b45309; }
+.status--active,
+.status--open-in-progress { background: #dbeafe; color: #1d4ed8; }
+.status--completed,
+.status--closed-completed { background: #dcfce7; color: #15803d; }
+.status--planned,
+.status--at-risk-on-hold { background: #fef3c7; color: #b45309; }
 
-html.wa-dark .status--active { background: #1e3a5f; color: #93c5fd; }
-html.wa-dark .status--completed { background: #14532d; color: #86efac; }
-html.wa-dark .status--planned { background: #451a03; color: #fcd34d; }
+html.wa-dark .status--active,
+html.wa-dark .status--open-in-progress { background: #1e3a5f; color: #93c5fd; }
+html.wa-dark .status--completed,
+html.wa-dark .status--closed-completed { background: #14532d; color: #86efac; }
+html.wa-dark .status--planned,
+html.wa-dark .status--at-risk-on-hold { background: #451a03; color: #fcd34d; }
+
+/* Monospace for IDs */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: .82rem;
+  color: var(--muted);
+}
 
 /* Stale evaluation flag */
 .stale-flag {
@@ -424,12 +449,78 @@ html.wa-dark .stale-flag {
 .interventions-head {
   font-weight: 700; font-size: .95rem; color: var(--text);
   margin: 0 0 .6rem;
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.interventions-counts {
+  font-weight: 500;
+  font-size: .78rem;
+  color: var(--muted);
 }
 .intervention-empty {
   color: var(--muted);
   font-size: .88rem;
   font-style: italic;
   margin: 0;
+}
+
+/* Action link/button in table */
+.action-link {
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--c-blue);
+  text-decoration: none;
+}
+.action-link:hover {
+  text-decoration: underline;
+}
+.action-btn {
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .2rem .5rem;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  background: transparent;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.action-close {
+  color: #b45309;
+}
+.action-close:hover {
+  background: #fef3c7;
+}
+.action-reopen {
+  color: var(--c-blue);
+}
+.action-reopen:hover {
+  background: #dbeafe;
+}
+html.wa-dark .action-close:hover {
+  background: #451a03;
+}
+html.wa-dark .action-reopen:hover {
+  background: #1e3a5f;
+}
+
+/* View closed toggle */
+.view-closed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .75rem;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--c-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+.view-closed-toggle:hover {
+  text-decoration: underline;
 }
 
 /* Impact badges */

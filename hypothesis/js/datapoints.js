@@ -184,4 +184,23 @@ export const DATAPOINTS = [
   },
 ];
 
-export const getDataPoint = key => DATAPOINTS.find(d => d.key === key) || DATAPOINTS[0];
+export const getDataPoint = key => DATAPOINTS.find(d => d.key === key) || LEVERS.find(d => d.key === key) || DATAPOINTS[0];
+
+// Extended list of levers (expected changes) for the intervention form
+// Includes all DATAPOINTS plus additional common intervention outcomes
+export const LEVERS = [
+  ...DATAPOINTS,
+  // Additional levers not in DATAPOINTS
+  { key: 'encampments', label: 'Reduce encampments' },
+  { key: 'animal_incidents', label: 'Reduce animal incidents' },
+  { key: 'fraud', label: 'Reduce fraud' },
+  { key: 'street_robbery', label: 'Reduce street robbery' },
+  { key: 'shoplifting', label: 'Reduce shoplifting' },
+  { key: 'commercial_burglary', label: 'Reduce commercial burglary' },
+  { key: 'graffiti', label: 'Reduce graffiti' },
+  { key: 'noise', label: 'Reduce noise complaints' },
+  { key: 'public_safety', label: 'Improve public safety' },
+  { key: 'cleanliness', label: 'Improve cleanliness' },
+  { key: 'lighting', label: 'Improve lighting' },
+  { key: 'public_space', label: 'Increase public space use' },
+];

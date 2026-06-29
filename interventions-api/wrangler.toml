@@ -13,6 +13,12 @@ compatibility_date = "2026-06-01"
 binding = "INTERVENTIONS"
 id = "f5d4e1a36d594b448e2179f85c32f8d2"
 
+# R2 bucket for attachments (photos). Create it once:
+#   npx wrangler r2 bucket create interventions-attachments
+[[r2_buckets]]
+binding = "ATTACHMENTS"
+bucket_name = "interventions-attachments"
+
 [vars]
 # Comma-separated origins allowed for CORS AND that a saved URL must come from (the main spam defense).
 ALLOWED_ORIGINS = "https://mayor-s-office-of-innovation.github.io,http://localhost:8090,http://127.0.0.1:8090"
