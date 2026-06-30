@@ -62,22 +62,62 @@ test('transition map signal toggle (encampment / 911) works', async ({ page }) =
   await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();
 });
 
-test('block popup shows a monthly sparkline; zooming in reveals individual report markers with a hover overlay', async ({ page }) => {
-  trackErrors(page);
+test('map time-of-day filter: chips reclassify the map (granular buckets), multi-select, and reset', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('northern'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+
+  // All + the 4 granular buckets render; "All" is active by default.
+  await expect(page.locator('#map-tod-filter .map-tod-chip')).toHaveCount(5);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveText('All');
+
+  const counts = async () => (await page.locator('#map-legend .legend-count').allTextContents()).join('/');
+  const all = await counts();
+
+  // A single bucket re-classifies off the baked monthly_tod arrays → different legend counts.
+  await page.locator('.map-tod-chip[data-tod="morning"]').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveText('Morning');
+  expect(await counts()).not.toBe(all);
+
+  // Multi-select: adding a second bucket keeps both active (no error, still classifies).
+  await page.locator('.map-tod-chip[data-tod="night"]').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveCount(2);
+
+  // "All" clears the filter and restores the unfiltered classification.
+  await page.locator('.map-tod-chip[data-tod-all]').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveText('All');
+  expect(await counts()).toBe(all);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('block popup shows a sparkline + "See details" breakdown; cells persist when zoomed in (no marker swap)', async ({ page }) => {
+  const errors = trackErrors(page);
   await page.goto(url('mission'), { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
-  // sparkline in a block popup
+  // click a classified block cell → sparkline popup + a "See details" button
   await page.locator('#map path.leaflet-interactive[fill]:not([fill="none"])').first().click({ force: true });
   await page.waitForTimeout(300);
   await expect(page.locator('.leaflet-popup-content .spark')).toBeVisible();
+  // grab this cell's coords (so we can zoom onto it and confirm cells aren't culled/swapped)
+  const cellBtn = page.locator('.cell-details-btn');
+  const lat = parseFloat(await cellBtn.getAttribute('data-lat'));
+  const lng = parseFloat(await cellBtn.getAttribute('data-lng'));
+  // "See details" lazy-loads the per-report markers dataset and renders the incident-type breakdown
+  await cellBtn.click();
+  await expect(page.locator('.cell-details__header')).toBeVisible();
+  await expect(page.locator('.cell-details .breakdown-row, .cell-details__empty').first()).toBeVisible();
   await page.keyboard.press('Escape');
-  // zoom past the threshold → individual markers + hint + hover overlay
-  await page.evaluate(() => window.__map.setView([37.765, -122.419], 17));
-  await page.waitForTimeout(1200);
-  await expect(page.locator('.map-hint')).toBeVisible();
-  const marker = page.locator('#map path.leaflet-interactive[fill]:not([fill="none"])').first();
-  await marker.hover({ force: true });
-  await expect(page.locator('.marker-overlay')).toBeVisible();
+  // zooming past the OLD threshold (17) onto a cell keeps the CELLS — no swap to markers, no hint/overlay
+  await page.evaluate(([la, ln]) => window.__map.setView([la, ln], 18), [lat, lng]);
+  await page.waitForTimeout(800);
+  await expect(page.locator('#map path.leaflet-interactive[fill]:not([fill="none"])').first()).toBeVisible();
+  await expect(page.locator('.map-hint')).toHaveCount(0);
+  await expect(page.locator('.marker-overlay')).toHaveCount(0);
+  expect(errors, errors.join('\n')).toEqual([]);
 });
 
 test('clicking a block cell pins its popup, deep-links the URL (replaceState, no history spam), and a shared link restores it', async ({ page }) => {

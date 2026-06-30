@@ -24,7 +24,7 @@ import os
 import sys
 from collections import defaultdict, Counter
 
-from tod import BUCKETS, tod_bucket
+from tod import BUCKETS, tod_bucket, TOD_BUCKET_NAMES, tod_granular_bucket
 from signals import SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL
 
 
@@ -43,6 +43,12 @@ DATA = os.path.join(os.path.dirname(HERE), "data")
 PRE_START, PRE_END = "2023-01", "2024-12"   # pre-Lurie baseline (24 months, 2 summers)
 PRE_MONTHS = 24
 NOW_MONTHS = 3                               # "hot now" = trailing 3 complete months (D12)
+
+# When True, the latest (in-progress) calendar month is treated as the newest analysis month so the
+# map's "now" window reflects the freshest data, even though that month is not yet complete (its monthly
+# RATE reads slightly low). Deliberate choice (2026-06-29): freshness over the partial-month false-drop
+# guard. Set False to revert to the prior convention (analyze only through the last COMPLETE month).
+INCLUDE_PARTIAL_MONTH = True
 
 # ── Tunable classification knobs (D12) ──
 CELL_DECIMALS = 3        # ~111 m N–S cells (block-ish)
@@ -68,9 +74,13 @@ MAP_LABEL = {
 }
 
 
-def latest_complete_month():
+def latest_analysis_month():
+    """The newest month the map analyzes. With INCLUDE_PARTIAL_MONTH the current (in-progress) month is
+    used; otherwise the last COMPLETE month (the current month is partial → previous is complete)."""
     today = datetime.date.today()
-    y, m = today.year, today.month  # current month is partial → previous is the latest complete
+    y, m = today.year, today.month
+    if INCLUDE_PARTIAL_MONTH:
+        return f"{y:04d}-{m:02d}"
     m -= 1
     if m == 0:
         m, y = 12, y - 1
@@ -110,9 +120,13 @@ def classify(key, latest, nowset, summary):
     # track district so we can normalize against the district "tide".
     # `m` is the total monthly histogram (the parity oracle, unchanged); `m_day`/`m_night` are the
     # day/night splits the frontend filter selects (plan-time-of-day.md §3). m == m_day + m_night.
+    # `m_tod` holds the 4 granular buckets (morning/afternoon/evening/night — a finer partition than
+    # day/night) the map's "Time of day" chips select; sum of the 4 == m (verified below).
     cells = defaultdict(lambda: {"pre": 0, "now": 0, "lat": 0.0, "lng": 0.0, "n": 0, "dist": None,
                                  "m": defaultdict(int), "m_day": defaultdict(int),
-                                 "m_night": defaultdict(int), "names": Counter()})
+                                 "m_night": defaultdict(int),
+                                 "m_tod": {b: defaultdict(int) for b in TOD_BUCKET_NAMES},
+                                 "names": Counter()})
     dist_pre = defaultdict(int)
     dist_now = defaultdict(int)
     # Full per-district monthly histogram (every in-district report, aligned to MONTHS). The browser
@@ -121,6 +135,9 @@ def classify(key, latest, nowset, summary):
     # too so the tide can be recomputed within the selected day/night window.
     dist_month = defaultdict(lambda: defaultdict(int))
     dist_month_tod = {b: defaultdict(lambda: defaultdict(int)) for b in BUCKETS}
+    # Per-district monthly histogram split by the 4 granular buckets — the matching denominator so the
+    # map's time-of-day filter normalizes the cell against the SAME slice of the district tide.
+    dist_month_todg = {b: defaultdict(lambda: defaultdict(int)) for b in TOD_BUCKET_NAMES}
     for r in recs:
         cy = round(r["lat"], CELL_DECIMALS)
         cx = round(r["lng"], CELL_DECIMALS)
@@ -132,10 +149,13 @@ def classify(key, latest, nowset, summary):
             c["names"][clean_loc(loc)] += 1
         ym = r["ym"]
         b = tod_bucket(r.get("hour"))
+        gb = tod_granular_bucket(r.get("hour"))
         c["m"][ym] += 1
         c["m_" + b][ym] += 1
+        c["m_tod"][gb][ym] += 1
         dist_month[r["district"]][ym] += 1
         dist_month_tod[b][r["district"]][ym] += 1
+        dist_month_todg[gb][r["district"]][ym] += 1
         if in_pre(ym):
             c["pre"] += 1; dist_pre[r["district"]] += 1
         elif ym in nowset:
@@ -195,7 +215,15 @@ def classify(key, latest, nowset, summary):
             "monthly": [c["m"].get(mo, 0) for mo in MONTHS],  # aligned to meta.months — the raw material
             "monthly_day": [c["m_day"].get(mo, 0) for mo in MONTHS],     # day/night splits (sum == monthly)
             "monthly_night": [c["m_night"].get(mo, 0) for mo in MONTHS],
+            # granular time-of-day splits (the 4 buckets sum to monthly — see assertion below)
+            "monthly_tod": {b: [c["m_tod"][b].get(mo, 0) for mo in MONTHS] for b in TOD_BUCKET_NAMES},
         })
+
+    # Parity guard: the 4 granular buckets must repartition the monthly total exactly (mirrors the
+    # day/night `m == m_day + m_night` invariant). Catches any hour-bucketing drift at build time.
+    for cell in out:
+        gsum = [sum(vals) for vals in zip(*cell["monthly_tod"].values())]
+        assert gsum == cell["monthly"], f"granular buckets != monthly for a {key} cell"
 
     classified = sum(counts.values())
     summary[key] = {
@@ -211,6 +239,11 @@ def classify(key, latest, nowset, summary):
                                  for d in TARGET_DISTRICTS},
         "district_monthly_night": {DISTRICT_LABEL[d]: [dist_month_tod["night"][d].get(mo, 0) for mo in MONTHS]
                                    for d in TARGET_DISTRICTS},
+        # granular per-bucket district tide (sum of the 4 == district_monthly), the matching denominator
+        # for the map's time-of-day filter
+        "district_monthly_tod": {b: {DISTRICT_LABEL[d]: [dist_month_todg[b][d].get(mo, 0) for mo in MONTHS]
+                                     for d in TARGET_DISTRICTS}
+                                 for b in TOD_BUCKET_NAMES},
         "counts": dict(counts),
         "cells": len(out),
         "classified_fixed_preset": classified,
@@ -244,10 +277,11 @@ def month_axis(start_ym, end_ym):
 
 
 if __name__ == "__main__":
-    latest = latest_complete_month()
+    latest = latest_analysis_month()
     nowset = now_window(latest)
-    MONTHS = month_axis(PRE_START, latest)   # sparkline x-axis (2023-01 → latest complete)
-    print(f"Lurie split: pre {PRE_START}…{PRE_END} vs now {sorted(nowset)} (latest complete {latest})")
+    MONTHS = month_axis(PRE_START, latest)   # sparkline x-axis (2023-01 → latest analysis month)
+    partial = " (PARTIAL/in-progress)" if INCLUDE_PARTIAL_MONTH else " (complete)"
+    print(f"Lurie split: pre {PRE_START}…{PRE_END} vs now {sorted(nowset)} (latest {latest}{partial})")
     print(f"Knobs: cell={CELL_DECIMALS}dp floor={FLOOR} hot_rate(per-signal)={HOT_RATE}/mo band=±{BAND}")
 
     keys = sys.argv[1:] or list(MAP_SIGNALS.keys())
@@ -258,6 +292,8 @@ if __name__ == "__main__":
         "lurie_inauguration": "2025-01-08",
         "pre_window": [PRE_START, PRE_END],
         "now_window": sorted(nowset),
+        "latest_month": latest,
+        "latest_month_partial": INCLUDE_PARTIAL_MONTH,   # newest month is in-progress → rate reads low
         "months": MONTHS,
         "lurie_month": "2025-01",
         "knobs": {"cell_decimals": CELL_DECIMALS, "floor": FLOOR,

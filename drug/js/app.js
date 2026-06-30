@@ -13,7 +13,7 @@ import {
   monthIndex, prettyMonth, trend12, trailing12Line, priorYearLine, fmtPct, momentumN,
 } from '../../shared/rollup.js';
 import {
-  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
+  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
@@ -314,11 +314,10 @@ async function renderMap() {
   const monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
   const dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
              || sigMeta.district_monthly;
-  setTodFilter(todFilter);   // marker layer + cell-details honor the same filter
+  setTodFilter(todFilter);   // cell-details breakdown honors the same filter
   const classified = classifyCells(transitionData[mapSignal], dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
-  setMapWindow(winSpan, TMETA.pre_window);
-  setMarkers(mapSignal, () => loadMarkers(mapSignal));
+  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded for the per-cell "See details" breakdown
   $('#map-legend').innerHTML = Object.entries(CATEGORY).map(([k, m]) => `
     <button class="legend-item ${visibleCats.has(k) ? '' : 'is-off'}" data-cat="${k}"
             style="--cat:${m.color}" title="Click to show/hide on the map" aria-pressed="${visibleCats.has(k)}">
@@ -337,8 +336,8 @@ async function renderMap() {
     `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so citywide growth ` +
     `doesn’t read as local change. Built on community drug-activity reports only (never enforcement). ` +
     `This is the displacement view — where activity persisted, cooled, or emerged as people were moved around. ` +
-    `<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> to pin a shareable link; ` +
-    `<strong>zoom in</strong> for individual reports.`;
+    `<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> for its monthly trend, ` +
+    `a breakdown of report types, and a shareable link.`;
 
   if (pendingRestore) {
     const r = pendingRestore; pendingRestore = null;

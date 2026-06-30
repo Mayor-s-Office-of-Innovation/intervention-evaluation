@@ -12,8 +12,9 @@ import {
   monthIndex, prettyMonth, trend12, trailing12Line, priorYearLine, fmtPct, momentumN,
 } from '../../shared/rollup.js';
 import {
-  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
+  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
+  TIME_BUCKETS, setMapTodFilter,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -66,6 +67,13 @@ let mapSignal = 'encampment';
 let todFilter = 'both';            // 'both' | 'day' | 'night' — the page-level time-of-day filter
 const visibleCats = new Set(['persistent', 'cooled', 'emerged']);
 const transitionData = {};
+
+// ── map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
+let mapTodFilter = null;           // null = all, or Set of bucket names
+
+// Element-wise sum of N equal-length arrays (for combining selected time-of-day buckets).
+const sumArrays = arrays =>
+  arrays.reduce((acc, a) => acc.map((v, i) => v + (a[i] || 0)), new Array(TMETA.months.length).fill(0));
 
 // ── global time window (the scrubber) — indices into AGG.months. Drives ONLY the map; the chart hosts
 // it (band); the cards ignore it. Baseline is the FIXED pre-Lurie normal (TMETA.pre_window). ──
@@ -274,22 +282,37 @@ async function renderMap() {
   if (pendingRestore) queueRestore(pendingRestore.cell);   // so renderCells re-opens the shared cell
   focusDistrict($('#map'), GEO, active);
 
-  // Reclassify every candidate block against the SELECTED window vs the fixed pre-Lurie baseline,
-  // normalized by the district tide recomputed over the same window (classify.js — parity-checked).
   const sigMeta = TMETA.signals[mapSignal];
   const knobs = { hot: sigMeta.hot_rate_per_month, floor: TMETA.knobs.floor, band: TMETA.knobs.tide_band };
   const winSpan = [AGG.months[win.lo], AGG.months[win.hi]];
   const w = clampToAxis(ymRange(TMETA.months, winSpan));
   const b = ymRange(TMETA.months, TMETA.pre_window);
-  // Day/Night filter: classify off the matching histogram + district tide (plan §3/§5).
-  const monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
-  const dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
-             || sigMeta.district_monthly;
-  setTodFilter(todFilter);   // marker layer + cell-details honor the same filter
-  const classified = classifyCells(transitionData[mapSignal], dm, w, b, knobs, monthlyKey);
+
+  setTodFilter(todFilter);        // marker layer + cell-details honor the page-level filter…
+  setMapTodFilter(mapTodFilter);  // …unless the granular map filter overrides it (transition-map.js)
+
+  // Pick the time slice to classify off. The granular map filter (morning/afternoon/evening/night) is a
+  // complete re-partition of the day, so when active it OVERRIDES the page-level Day/Night filter for the
+  // map: sum the selected buckets for BOTH the cell histograms and the district tide so the
+  // difference-in-differences numerator and denominator come from the same slice (no denominator skew).
+  let cells, dm, monthlyKey;
+  if (mapTodFilter) {
+    const buckets = [...mapTodFilter];
+    cells = transitionData[mapSignal].map(c => ({ ...c, monthly_sel: sumArrays(buckets.map(bk => c.monthly_tod[bk])) }));
+    dm = Object.fromEntries(Object.entries(sigMeta.district_monthly_tod[buckets[0]]).map(([d]) =>
+      [d, sumArrays(buckets.map(bk => sigMeta.district_monthly_tod[bk][d]))]));
+    monthlyKey = 'monthly_sel';
+  } else {
+    // Day/Night filter: classify off the matching histogram + district tide (plan §3/§5).
+    monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
+    dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
+         || sigMeta.district_monthly;
+    cells = transitionData[mapSignal];
+  }
+
+  const classified = classifyCells(cells, dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
-  setMapWindow(winSpan, TMETA.pre_window);
-  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded on first zoom-in
+  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded for the per-cell "See details" breakdown
   $('#map-legend').innerHTML = Object.entries(CATEGORY).map(([k, m]) => `
     <button class="legend-item ${visibleCats.has(k) ? '' : 'is-off'}" data-cat="${k}"
             style="--cat:${m.color}" title="Click to show/hide on the map" aria-pressed="${visibleCats.has(k)}">
@@ -314,7 +337,7 @@ async function renderMap() {
     (mapSignal === 'encampment'
       ? 'Encampment spans the June-2025 reroute — the reroute-free “911 calls” view corroborates the pattern. '
       : 'The 911 calls signal has no reporting reroute (a clean pre/post comparison), and uses a lower hotspot threshold because it is lower-volume. ') +
-    '<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> to pin a shareable link; <strong>zoom in</strong> for individual reports (in-window vs baseline) with details on hover.';
+    '<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> for its monthly trend, a breakdown of report types, and a shareable link.';
 
   // Deep-link restore (once): scroll to the map, then re-center/zoom (the queued cell opens as cells draw).
   if (pendingRestore) {
@@ -331,6 +354,41 @@ function buildMapControls() {
     <button class="seg ${mapSignal === 'cfs_presence' ? 'is-active' : ''}" data-s="cfs_presence">911 unhoused calls</button>`;
   $('#map-controls').querySelectorAll('.seg').forEach(b =>
     b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
+}
+
+// ── map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
+function buildMapTodFilter() {
+  const chips = Object.entries(TIME_BUCKETS).map(([key, { label }]) => {
+    const active = mapTodFilter ? mapTodFilter.has(key) : false;
+    return `<button class="map-tod-chip ${active ? 'is-active' : ''}" data-tod="${key}">${label}</button>`;
+  }).join('');
+
+  $('#map-tod-filter').innerHTML = `
+    <span class="map-tod-filter__label">Time of day</span>
+    <button class="map-tod-chip ${!mapTodFilter ? 'is-active' : ''}" data-tod-all>All</button>
+    ${chips}`;
+
+  $('#map-tod-filter').querySelector('[data-tod-all]').onclick = async () => {
+    mapTodFilter = null;
+    buildMapTodFilter();
+    await renderMap();
+  };
+
+  $('#map-tod-filter').querySelectorAll('[data-tod]').forEach(btn => {
+    btn.onclick = async () => {
+      const key = btn.dataset.tod;
+      if (!mapTodFilter) {
+        mapTodFilter = new Set([key]);
+      } else if (mapTodFilter.has(key)) {
+        mapTodFilter.delete(key);
+        if (!mapTodFilter.size) mapTodFilter = null;
+      } else {
+        mapTodFilter.add(key);
+      }
+      buildMapTodFilter();
+      await renderMap();
+    };
+  });
 }
 
 // ── page-level Day/Night filter (plan-time-of-day.md §5) ──
@@ -435,6 +493,7 @@ async function main() {
     initDistrict();
     wireTodToggles();
     buildMapControls();
+    buildMapTodFilter();
     renderScrubber();
     renderMethodology();
     $('#enc-only-toggle').addEventListener('change', (e) => { encOnly = e.target.checked; renderFocusChart(); });
