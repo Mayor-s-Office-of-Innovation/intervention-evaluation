@@ -101,6 +101,19 @@ let aggregatesData = {};
 let emergingSignalsCache = {};
 let savedInterventions = [];   // saved hypotheses fetched live from the Worker (see loadSaved)
 
+function initDistrict() {
+  const h = (location.hash || '').replace('#', '').toLowerCase();
+  const match = DISTRICTS.find(d => d.toLowerCase() === h);
+  if (match) currentDistrict = match;
+}
+
+function syncUrlHash() {
+  const hash = '#' + currentDistrict.toLowerCase();
+  if (location.hash !== hash) {
+    history.replaceState(null, '', hash);
+  }
+}
+
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -368,6 +381,7 @@ function wireEvents(container) {
   container.querySelectorAll('.district-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       currentDistrict = btn.dataset.district;
+      syncUrlHash();
       render(container);
     });
   });
@@ -491,8 +505,14 @@ async function init() {
     const interventions = parseTSV(text);
     interventionsByDistrict = groupBy(interventions, 'district');
 
+    initDistrict();
     render(container);
     loadSaved(container);   // fire-and-forget; re-renders the table when the saved items arrive
+
+    window.addEventListener('popstate', () => {
+      initDistrict();
+      render(container);
+    });
   } catch (err) {
     console.error('Failed to load data:', err);
     container.innerHTML = '<p class="error">Failed to load data.</p>';
