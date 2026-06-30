@@ -43,6 +43,32 @@ export function loadMarkers(key) {
   return markerCache.get(key);
 }
 
+let photoCache = null;
+/** Lazy-load the photo URL cache (311 reports only). Returns {lat_lng_date: {photos, ...}} */
+export async function loadPhotos() {
+  if (!photoCache) {
+    try {
+      photoCache = await fetchJSON('./data/photos/photo_cache.json');
+    } catch (e) {
+      photoCache = {};  // no photos available
+    }
+  }
+  return photoCache;
+}
+
+/**
+ * Look up photos for a report by location and date.
+ * @param {number} lat - latitude
+ * @param {number} lng - longitude
+ * @param {string} dateISO - date in YYYY-MM-DD format
+ * @returns {Promise<{photos: string[], address: string, description: string} | null>}
+ */
+export async function getPhotosForReport(lat, lng, dateISO) {
+  const cache = await loadPhotos();
+  const key = `${Math.round(lat * 1000) / 1000}_${Math.round(lng * 1000) / 1000}_${dateISO}`;
+  return cache[key] || null;
+}
+
 /**
  * Lazy-load a signal's points: compact [latE5, lngE5, dayIndex, districtIdx] tuples.
  * dayIndex = days since `epoch` (in aggregates.json). Returns decoded objects.

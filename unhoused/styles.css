@@ -240,6 +240,68 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .tod-toggle:not(.is-active) .tod-toggle__check { display: none; }
 .tod-toggle__check { font-size: .9em; line-height: 1; }
 .tod-toggle:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+
+/* ───────────── Hour slider (PR #32 — granular time-of-day) ───────────── */
+.hour-slider-wrap { display: flex; flex-direction: column; gap: .35rem; margin-top: .5rem; }
+.hour-slider-label { font-size: .78rem; color: var(--muted); }
+.hour-slider-bar { position: relative; height: 32px; border: 1px solid var(--c-line); border-radius: 8px; background: var(--bg); display: flex; overflow: hidden; }
+.hour-slider-bar .hour-seg { flex: 1; border-right: 1px solid var(--c-line); }
+.hour-slider-bar .hour-seg:last-child { border-right: none; }
+.hour-slider-bar .hour-seg.is-night { background: rgba(79,70,229,.12); }
+.hour-slider-sel { position: absolute; top: 0; bottom: 0; background: rgba(79,70,229,.22); border-left: 2px solid var(--c-blue); border-right: 2px solid var(--c-blue); pointer-events: none; }
+.hour-slider-range { font-family: var(--font-mono); font-size: .72rem; font-weight: 700; color: var(--c-blue); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); white-space: nowrap; pointer-events: none; }
+.hour-ticks { display: flex; justify-content: space-between; font-size: .66rem; color: var(--muted); font-family: var(--font-mono); padding: 0 2px; }
+
+/* ───────────── Day vs Night split view (PR #32) ───────────── */
+.split-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .78rem; color: var(--muted); margin-bottom: .5rem; }
+.split-legend .k { display: inline-flex; align-items: center; gap: .35rem; }
+.split-legend .sw { width: .7rem; height: .7rem; border-radius: 50%; }
+.split-legend .sw.day { background: #e08a1e; }
+.split-legend .sw.night { background: #4f46e5; }
+.split-list { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.split-row { display: grid; grid-template-columns: 130px 1fr 80px; gap: .5rem; align-items: center; font-size: .78rem; }
+.split-row .nm { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.split-bar { height: 10px; border-radius: 4px; overflow: hidden; display: flex; border: 1px solid var(--c-line); }
+.split-bar .d { background: #e08a1e; }
+.split-bar .n { background: #4f46e5; }
+.split-row .tag { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; text-align: right; }
+.split-row .tag.night { color: #4f46e5; }
+.split-row .tag.day { color: #e08a1e; }
+.split-row .tag.even { color: var(--muted); }
+
+/* ───────────── Docked detail panel (PR #32) ───────────── */
+.map-with-panel { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+.map-with-panel.has-panel { grid-template-columns: 1.2fr .9fr; }
+@media (max-width: 800px) { .map-with-panel.has-panel { grid-template-columns: 1fr; } }
+.detail-panel { display: none; flex-direction: column; gap: .75rem; background: var(--surface); border: 1px solid var(--c-line); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); }
+.map-with-panel.has-panel .detail-panel { display: flex; }
+.detail-panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; }
+.detail-panel__name { font-weight: 700; font-size: 1rem; color: var(--text); line-height: 1.25; }
+.detail-panel__close { background: none; border: none; font-size: 1.1rem; color: var(--muted); cursor: pointer; padding: .2rem; line-height: 1; }
+.detail-panel__close:hover { color: var(--text); }
+.detail-panel__clf { display: inline-flex; align-items: center; gap: .5rem; }
+.detail-panel__clf .clf-badge { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; padding: .2rem .5rem; border-radius: 4px; }
+.clf-badge.persistent { background: rgba(220,38,38,.12); color: #dc2626; }
+.clf-badge.emerged { background: rgba(245,158,11,.12); color: #b45309; }
+.clf-badge.cooled { background: rgba(37,99,235,.12); color: #1d4ed8; }
+.detail-panel__clf span { font-size: .78rem; color: var(--muted); }
+.detail-panel__metrics { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+.detail-panel__metric { display: flex; flex-direction: column; }
+.detail-panel__metric .label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.detail-panel__metric .value { font-size: 1.1rem; font-weight: 800; color: var(--text); font-family: var(--font-sans); }
+.detail-panel__section { display: flex; flex-direction: column; gap: .25rem; }
+.detail-panel__section .sh { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.detail-panel__spark { width: 100%; }
+.detail-panel__spark svg { width: 100%; height: 60px; }
+.detail-panel__split { margin-top: .25rem; }
+.detail-panel__split .split-bar { height: 12px; }
+.detail-panel__split .split-labels { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: .25rem; }
+
+/* Hourly distribution chart in detail panel */
+.hourly-dist { display: flex; align-items: flex-end; gap: 1px; height: 50px; }
+.hourly-dist .hbar { flex: 1; background: #cbd5e1; border-radius: 2px 2px 0 0; min-height: 2px; }
+.hourly-dist .hbar.is-night { background: #4f46e5; }
+.hourly-axis { display: flex; justify-content: space-between; font-size: .62rem; color: var(--muted); font-family: var(--font-mono); margin-top: .15rem; }
 .map-legend {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
   margin-bottom: 1rem; flex: none; align-items: stretch;
@@ -340,3 +402,105 @@ path.mk-halo { pointer-events: all !important; }
 .back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }
 .back-home:hover { opacity: 1; color: #fff; }
 .back-home:focus-visible { opacity: 1; color: #fff; outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* ───────────── Cross-street search (PR #33) ───────────── */
+.map-search { margin-right: .5rem; }
+.map-search-wrap { display: flex; align-items: center; gap: .35rem; }
+.map-search-input {
+  font: inherit; font-size: .82rem;
+  padding: .32rem .7rem; border-radius: 999px;
+  border: 1px solid var(--c-line); background: var(--surface); color: var(--text);
+  width: 150px; transition: width .15s ease, border-color .15s ease;
+}
+.map-search-input:focus { width: 200px; outline: none; border-color: var(--c-blue); }
+.map-search-input::placeholder { color: var(--muted); }
+.map-search-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--c-line); background: var(--bg); color: var(--muted);
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.map-search-btn:hover { background: var(--c-line); color: var(--text); }
+.map-search-btn:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+.map-search-status { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.map-search-status.is-error { color: var(--c-red); }
+
+/* Search result marker */
+.search-marker { background: none; border: none; }
+.search-marker__pin {
+  width: 24px; height: 24px;
+  background: var(--c-blue);
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  animation: search-marker-pulse 1.5s ease-out infinite;
+}
+@keyframes search-marker-pulse {
+  0% { box-shadow: 0 2px 8px rgba(0,0,0,.3), 0 0 0 0 rgba(59,130,246,.5); }
+  70% { box-shadow: 0 2px 8px rgba(0,0,0,.3), 0 0 0 12px rgba(59,130,246,0); }
+  100% { box-shadow: 0 2px 8px rgba(0,0,0,.3), 0 0 0 0 rgba(59,130,246,0); }
+}
+
+/* ───────────── Photo viewer (PR #35) ───────────── */
+.photo-viewer {
+  display: none; position: fixed; inset: 0; z-index: 2000;
+}
+.photo-viewer.is-open { display: flex; align-items: center; justify-content: center; }
+.photo-viewer__backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,.85); cursor: pointer;
+}
+.photo-viewer__content {
+  position: relative; max-width: 90vw; max-height: 90vh;
+  display: flex; align-items: center; justify-content: center;
+}
+.photo-viewer__img {
+  max-width: 85vw; max-height: 85vh; object-fit: contain;
+  border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+.photo-viewer__close {
+  position: absolute; top: -40px; right: 0;
+  background: none; border: none; color: #fff; font-size: 2rem;
+  cursor: pointer; opacity: .8; transition: opacity .15s;
+}
+.photo-viewer__close:hover { opacity: 1; }
+.photo-viewer__prev, .photo-viewer__next {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: rgba(255,255,255,.15); border: none; color: #fff;
+  font-size: 2.5rem; width: 50px; height: 80px; border-radius: 8px;
+  cursor: pointer; opacity: .7; transition: opacity .15s, background .15s;
+}
+.photo-viewer__prev:hover, .photo-viewer__next:hover { opacity: 1; background: rgba(255,255,255,.25); }
+.photo-viewer__prev:disabled, .photo-viewer__next:disabled { opacity: .2; cursor: default; }
+.photo-viewer__prev { left: -70px; }
+.photo-viewer__next { right: -70px; }
+.photo-viewer__counter {
+  position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%);
+  color: #fff; font-size: .9rem; opacity: .8;
+}
+
+/* Photo indicator on markers */
+.marker-overlay .ov-photos {
+  margin-top: .4rem; padding-top: .4rem; border-top: 1px solid var(--c-line);
+}
+.photo-thumb-btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .3rem .6rem; border: 1px solid var(--c-blue); border-radius: 6px;
+  background: transparent; color: var(--c-blue); font: inherit; font-size: .72rem;
+  cursor: pointer; transition: background .12s;
+}
+.photo-thumb-btn:hover { background: rgba(59,130,246,.1); }
+.photo-thumb-btn svg { width: 14px; height: 14px; }
+
+/* Photo thumbnails in detail panel */
+.detail-panel__photos {
+  display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+}
+.photo-thumb {
+  width: 60px; height: 60px; padding: 0; border: 2px solid var(--c-line);
+  border-radius: 6px; overflow: hidden; cursor: pointer;
+  background: var(--bg); transition: border-color .15s, transform .15s;
+}
+.photo-thumb:hover { border-color: var(--c-blue); transform: scale(1.05); }
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.photo-more { font-size: .72rem; color: var(--muted); }

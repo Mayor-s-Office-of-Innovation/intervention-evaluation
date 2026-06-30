@@ -59,16 +59,38 @@ export function todBucket(hour) {
   return hour >= DAY_START && hour < NIGHT_START ? 'day' : 'night';
 }
 let todFilter = 'both';   // 'both' | 'day' | 'night'
+let hourRange = null;     // null = use todFilter; [startHour, endHour] = custom range (wraps midnight)
+let splitView = false;    // false = combined view; true = day/night split markers
 /** Set the global day/night filter; re-renders the zoom-in markers if they're showing. */
 export function setTodFilter(f) {
   todFilter = f === 'day' || f === 'night' ? f : 'both';
+  hourRange = null;   // clear custom range when using presets
   if (inMarkerMode()) renderMarkers();
 }
-const passesTod = hour => todFilter === 'both' || todBucket(hour) === todFilter;
+/** Set a custom hour range filter (PR #32); wraps around midnight (e.g. [21, 1] = 9pm–1am). */
+export function setHourRange(start, end) {
+  hourRange = start != null && end != null ? [start, end] : null;
+  if (inMarkerMode()) renderMarkers();
+}
+/** Toggle split view (PR #32): combined vs day/night markers. */
+export function setSplitView(on) {
+  splitView = !!on;
+}
+export function getSplitView() { return splitView; }
+const passesTod = hour => {
+  if (hourRange) {
+    const [s, e] = hourRange;
+    if (s <= e) return hour >= s && hour <= e;
+    return hour >= s || hour <= e;   // wraps midnight
+  }
+  return todFilter === 'both' || todBucket(hour) === todFilter;
+};
 
 let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = null, hintEl = null;
+let searchMarker = null;  // temporary marker for search results
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
+let onCellSelect = null;   // callback for docked panel (PR #32)
 let markerKey = null, markerData = null, markerLoader = null, markerLoading = false;
 // Analysis window + baseline as [startYM,…,endYM] spans — drives the zoom-in marker coloring:
 // in-window = solid, baseline = faded, outside both = hidden. Set by the orchestrator per window.
@@ -121,6 +143,16 @@ export function notifyState() { emitState(); }
 
 /** Queue a cell id to re-open on the next renderCells (call BEFORE renderCells, e.g. on deep-link load). */
 export function queueRestore(cellId) { pendingCellId = cellId || null; }
+
+/** Register a callback for when a cell is selected (PR #32 docked panel). */
+export function onCellSelected(fn) { onCellSelect = fn; }
+
+/** Close the selected cell (called when docked panel closes). */
+export function closeSelectedCell() {
+  if (map) map.closePopup();
+  selectedCellId = null;
+  emitState();
+}
 
 /** Deep-link restore: re-center/zoom the map (the queued cell opens as renderCells draws it). */
 export function restoreMapView(center, zoom) {
@@ -176,6 +208,29 @@ function sparkline(monthly) {
   </svg><div class="spark-axis"><span>${sparkMonths[0] || ''}</span><span>Lurie ’25</span><span>${sparkMonths[sparkMonths.length - 1] || ''}</span></div>`;
 }
 
+/** Compute day/night split for a cell using marker data. */
+async function computeCellSplit(lat, lng) {
+  if (!markerData && markerLoader && !markerLoading) {
+    markerLoading = true;
+    try { markerData = await markerLoader(); } finally { markerLoading = false; }
+  }
+  if (!markerData?.pts) return { day: 0, night: 0, total: 0, hourly: new Array(24).fill(0) };
+  const { coordScale, pts } = markerData;
+  const cellLat = Math.round(lat * 1000) / 1000;
+  const cellLng = Math.round(lng * 1000) / 1000;
+  let day = 0, night = 0;
+  const hourly = new Array(24).fill(0);
+  for (const pt of pts) {
+    const mLat = Math.round((pt[0] / coordScale) * 1000) / 1000;
+    const mLng = Math.round((pt[1] / coordScale) * 1000) / 1000;
+    if (mLat !== cellLat || mLng !== cellLng) continue;
+    const hour = pt[3];
+    hourly[hour] = (hourly[hour] || 0) + 1;
+    if (todBucket(hour) === 'day') day++; else night++;
+  }
+  return { day, night, total: day + night, hourly };
+}
+
 /**
  * Render the transition cells for the active district (zoomed-out view).
  * @returns counts per category (for the active district)
@@ -185,17 +240,33 @@ export function renderCells(cells, districtName, visible) {
   lastCells = cells; lastDistrict = districtName; lastVisible = visible;
   cellLayer.clearLayers();
   const counts = { persistent: 0, cooled: 0, emerged: 0 };
+  const DAY_COLOR = '#e08a1e', NIGHT_COLOR = '#4f46e5';
   for (const c of cells) {
     if (c.district !== districtName) continue;
     counts[c.category] = (counts[c.category] || 0) + 1;
     if (!visible.has(c.category)) continue;
     const meta = CATEGORY[c.category];
     const r = 5 + Math.min(6, Math.sqrt(c.total));
-    // Stable, shareable cell id from its (rounded) center — survives rebuilds.
     const cellId = `${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`;
-    const cm = L.circleMarker([c.lat, c.lng], {
-      radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
-    });
+
+    let cm;
+    if (splitView) {
+      // Day/Night split marker using a custom div icon with conic gradient
+      const nightPct = c.nightPct != null ? c.nightPct : 50;
+      const size = r * 2 + 6;
+      const icon = L.divIcon({
+        className: 'split-marker',
+        html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:conic-gradient(${NIGHT_COLOR} 0 ${nightPct}%, ${DAY_COLOR} ${nightPct}% 100%);box-shadow:0 0 0 2px rgba(31,41,55,.15);"></div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+      });
+      cm = L.marker([c.lat, c.lng], { icon });
+    } else {
+      cm = L.circleMarker([c.lat, c.lng], {
+        radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
+      });
+    }
+
     cm.bindPopup(
       (c.name ? `<div class="cell-loc">${esc(c.name)}</div>` : '') +
       `<strong>${meta.label}</strong> · ${esc(titleCase(c.district))}` +
@@ -205,15 +276,23 @@ export function renderCells(cells, districtName, visible) {
       `<button class="cell-details-btn" data-lat="${c.lat}" data-lng="${c.lng}">See details</button>` +
       `<div class="cell-details" hidden></div>`, { maxWidth: 230, autoPan: false }
     );
-    cm.on('popupopen', () => {
-      selectedCellId = cellId; emitState();   // click → pin + shareable URL
+    cm.on('popupopen', async () => {
+      selectedCellId = cellId; emitState();
+      // PR #32: Notify docked panel with cell data + day/night split
+      if (onCellSelect) {
+        const split = await computeCellSplit(c.lat, c.lng);
+        onCellSelect({ ...c, ...split, cellId });
+      }
       const popupEl = cm.getPopup()?.getElement();
       const btn = popupEl?.querySelector('.cell-details-btn');
       btn?.addEventListener('click', () => showCellDetails(c.lat, c.lng, popupEl, cm));
     });
-    cm.on('popupclose', () => { if (selectedCellId === cellId) { selectedCellId = null; emitState(); } });
+    cm.on('popupclose', () => {
+      if (selectedCellId === cellId) { selectedCellId = null; emitState(); }
+      if (onCellSelect) onCellSelect(null);
+    });
     cm.addTo(cellLayer);
-    if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }   // deep-link target
+    if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }
   }
   applyZoomMode();
   return counts;
@@ -303,12 +382,21 @@ function renderMarkers() {
     const multi = g.total > 1 ? '<div class="ov-multi">Most recent report:</div>' : '';
     // dot radius grows with the count (√ scale, capped); halo is the larger hover target.
     const r = Math.min(15, (recent ? 4.5 : 3.5) + Math.sqrt(Math.max(0, g.total - 1)) * 1.8);
-    L.circleMarker([g.lat, g.lng], {
+    const haloMarker = L.circleMarker([g.lat, g.lng], {
       radius: Math.max(HIT_RADIUS, r + 3), stroke: false, fillColor: color, fillOpacity: 0, className: 'mk-halo',
-    }).bindTooltip(
+    });
+    haloMarker.bindTooltip(
       `<div class="ov-date">${head}</div>${multi}${rows}`,
       { className: 'marker-overlay', sticky: true, direction: 'top', opacity: 1 }
-    ).addTo(markerLayer);
+    );
+    // For 311 data, add click handler to show photos
+    haloMarker.on('click', async () => {
+      const photoData = await getPhotosForMarker(g.lat, g.lng, g.top[2], epoch);
+      if (photoData?.photos?.length) {
+        openPhotoViewer(photoData.photos);
+      }
+    });
+    haloMarker.addTo(markerLayer);
     L.circleMarker([g.lat, g.lng], {
       radius: r, color, weight: 1, fillColor: color, fillOpacity: recent ? 0.8 : 0.45, interactive: false,
     }).addTo(markerLayer);
@@ -317,7 +405,7 @@ function renderMarkers() {
     hintEl.style.display = 'block';
     hintEl.innerHTML =
       `Reports by location (larger = more) · <span class="hint-dot" style="background:${OLDER_COLOR}"></span>baseline ` +
-      `<span class="hint-dot" style="background:${RECENT_COLOR}"></span>in window · hover for count + details` +
+      `<span class="hint-dot" style="background:${RECENT_COLOR}"></span>in window · hover for details, click for photos` +
       (inView > MARKER_CAP ? ` · showing ${MARKER_CAP} of ${inView} locations, zoom in` : '');
   }
 }
@@ -426,4 +514,186 @@ async function showCellDetails(lat, lng, popupEl, cm) {
     popup._updateLayout?.();
     popup._updatePosition?.();
   }
+}
+
+// ── Photo viewer (PR #35) ───────────────────────────────────────────────
+let photoCache = null;
+let photoViewerEl = null;
+
+async function loadPhotoCache() {
+  if (photoCache) return photoCache;
+  try {
+    const resp = await fetch('./data/photos/photo_cache.json');
+    if (!resp.ok) throw new Error('not found');
+    photoCache = await resp.json();
+  } catch (e) {
+    photoCache = {};
+  }
+  return photoCache;
+}
+
+function getPhotoKey(lat, lng, dateISO) {
+  return `${Math.round(lat * 1000) / 1000}_${Math.round(lng * 1000) / 1000}_${dateISO}`;
+}
+
+async function getPhotosForMarker(lat, lng, dayIndex, epoch) {
+  const cache = await loadPhotoCache();
+  const date = new Date(new Date(epoch + 'T00:00:00').getTime() + dayIndex * 86400000);
+  const dateISO = date.toISOString().slice(0, 10);
+  const key = getPhotoKey(lat, lng, dateISO);
+  return cache[key] || null;
+}
+
+function createPhotoViewer() {
+  if (photoViewerEl) return photoViewerEl;
+  photoViewerEl = document.createElement('div');
+  photoViewerEl.className = 'photo-viewer';
+  photoViewerEl.innerHTML = `
+    <div class="photo-viewer__backdrop"></div>
+    <div class="photo-viewer__content">
+      <button class="photo-viewer__close" aria-label="Close">&times;</button>
+      <button class="photo-viewer__prev" aria-label="Previous">&lsaquo;</button>
+      <img class="photo-viewer__img" src="" alt="Incident photo">
+      <button class="photo-viewer__next" aria-label="Next">&rsaquo;</button>
+      <div class="photo-viewer__counter"></div>
+    </div>`;
+  document.body.appendChild(photoViewerEl);
+
+  let photos = [], idx = 0;
+  const img = photoViewerEl.querySelector('.photo-viewer__img');
+  const counter = photoViewerEl.querySelector('.photo-viewer__counter');
+  const update = () => {
+    img.src = photos[idx];
+    counter.textContent = `${idx + 1} / ${photos.length}`;
+    photoViewerEl.querySelector('.photo-viewer__prev').disabled = idx === 0;
+    photoViewerEl.querySelector('.photo-viewer__next').disabled = idx === photos.length - 1;
+  };
+
+  photoViewerEl.querySelector('.photo-viewer__close').onclick = () => photoViewerEl.classList.remove('is-open');
+  photoViewerEl.querySelector('.photo-viewer__backdrop').onclick = () => photoViewerEl.classList.remove('is-open');
+  photoViewerEl.querySelector('.photo-viewer__prev').onclick = () => { if (idx > 0) { idx--; update(); } };
+  photoViewerEl.querySelector('.photo-viewer__next').onclick = () => { if (idx < photos.length - 1) { idx++; update(); } };
+
+  document.addEventListener('keydown', (e) => {
+    if (!photoViewerEl.classList.contains('is-open')) return;
+    if (e.key === 'Escape') photoViewerEl.classList.remove('is-open');
+    if (e.key === 'ArrowLeft' && idx > 0) { idx--; update(); }
+    if (e.key === 'ArrowRight' && idx < photos.length - 1) { idx++; update(); }
+  });
+
+  photoViewerEl.open = (photoUrls) => {
+    photos = photoUrls;
+    idx = 0;
+    update();
+    photoViewerEl.classList.add('is-open');
+  };
+
+  return photoViewerEl;
+}
+
+function openPhotoViewer(photoUrls) {
+  const viewer = createPhotoViewer();
+  viewer.open(photoUrls);
+}
+
+/** Export for use from app.js docked panel */
+export { loadPhotoCache, getPhotoKey, openPhotoViewer };
+
+// ── Cross-street search (PR #33) ────────────────────────────────────────
+// Uses Nominatim (OSM's free geocoder) constrained to San Francisco.
+const SF_VIEWBOX = '-122.52,37.70,-122.35,37.82';  // west,south,east,north
+const SEARCH_ZOOM = 17;
+
+function clearSearchMarker() {
+  if (searchMarker) {
+    searchMarker.remove();
+    searchMarker = null;
+  }
+}
+
+async function geocodeLocation(query) {
+  const q = encodeURIComponent(query + ', San Francisco, CA');
+  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&viewbox=${SF_VIEWBOX}&bounded=1&limit=1`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'intervention-evaluation-dashboard' }
+  });
+  if (!res.ok) throw new Error('Geocoding request failed');
+  const data = await res.json();
+  if (!data.length) return null;
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), name: data[0].display_name };
+}
+
+function showSearchResult(lat, lng, name) {
+  if (!map) return;
+  clearSearchMarker();
+  map.setView([lat, lng], SEARCH_ZOOM);
+  searchMarker = L.marker([lat, lng], {
+    icon: L.divIcon({
+      className: 'search-marker',
+      html: '<div class="search-marker__pin"></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    })
+  }).addTo(map);
+  searchMarker.bindTooltip(name.split(',').slice(0, 2).join(','), {
+    permanent: false, direction: 'top', offset: [0, -20]
+  });
+}
+
+/**
+ * Initialize the cross-street search UI. Call once after the map container exists.
+ * @param {string} containerId - ID of the container element (e.g. 'map-search')
+ */
+export function initSearch(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="map-search-wrap">
+      <input type="text" class="map-search-input" id="map-search-input"
+             placeholder="Search cross streets..." aria-label="Search cross streets">
+      <button class="map-search-btn" id="map-search-btn" aria-label="Search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+      <span class="map-search-status" id="map-search-status"></span>
+    </div>`;
+
+  const input = document.getElementById('map-search-input');
+  const btn = document.getElementById('map-search-btn');
+  const status = document.getElementById('map-search-status');
+
+  async function doSearch() {
+    const query = input.value.trim();
+    if (!query) return;
+    status.textContent = '';
+    status.className = 'map-search-status';
+    try {
+      const result = await geocodeLocation(query);
+      if (result) {
+        showSearchResult(result.lat, result.lng, result.name);
+        status.textContent = '';
+      } else {
+        status.textContent = 'No results in SF';
+        status.className = 'map-search-status is-error';
+      }
+    } catch (e) {
+      status.textContent = 'Search failed';
+      status.className = 'map-search-status is-error';
+    }
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch();
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      clearSearchMarker();
+      status.textContent = '';
+    }
+  });
+
+  btn.addEventListener('click', doSearch);
 }
