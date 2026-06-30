@@ -79,8 +79,9 @@ let mapWinSpan = null, mapBaseSpan = null;
 let selectedCellId = null, pendingCellId = null, onState = null;
 
 // ── Map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
-// This is ADDITIONAL to the page-level day/night filter. When active, it filters
-// both the zoomed-in markers AND rebuilds cells from filtered markers.
+// A finer re-partition of the day than the page-level day/night filter. When active it OVERRIDES the
+// page filter for the MAP (markers here + cell classification in app.js, which reads the baked
+// `monthly_tod` arrays); the rest of the page still honors the page-level day/night filter.
 let mapTodFilter = null;  // null = all, or Set of bucket names
 
 /** Set map-level time-of-day filter. Re-renders markers if in marker mode. */
@@ -89,65 +90,7 @@ export function setMapTodFilter(filter) {
   if (inMarkerMode()) renderMarkers();
 }
 
-/** Get current map-level time-of-day filter. */
-export function getMapTodFilter() { return mapTodFilter; }
-
 const passesMapTod = hour => !mapTodFilter || mapTodFilter.has(getTimeBucket(hour));
-
-/**
- * Build cells from filtered marker data for time-of-day filtering.
- * Returns an array of cells compatible with classifyCells().
- */
-export function buildCellsFromMarkers(markerData, todFilterSet, months) {
-  if (!markerData?.pts) return [];
-  const { coordScale, pts, epoch } = markerData;
-
-  const [epY, epM, epD] = epoch.split('-').map(Number);
-  const epochDate = new Date(epY, epM - 1, epD);
-
-  const cellMap = new Map();
-
-  for (const pt of pts) {
-    const hour = pt[3];
-
-    // Apply page-level day/night filter first
-    if (!passesTod(hour)) continue;
-
-    // Apply map-level time-of-day filter
-    if (todFilterSet) {
-      const bucket = getTimeBucket(hour);
-      if (!todFilterSet.has(bucket)) continue;
-    }
-
-    const lat = Math.round((pt[0] / coordScale) * 1000) / 1000;
-    const lng = Math.round((pt[1] / coordScale) * 1000) / 1000;
-    const cellKey = `${lat},${lng}`;
-
-    const dayOffset = pt[2];
-    const ptDate = new Date(epochDate);
-    ptDate.setDate(ptDate.getDate() + dayOffset);
-    const ym = `${ptDate.getFullYear()}-${String(ptDate.getMonth() + 1).padStart(2, '0')}`;
-    const monthIdx = months.indexOf(ym);
-    if (monthIdx < 0) continue;
-
-    let cell = cellMap.get(cellKey);
-    if (!cell) {
-      cell = { lat, lng, name: '', district: '', monthlyCounts: new Map() };
-      cellMap.set(cellKey, cell);
-    }
-    cell.monthlyCounts.set(monthIdx, (cell.monthlyCounts.get(monthIdx) || 0) + 1);
-  }
-
-  const cells = [];
-  for (const cell of cellMap.values()) {
-    const monthly = new Array(months.length).fill(0);
-    for (const [idx, count] of cell.monthlyCounts) {
-      monthly[idx] = count;
-    }
-    cells.push({ lat: cell.lat, lng: cell.lng, name: '', district: '', monthly });
-  }
-  return cells;
-}
 
 function ensureMap(el) {
   if (map) return;
@@ -339,8 +282,9 @@ function renderMarkers() {
   // details. Deterministic (no grey/red flicker) and the cluster size shows volume.
   const groups = new Map();
   for (const p of pts) {
-    if (!passesTod(p[3])) continue;         // global Day/Night filter (p[3] = hour)
-    if (!passesMapTod(p[3])) continue;      // map-level time-of-day filter
+    // The granular map filter (if active) OVERRIDES the page Day/Night filter for the map; else the
+    // page filter applies (p[3] = hour).
+    if (mapTodFilter ? !passesMapTod(p[3]) : !passesTod(p[3])) continue;
     const d = p[2];
     const isWin = inWin(d), isBase = inBase(d);
     if (!isWin && !isBase) continue;        // outside the window AND its baseline → not shown

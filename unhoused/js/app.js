@@ -14,7 +14,7 @@ import {
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
-  TIME_BUCKETS, setMapTodFilter, buildCellsFromMarkers,
+  TIME_BUCKETS, setMapTodFilter,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -67,43 +67,13 @@ let mapSignal = 'encampment';
 let todFilter = 'both';            // 'both' | 'day' | 'night' — the page-level time-of-day filter
 const visibleCats = new Set(['persistent', 'cooled', 'emerged']);
 const transitionData = {};
-const markerDataCache = {};        // cache marker data per signal for filtered cell building
 
 // ── map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
 let mapTodFilter = null;           // null = all, or Set of bucket names
 
-// Point-in-polygon test using ray casting
-function pointInPolygon(lat, lng, coords) {
-  let inside = false;
-  for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
-    const [xi, yi] = coords[i], [xj, yj] = coords[j];
-    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
-
-function getDistrictForPoint(lat, lng) {
-  if (!GEO?.features) return '';
-  for (const feature of GEO.features) {
-    const district = feature.properties?.district;
-    if (!district || !DISTRICTS.map(d => d.toUpperCase()).includes(district)) continue;
-    const geom = feature.geometry;
-    if (geom.type === 'Polygon') {
-      if (pointInPolygon(lat, lng, geom.coordinates[0])) {
-        return district.charAt(0) + district.slice(1).toLowerCase();
-      }
-    } else if (geom.type === 'MultiPolygon') {
-      for (const poly of geom.coordinates) {
-        if (pointInPolygon(lat, lng, poly[0])) {
-          return district.charAt(0) + district.slice(1).toLowerCase();
-        }
-      }
-    }
-  }
-  return '';
-}
+// Element-wise sum of N equal-length arrays (for combining selected time-of-day buckets).
+const sumArrays = arrays =>
+  arrays.reduce((acc, a) => acc.map((v, i) => v + (a[i] || 0)), new Array(TMETA.months.length).fill(0));
 
 // ── global time window (the scrubber) — indices into AGG.months. Drives ONLY the map; the chart hosts
 // it (band); the cards ignore it. Baseline is the FIXED pre-Lurie normal (TMETA.pre_window). ──
@@ -318,43 +288,32 @@ async function renderMap() {
   const w = clampToAxis(ymRange(TMETA.months, winSpan));
   const b = ymRange(TMETA.months, TMETA.pre_window);
 
-  // Day/Night filter: classify off the matching histogram + district tide (plan §3/§5).
-  const monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
-  const dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
-             || sigMeta.district_monthly;
-  setTodFilter(todFilter);   // marker layer + cell-details honor the same filter
-  setMapTodFilter(mapTodFilter);  // granular time-of-day filter for markers
+  setTodFilter(todFilter);        // marker layer + cell-details honor the page-level filter…
+  setMapTodFilter(mapTodFilter);  // …unless the granular map filter overrides it (transition-map.js)
 
-  let cellsToClassify;
-
-  // If map-level time-of-day filter is active, build cells from filtered markers
+  // Pick the time slice to classify off. The granular map filter (morning/afternoon/evening/night) is a
+  // complete re-partition of the day, so when active it OVERRIDES the page-level Day/Night filter for the
+  // map: sum the selected buckets for BOTH the cell histograms and the district tide so the
+  // difference-in-differences numerator and denominator come from the same slice (no denominator skew).
+  let cells, dm, monthlyKey;
   if (mapTodFilter) {
-    if (!markerDataCache[mapSignal]) {
-      markerDataCache[mapSignal] = await loadMarkers(mapSignal);
-    }
-    const filteredCells = buildCellsFromMarkers(markerDataCache[mapSignal], mapTodFilter, TMETA.months);
-    // Assign districts
-    for (const cell of filteredCells) {
-      cell.district = getDistrictForPoint(cell.lat, cell.lng);
-    }
-    cellsToClassify = filteredCells.filter(c => c.district);
+    const buckets = [...mapTodFilter];
+    cells = transitionData[mapSignal].map(c => ({ ...c, monthly_sel: sumArrays(buckets.map(bk => c.monthly_tod[bk])) }));
+    dm = Object.fromEntries(Object.entries(sigMeta.district_monthly_tod[buckets[0]]).map(([d]) =>
+      [d, sumArrays(buckets.map(bk => sigMeta.district_monthly_tod[bk][d]))]));
+    monthlyKey = 'monthly_sel';
   } else {
-    cellsToClassify = transitionData[mapSignal];
+    // Day/Night filter: classify off the matching histogram + district tide (plan §3/§5).
+    monthlyKey = todFilter === 'both' ? 'monthly' : `monthly_${todFilter}`;
+    dm = (todFilter === 'both' ? sigMeta.district_monthly : sigMeta[`district_monthly_${todFilter}`])
+         || sigMeta.district_monthly;
+    cells = transitionData[mapSignal];
   }
 
-  const classified = classifyCells(cellsToClassify, dm, w, b, knobs, monthlyKey);
+  const classified = classifyCells(cells, dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
   setMapWindow(winSpan, TMETA.pre_window);
-
-  // Set up markers with caching
-  if (!markerDataCache[mapSignal]) {
-    setMarkers(mapSignal, async () => {
-      markerDataCache[mapSignal] = await loadMarkers(mapSignal);
-      return markerDataCache[mapSignal];
-    });
-  } else {
-    setMarkers(mapSignal, () => Promise.resolve(markerDataCache[mapSignal]));
-  }
+  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded on first zoom-in (data.js caches)
   $('#map-legend').innerHTML = Object.entries(CATEGORY).map(([k, m]) => `
     <button class="legend-item ${visibleCats.has(k) ? '' : 'is-off'}" data-cat="${k}"
             style="--cat:${m.color}" title="Click to show/hide on the map" aria-pressed="${visibleCats.has(k)}">

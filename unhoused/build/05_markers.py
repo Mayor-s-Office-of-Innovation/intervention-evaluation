@@ -23,16 +23,20 @@ CACHE = os.path.join(HERE, "cache")
 DATA = os.path.join(os.path.dirname(HERE), "data")
 EPOCH = datetime.date(2023, 1, 1)
 NOW_MONTHS = 3   # keep in sync with 04_transitions.NOW_MONTHS — markers are colored "recent" if they
-                 # fall in the trailing-3-complete-months window (the same cutoff the clustering uses).
+                 # fall in the trailing-3-month window (the same cutoff the clustering uses).
+# keep in sync with 04_transitions.INCLUDE_PARTIAL_MONTH — include the in-progress month in the window.
+INCLUDE_PARTIAL_MONTH = True
 
 
 def now_start_date():
-    """First day of the trailing-NOW_MONTHS complete-month window (the 'recent' cutoff)."""
+    """First day of the trailing-NOW_MONTHS window (the 'recent' cutoff). Only a fallback: the frontend
+    scrubber normally drives the marker window, so this matters only before a window is set."""
     today = datetime.date.today()
     y, m = today.year, today.month
-    m -= 1                                   # latest *complete* month is the previous one
-    if m == 0:
-        m, y = 12, y - 1
+    if not INCLUDE_PARTIAL_MONTH:
+        m -= 1                               # latest *complete* month is the previous one
+        if m == 0:
+            m, y = 12, y - 1
     for _ in range(NOW_MONTHS - 1):          # step back to the window's first month
         m -= 1
         if m == 0:

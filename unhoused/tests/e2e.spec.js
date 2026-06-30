@@ -62,6 +62,38 @@ test('transition map signal toggle (encampment / 911) works', async ({ page }) =
   await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();
 });
 
+test('map time-of-day filter: chips reclassify the map (granular buckets), multi-select, and reset', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('northern'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+
+  // All + the 4 granular buckets render; "All" is active by default.
+  await expect(page.locator('#map-tod-filter .map-tod-chip')).toHaveCount(5);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveText('All');
+
+  const counts = async () => (await page.locator('#map-legend .legend-count').allTextContents()).join('/');
+  const all = await counts();
+
+  // A single bucket re-classifies off the baked monthly_tod arrays → different legend counts.
+  await page.locator('.map-tod-chip[data-tod="morning"]').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveText('Morning');
+  expect(await counts()).not.toBe(all);
+
+  // Multi-select: adding a second bucket keeps both active (no error, still classifies).
+  await page.locator('.map-tod-chip[data-tod="night"]').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveCount(2);
+
+  // "All" clears the filter and restores the unfiltered classification.
+  await page.locator('.map-tod-chip[data-tod-all]').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('#map-tod-filter .map-tod-chip.is-active')).toHaveText('All');
+  expect(await counts()).toBe(all);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('block popup shows a monthly sparkline; zooming in reveals individual report markers with a hover overlay', async ({ page }) => {
   trackErrors(page);
   await page.goto(url('mission'), { waitUntil: 'networkidle' });

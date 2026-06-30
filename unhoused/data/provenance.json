@@ -1,5 +1,5 @@
 {
-  "generated": "2026-06-26",
+  "generated": "2026-06-29",
   "districts_geojson": "qgnn-b9vv",
   "history_start": "2023-01-01",
   "note": "Each signal (and each component of a combined one) lists its dataset and a runnable Socrata query so every number on the page ties back to source data (plan D7).",
@@ -9,7 +9,7 @@
       "dataset_name": "SF 311 Cases",
       "filter": "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
       "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+%28service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+OR+%28service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27%29%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
-      "records_pulled": 172587,
+      "records_pulled": 175623,
       "dedup_note": "Deduped on service_request_id across both parts of the union.",
       "components": {
         "encampment_only": {
@@ -64,7 +64,7 @@
           "2026-03": 2981,
           "2026-04": 3042,
           "2026-05": 3489,
-          "2026-06": 2892
+          "2026-06": 3140
         },
         "rerouted": {
           "2024-06": 34,
@@ -91,7 +91,7 @@
           "2026-03": 2602,
           "2026-04": 2477,
           "2026-05": 2978,
-          "2026-06": 2192
+          "2026-06": 2400
         },
         "union": {
           "2023-01": 2386,
@@ -135,7 +135,7 @@
           "2026-03": 5583,
           "2026-04": 5519,
           "2026-05": 6467,
-          "2026-06": 2504
+          "2026-06": 5540
         }
       }
     },
@@ -144,28 +144,28 @@
       "dataset_name": "SF 311 Cases",
       "filter": "service_name IN ('Encampment','Encampments')",
       "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
-      "records_pulled": 146177
+      "records_pulled": 147843
     },
     "cfs_sitlie": {
       "dataset_id": "2zdj-bwza",
       "dataset_name": "SFPD Calls for Service (Dispatched)",
       "filter": "call_type_final_desc = 'SIT/LIE ENFORCEMENT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
       "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27SIT%2FLIE+ENFORCEMENT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
-      "records_pulled": 25675
+      "records_pulled": 26107
     },
     "cfs_homeless": {
       "dataset_id": "2zdj-bwza",
       "dataset_name": "SFPD Calls for Service (Dispatched)",
       "filter": "call_type_final_desc = 'HOMELESS COMPLAINT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
       "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27HOMELESS+COMPLAINT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
-      "records_pulled": 16482
+      "records_pulled": 16545
     },
     "hsoc": {
       "dataset_id": "2zdj-bwza",
       "dataset_name": "SFPD Calls for Service (Dispatched)",
       "filter": "onview_flag='HSOC' AND dup_cad_number IS NULL",
       "query_url": "https://data.sfgov.org/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+onview_flag%3D%27HSOC%27+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
-      "records_pulled": 53049
+      "records_pulled": 53692
     }
   },
   "groups": {
