@@ -287,26 +287,6 @@ html.wa-dark .leaflet-popup-close-button:hover { color: var(--text); }
 .cell-loc { font-weight: 700; font-size: .92rem; margin-bottom: .15rem; }
 .spark { display: block; margin-top: .4rem; }
 .spark-axis { display: flex; justify-content: space-between; font-size: .66rem; color: var(--muted); }
-/* individual-report hover overlay (zoom-in markers) */
-.marker-overlay.leaflet-tooltip {
-  background: var(--surface); color: var(--text); border: 1px solid var(--c-line);
-  border-radius: 8px; box-shadow: 0 4px 14px rgba(16,24,40,.18); padding: .5rem .6rem; width: 250px;
-  white-space: normal; overflow-wrap: anywhere;   /* fixed width (tooltips are shrink-to-fit, so max-width
-                                                     alone collapses to min-content) + wrap inside the card */
-}
-.marker-overlay.leaflet-tooltip::before { display: none; }
-/* Invisible hover target around each tiny report dot — `all` makes the transparent fill hittable
-   (Leaflet's default only hit-tests painted pixels, so a 0-opacity fill wouldn't trigger). */
-path.mk-halo { pointer-events: all !important; }
-.ov-date { font-weight: 700; margin-bottom: .3rem; }
-.ov-row { display: flex; gap: .5rem; font-size: .78rem; line-height: 1.35; align-items: baseline; }
-.ov-row span { color: var(--muted); min-width: 4.75rem; flex: none; }   /* fixed label column; value wraps */
-.map-hint {
-  position: absolute; left: 10px; bottom: 22px; z-index: 500;
-  background: var(--surface); color: var(--text); border: 1px solid var(--c-line);
-  border-radius: 8px; box-shadow: var(--shadow); padding: .35rem .6rem; font-size: .76rem;
-}
-.hint-dot { display: inline-block; width: .7rem; height: .7rem; border-radius: 999px; margin: 0 .15rem 0 .35rem; vertical-align: middle; }
 
 /* Cell detail panel */
 .cell-details-btn {
@@ -350,7 +330,6 @@ path.mk-halo { pointer-events: all !important; }
 .repro-note { color: var(--muted); font-size: .78rem; }
 .status { max-width: 1040px; margin: .5rem auto; padding: .8rem 1rem; border-radius: var(--radius); font-size: .9rem; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 .app-footer { margin-top: 1rem; color: var(--muted); }
-.marker-overlay .ov-multi { margin: .25rem 0 .15rem; font-size: .72rem; font-style: italic; opacity: .7; }
 
 /* Back-to-homepage link (top of header) */
 .back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }

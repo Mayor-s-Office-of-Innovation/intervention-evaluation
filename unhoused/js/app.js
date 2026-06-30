@@ -12,7 +12,7 @@ import {
   monthIndex, prettyMonth, trend12, trailing12Line, priorYearLine, fmtPct, momentumN,
 } from '../../shared/rollup.js';
 import {
-  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
+  CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
   TIME_BUCKETS, setMapTodFilter,
 } from '../../shared/transition-map.js';
@@ -312,8 +312,7 @@ async function renderMap() {
 
   const classified = classifyCells(cells, dm, w, b, knobs, monthlyKey);
   const counts = renderCells(classified, active, visibleCats);
-  setMapWindow(winSpan, TMETA.pre_window);
-  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded on first zoom-in (data.js caches)
+  setMarkers(mapSignal, () => loadMarkers(mapSignal));   // lazy-loaded for the per-cell "See details" breakdown
   $('#map-legend').innerHTML = Object.entries(CATEGORY).map(([k, m]) => `
     <button class="legend-item ${visibleCats.has(k) ? '' : 'is-off'}" data-cat="${k}"
             style="--cat:${m.color}" title="Click to show/hide on the map" aria-pressed="${visibleCats.has(k)}">
@@ -338,7 +337,7 @@ async function renderMap() {
     (mapSignal === 'encampment'
       ? 'Encampment spans the June-2025 reroute — the reroute-free “911 calls” view corroborates the pattern. '
       : 'The 911 calls signal has no reporting reroute (a clean pre/post comparison), and uses a lower hotspot threshold because it is lower-volume. ') +
-    '<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> to pin a shareable link; <strong>zoom in</strong> for individual reports (in-window vs baseline) with details on hover.';
+    '<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> for its monthly trend, a breakdown of report types, and a shareable link.';
 
   // Deep-link restore (once): scroll to the map, then re-center/zoom (the queued cell opens as cells draw).
   if (pendingRestore) {
