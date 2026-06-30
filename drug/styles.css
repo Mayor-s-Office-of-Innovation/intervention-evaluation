@@ -421,3 +421,42 @@ path.mk-halo { pointer-events: all !important; }
 .back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }
 .back-home:hover { opacity: 1; color: #fff; }
 .back-home:focus-visible { opacity: 1; color: #fff; outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* ───────────── Cross-street search (PR #33) ───────────── */
+.map-search { margin-right: .5rem; }
+.map-search-wrap { display: flex; align-items: center; gap: .35rem; }
+.map-search-input {
+  font: inherit; font-size: .82rem;
+  padding: .32rem .7rem; border-radius: 999px;
+  border: 1px solid var(--c-line); background: var(--surface); color: var(--text);
+  width: 150px; transition: width .15s ease, border-color .15s ease;
+}
+.map-search-input:focus { width: 200px; outline: none; border-color: var(--c-blue); }
+.map-search-input::placeholder { color: var(--muted); }
+.map-search-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--c-line); background: var(--bg); color: var(--muted);
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.map-search-btn:hover { background: var(--c-line); color: var(--text); }
+.map-search-btn:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+.map-search-status { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.map-search-status.is-error { color: var(--c-red); }
+
+/* Search result marker */
+.search-marker { background: none; border: none; }
+.search-marker__pin {
+  width: 24px; height: 24px;
+  background: var(--c-blue);
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  animation: search-marker-pulse 1.5s ease-out infinite;
+}
+@keyframes search-marker-pulse {
+  0% { box-shadow: 0 2px 8px rgba(0,0,0,.3), 0 0 0 0 rgba(59,130,246,.5); }
+  70% { box-shadow: 0 2px 8px rgba(0,0,0,.3), 0 0 0 12px rgba(59,130,246,0); }
+  100% { box-shadow: 0 2px 8px rgba(0,0,0,.3), 0 0 0 0 rgba(59,130,246,0); }
+}

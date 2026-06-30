@@ -15,6 +15,7 @@ import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers, setMapWindow,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
   setHourRange, setSplitView, getSplitView, onCellSelected, closeSelectedCell,
+  initSearch,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 
@@ -541,6 +542,7 @@ async function main() {
     buildHourSlider();      // PR #32
     buildViewToggle();      // PR #32
     wireDockedPanel();      // PR #32
+    initSearch('map-search');  // PR #33
     buildMapControls();
     renderScrubber();
     renderMethodology();

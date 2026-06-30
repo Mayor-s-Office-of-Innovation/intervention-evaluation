@@ -87,6 +87,7 @@ const passesTod = hour => {
 };
 
 let map = null, tile = null, boundary = null, cellLayer = null, markerLayer = null, hintEl = null;
+let searchMarker = null;  // temporary marker for search results
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
 let onCellSelect = null;   // callback for docked panel (PR #32)
@@ -504,4 +505,103 @@ async function showCellDetails(lat, lng, popupEl, cm) {
     popup._updateLayout?.();
     popup._updatePosition?.();
   }
+}
+
+// ── Cross-street search (PR #33) ────────────────────────────────────────
+// Uses Nominatim (OSM's free geocoder) constrained to San Francisco.
+const SF_VIEWBOX = '-122.52,37.70,-122.35,37.82';  // west,south,east,north
+const SEARCH_ZOOM = 17;
+
+function clearSearchMarker() {
+  if (searchMarker) {
+    searchMarker.remove();
+    searchMarker = null;
+  }
+}
+
+async function geocodeLocation(query) {
+  const q = encodeURIComponent(query + ', San Francisco, CA');
+  const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&viewbox=${SF_VIEWBOX}&bounded=1&limit=1`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': 'intervention-evaluation-dashboard' }
+  });
+  if (!res.ok) throw new Error('Geocoding request failed');
+  const data = await res.json();
+  if (!data.length) return null;
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), name: data[0].display_name };
+}
+
+function showSearchResult(lat, lng, name) {
+  if (!map) return;
+  clearSearchMarker();
+  map.setView([lat, lng], SEARCH_ZOOM);
+  searchMarker = L.marker([lat, lng], {
+    icon: L.divIcon({
+      className: 'search-marker',
+      html: '<div class="search-marker__pin"></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+    })
+  }).addTo(map);
+  searchMarker.bindTooltip(name.split(',').slice(0, 2).join(','), {
+    permanent: false, direction: 'top', offset: [0, -20]
+  });
+}
+
+/**
+ * Initialize the cross-street search UI. Call once after the map container exists.
+ * @param {string} containerId - ID of the container element (e.g. 'map-search')
+ */
+export function initSearch(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="map-search-wrap">
+      <input type="text" class="map-search-input" id="map-search-input"
+             placeholder="Search cross streets..." aria-label="Search cross streets">
+      <button class="map-search-btn" id="map-search-btn" aria-label="Search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+      </button>
+      <span class="map-search-status" id="map-search-status"></span>
+    </div>`;
+
+  const input = document.getElementById('map-search-input');
+  const btn = document.getElementById('map-search-btn');
+  const status = document.getElementById('map-search-status');
+
+  async function doSearch() {
+    const query = input.value.trim();
+    if (!query) return;
+    status.textContent = '';
+    status.className = 'map-search-status';
+    try {
+      const result = await geocodeLocation(query);
+      if (result) {
+        showSearchResult(result.lat, result.lng, result.name);
+        status.textContent = '';
+      } else {
+        status.textContent = 'No results in SF';
+        status.className = 'map-search-status is-error';
+      }
+    } catch (e) {
+      status.textContent = 'Search failed';
+      status.className = 'map-search-status is-error';
+    }
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch();
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      clearSearchMarker();
+      status.textContent = '';
+    }
+  });
+
+  btn.addEventListener('click', doSearch);
 }
