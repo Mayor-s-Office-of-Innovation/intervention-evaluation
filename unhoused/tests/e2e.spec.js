@@ -170,3 +170,42 @@ test('methodology shows runnable queries, HSOC-as-response framing, and the wast
   await expect(meth).toContainText('Needles');
   await expect(meth).toContainText('human');
 });
+
+test('hour scrubber: range slider reclassifies the map, reset works, URL deep-links', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('northern'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+
+  // Hour scrubber renders with "All hours" by default
+  await expect(page.locator('#hour-scrubber')).toBeVisible();
+  await expect(page.locator('.hour-scrubber__range')).toHaveText('All hours');
+  await expect(page.locator('.hour-scrubber__reset')).toHaveClass(/is-hidden/);
+
+  const counts = async () => (await page.locator('#map-legend .legend-count').allTextContents()).join('/');
+  const all = await counts();
+
+  // Moving the hi slider selects a narrower hour range → different classification
+  const hiSlider = page.locator('.hour-range--hi');
+  await hiSlider.fill('5');  // bins 0..5 = 12am–12pm
+  await page.waitForTimeout(400);
+  await expect(page.locator('.hour-scrubber__range')).not.toHaveText('All hours');
+  await expect(page.locator('.hour-scrubber__reset')).not.toHaveClass(/is-hidden/);
+  expect(await counts()).not.toBe(all);
+  await expect(page).toHaveURL(/hr=0-5/);
+
+  // Reset clears the filter and restores all hours
+  await page.locator('.hour-scrubber__reset').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('.hour-scrubber__range')).toHaveText('All hours');
+  expect(await counts()).toBe(all);
+  await expect(page).not.toHaveURL(/hr=/);
+
+  // Deep-link restore: a fresh load with hr= in URL restores the hour range
+  await page.goto('/unhoused/index.html?hr=2-7#northern', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  await expect(page.locator('.hour-scrubber__range')).not.toHaveText('All hours');
+  await expect(page.locator('.hour-range--lo')).toHaveValue('2');
+  await expect(page.locator('.hour-range--hi')).toHaveValue('7');
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});

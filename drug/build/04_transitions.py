@@ -24,7 +24,7 @@ import os
 import sys
 from collections import defaultdict, Counter
 
-from tod import BUCKETS, tod_bucket
+from tod import BUCKETS, tod_bucket, TOD_BUCKET_NAMES, tod_granular_bucket, HOUR_BINS, hour_bin
 from signals import SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL
 
 
@@ -108,7 +108,10 @@ def classify(key, latest, nowset, summary):
     # day/night splits the frontend filter selects (plan-time-of-day.md §3). m == m_day + m_night.
     cells = defaultdict(lambda: {"pre": 0, "now": 0, "lat": 0.0, "lng": 0.0, "n": 0, "dist": None,
                                  "m": defaultdict(int), "m_day": defaultdict(int),
-                                 "m_night": defaultdict(int), "names": Counter()})
+                                 "m_night": defaultdict(int),
+                                 "m_tod": {b: defaultdict(int) for b in TOD_BUCKET_NAMES},
+                                 "m_hourly": {b: defaultdict(int) for b in HOUR_BINS},
+                                 "names": Counter()})
     dist_pre = defaultdict(int)
     dist_now = defaultdict(int)
     # Full per-district monthly histogram (every in-district report, aligned to MONTHS). The browser
@@ -117,6 +120,8 @@ def classify(key, latest, nowset, summary):
     # too so the tide can be recomputed within the selected day/night window.
     dist_month = defaultdict(lambda: defaultdict(int))
     dist_month_tod = {b: defaultdict(lambda: defaultdict(int)) for b in BUCKETS}
+    dist_month_todg = {b: defaultdict(lambda: defaultdict(int)) for b in TOD_BUCKET_NAMES}
+    dist_month_hourly = {b: defaultdict(lambda: defaultdict(int)) for b in HOUR_BINS}
     for r in recs:
         cy = round(r["lat"], CELL_DECIMALS)
         cx = round(r["lng"], CELL_DECIMALS)
@@ -128,10 +133,16 @@ def classify(key, latest, nowset, summary):
             c["names"][clean_loc(loc)] += 1
         ym = r["ym"]
         b = tod_bucket(r.get("hour"))
+        gb = tod_granular_bucket(r.get("hour"))
+        hb = hour_bin(r.get("hour"))
         c["m"][ym] += 1
         c["m_" + b][ym] += 1
+        c["m_tod"][gb][ym] += 1
+        c["m_hourly"][hb][ym] += 1
         dist_month[r["district"]][ym] += 1
         dist_month_tod[b][r["district"]][ym] += 1
+        dist_month_todg[gb][r["district"]][ym] += 1
+        dist_month_hourly[hb][r["district"]][ym] += 1
         if in_pre(ym):
             c["pre"] += 1; dist_pre[r["district"]] += 1
         elif ym in nowset:
@@ -191,7 +202,16 @@ def classify(key, latest, nowset, summary):
             "monthly": [c["m"].get(mo, 0) for mo in MONTHS],  # aligned to meta.months — the raw material
             "monthly_day": [c["m_day"].get(mo, 0) for mo in MONTHS],     # day/night splits (sum == monthly)
             "monthly_night": [c["m_night"].get(mo, 0) for mo in MONTHS],
+            "monthly_tod": {b: [c["m_tod"][b].get(mo, 0) for mo in MONTHS] for b in TOD_BUCKET_NAMES},
+            "monthly_hourly": {b: [c["m_hourly"][b].get(mo, 0) for mo in MONTHS] for b in HOUR_BINS},
         })
+
+    # Parity guard: granular buckets must repartition monthly exactly
+    for cell in out:
+        gsum = [sum(vals) for vals in zip(*cell["monthly_tod"].values())]
+        assert gsum == cell["monthly"], f"granular buckets != monthly for a {key} cell"
+        hsum = [sum(vals) for vals in zip(*cell["monthly_hourly"].values())]
+        assert hsum == cell["monthly"], f"hour bins != monthly for a {key} cell"
 
     classified = sum(counts.values())
     summary[key] = {
@@ -207,6 +227,14 @@ def classify(key, latest, nowset, summary):
                                  for d in TARGET_DISTRICTS},
         "district_monthly_night": {DISTRICT_LABEL[d]: [dist_month_tod["night"][d].get(mo, 0) for mo in MONTHS]
                                    for d in TARGET_DISTRICTS},
+        # granular per-bucket district tide (sum of 4 == district_monthly)
+        "district_monthly_tod": {b: {DISTRICT_LABEL[d]: [dist_month_todg[b][d].get(mo, 0) for mo in MONTHS]
+                                     for d in TARGET_DISTRICTS}
+                                 for b in TOD_BUCKET_NAMES},
+        # 2-hour bins district tide (sum of 12 == district_monthly), for the hour scrubber
+        "district_monthly_hourly": {b: {DISTRICT_LABEL[d]: [dist_month_hourly[b][d].get(mo, 0) for mo in MONTHS]
+                                        for d in TARGET_DISTRICTS}
+                                    for b in HOUR_BINS},
         "counts": dict(counts),
         "cells": len(out),
         "classified_fixed_preset": classified,

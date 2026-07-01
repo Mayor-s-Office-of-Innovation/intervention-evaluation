@@ -24,7 +24,7 @@ import os
 import sys
 from collections import defaultdict, Counter
 
-from tod import BUCKETS, tod_bucket, TOD_BUCKET_NAMES, tod_granular_bucket
+from tod import BUCKETS, tod_bucket, TOD_BUCKET_NAMES, tod_granular_bucket, HOUR_BINS, hour_bin
 from signals import SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL
 
 
@@ -126,6 +126,7 @@ def classify(key, latest, nowset, summary):
                                  "m": defaultdict(int), "m_day": defaultdict(int),
                                  "m_night": defaultdict(int),
                                  "m_tod": {b: defaultdict(int) for b in TOD_BUCKET_NAMES},
+                                 "m_hourly": {b: defaultdict(int) for b in HOUR_BINS},
                                  "names": Counter()})
     dist_pre = defaultdict(int)
     dist_now = defaultdict(int)
@@ -138,6 +139,9 @@ def classify(key, latest, nowset, summary):
     # Per-district monthly histogram split by the 4 granular buckets — the matching denominator so the
     # map's time-of-day filter normalizes the cell against the SAME slice of the district tide.
     dist_month_todg = {b: defaultdict(lambda: defaultdict(int)) for b in TOD_BUCKET_NAMES}
+    # Per-district monthly histogram split by 2-hour bins (12 bins/day) — the matching denominator so the
+    # hour scrubber normalizes cells against the SAME time slice of the district tide.
+    dist_month_hourly = {b: defaultdict(lambda: defaultdict(int)) for b in HOUR_BINS}
     for r in recs:
         cy = round(r["lat"], CELL_DECIMALS)
         cx = round(r["lng"], CELL_DECIMALS)
@@ -150,12 +154,15 @@ def classify(key, latest, nowset, summary):
         ym = r["ym"]
         b = tod_bucket(r.get("hour"))
         gb = tod_granular_bucket(r.get("hour"))
+        hb = hour_bin(r.get("hour"))
         c["m"][ym] += 1
         c["m_" + b][ym] += 1
         c["m_tod"][gb][ym] += 1
+        c["m_hourly"][hb][ym] += 1
         dist_month[r["district"]][ym] += 1
         dist_month_tod[b][r["district"]][ym] += 1
         dist_month_todg[gb][r["district"]][ym] += 1
+        dist_month_hourly[hb][r["district"]][ym] += 1
         if in_pre(ym):
             c["pre"] += 1; dist_pre[r["district"]] += 1
         elif ym in nowset:
@@ -217,6 +224,8 @@ def classify(key, latest, nowset, summary):
             "monthly_night": [c["m_night"].get(mo, 0) for mo in MONTHS],
             # granular time-of-day splits (the 4 buckets sum to monthly — see assertion below)
             "monthly_tod": {b: [c["m_tod"][b].get(mo, 0) for mo in MONTHS] for b in TOD_BUCKET_NAMES},
+            # 2-hour bins (12 per day) for the hour scrubber (sum of all 12 == monthly)
+            "monthly_hourly": {b: [c["m_hourly"][b].get(mo, 0) for mo in MONTHS] for b in HOUR_BINS},
         })
 
     # Parity guard: the 4 granular buckets must repartition the monthly total exactly (mirrors the
@@ -224,6 +233,9 @@ def classify(key, latest, nowset, summary):
     for cell in out:
         gsum = [sum(vals) for vals in zip(*cell["monthly_tod"].values())]
         assert gsum == cell["monthly"], f"granular buckets != monthly for a {key} cell"
+        # Same for the 12 hour bins
+        hsum = [sum(vals) for vals in zip(*cell["monthly_hourly"].values())]
+        assert hsum == cell["monthly"], f"hour bins != monthly for a {key} cell"
 
     classified = sum(counts.values())
     summary[key] = {
@@ -244,6 +256,10 @@ def classify(key, latest, nowset, summary):
         "district_monthly_tod": {b: {DISTRICT_LABEL[d]: [dist_month_todg[b][d].get(mo, 0) for mo in MONTHS]
                                      for d in TARGET_DISTRICTS}
                                  for b in TOD_BUCKET_NAMES},
+        # 2-hour bins district tide (sum of 12 == district_monthly), the matching denominator for the hour scrubber
+        "district_monthly_hourly": {b: {DISTRICT_LABEL[d]: [dist_month_hourly[b][d].get(mo, 0) for mo in MONTHS]
+                                        for d in TARGET_DISTRICTS}
+                                    for b in HOUR_BINS},
         "counts": dict(counts),
         "cells": len(out),
         "classified_fixed_preset": classified,
