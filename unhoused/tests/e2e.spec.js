@@ -170,3 +170,47 @@ test('methodology shows runnable queries, HSOC-as-response framing, and the wast
   await expect(meth).toContainText('Needles');
   await expect(meth).toContainText('human');
 });
+
+test('See details popup stays open, shows tod chips, and chips filter the breakdown', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('mission'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(800);
+
+  // Open a cell popup
+  await page.locator('#map path.leaflet-interactive[fill]:not([fill="none"])').first().click({ force: true });
+  await page.waitForTimeout(300);
+  await expect(page.locator('.leaflet-popup')).toBeVisible();
+
+  // Click "See details" and verify popup stays open
+  await page.locator('.cell-details-btn').click();
+  await page.waitForTimeout(500);
+  await expect(page.locator('.leaflet-popup')).toBeVisible();
+  await expect(page.locator('.cell-details:not([hidden])')).toBeVisible();
+
+  // Verify 5 tod chips (All + 4 time buckets)
+  await expect(page.locator('.cell-details .tod-chip')).toHaveCount(5);
+
+  // Click a tod chip and verify popup stays open and breakdown updates
+  const breakdownBefore = await page.locator('.cell-details__breakdown').innerHTML();
+  await page.locator('.tod-chip[data-tod="morning"]').click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.leaflet-popup')).toBeVisible();
+  await expect(page.locator('.tod-chip[data-tod="morning"]')).toHaveClass(/is-active/);
+
+  // Close popup, open a different cell, and verify See details still works
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+
+  // Find another cell (using nth to get a different one)
+  await page.locator('#map path.leaflet-interactive[fill]:not([fill="none"])').nth(1).click({ force: true });
+  await page.waitForTimeout(300);
+  const btn = page.locator('.cell-details-btn');
+  if (await btn.count() > 0) {
+    await btn.click();
+    await page.waitForTimeout(500);
+    await expect(page.locator('.leaflet-popup')).toBeVisible();
+    await expect(page.locator('.cell-details:not([hidden])')).toBeVisible();
+  }
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});

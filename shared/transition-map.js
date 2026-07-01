@@ -193,7 +193,13 @@ export function renderCells(cells, districtName, visible) {
       selectedCellId = cellId; emitState();   // click → pin + shareable URL
       const popupEl = cm.getPopup()?.getElement();
       const btn = popupEl?.querySelector('.cell-details-btn');
-      btn?.addEventListener('click', () => showCellDetails(c.lat, c.lng, popupEl, cm));
+      if (btn) {
+        L.DomEvent.disableClickPropagation(btn);
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showCellDetails(c.lat, c.lng, popupEl, cm);
+        });
+      }
     });
     cm.on('popupclose', () => { if (selectedCellId === cellId) { selectedCellId = null; emitState(); } });
     cm.addTo(cellLayer);
@@ -297,13 +303,15 @@ async function showCellDetails(lat, lng, popupEl, cm) {
   renderBd(null);
   popupEl.querySelector('.cell-details-btn')?.remove();
 
-  // Widen the popup for the panel and reflow. NOTE: do NOT call popup.update() — it re-renders the
-  // popup from the original bound HTML string and would wipe the breakdown DOM we just injected.
-  // _updateLayout/_updatePosition re-fit width + reposition against the *live* DOM, preserving it.
-  const popup = cm?.getPopup();
-  if (popup) {
-    popup.options.maxWidth = 340;
-    popup._updateLayout?.();
-    popup._updatePosition?.();
+  // Prevent click events inside the details panel from propagating to the map
+  // (which could close the popup or trigger other handlers).
+  L.DomEvent.disableClickPropagation(detailsEl);
+
+  // Widen the popup for the expanded panel using CSS class instead of calling
+  // internal Leaflet methods (_updateLayout/_updatePosition) which can trigger
+  // a popup close in certain scenarios (e.g., after re-opening a different cell).
+  const contentWrapper = popupEl.querySelector('.leaflet-popup-content');
+  if (contentWrapper) {
+    contentWrapper.classList.add('is-expanded');
   }
 }

@@ -261,7 +261,8 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .legend-item.is-off { opacity: .5; }
 .legend-item.is-off .legend-count { color: var(--muted); }
 .legend-dot { width: .9rem; height: .9rem; border-radius: 999px; display: inline-block; flex: none; background: var(--cat, var(--c-gray)); }
-.leaflet-popup-content { font-size: .82rem; }
+.leaflet-popup-content { font-size: .82rem; max-width: 230px; }
+.leaflet-popup-content.is-expanded { max-width: 340px; }
 /* Dark mode: Leaflet popups default to a white surface, which leaves the dark-theme text/muted
    colors (and the cell-detail chips/breakdown) low-contrast. Theme the popup to match the app. */
 html.wa-dark .leaflet-popup-content-wrapper,
