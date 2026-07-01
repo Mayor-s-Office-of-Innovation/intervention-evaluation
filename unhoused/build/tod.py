@@ -56,3 +56,33 @@ def tod_granular_bucket(hour):
     if hour is None:
         return "night"
     return _HOUR_TO_TOD.get(hour, "night")
+
+
+# ── 2-hour bins for the hour scrubber (PR #xx) ─────────────────────────────────
+# 12 bins per day, each spanning 2 hours. This lets viewers pinpoint e.g. "2–4am"
+# peaks without bloating the JSON with 24 hourly arrays. The scrubber snaps to bin
+# edges; the sum of all 12 bins == total monthly (same partition property as above).
+# Bin naming: "00-02" means hours [0, 1], "02-04" means [2, 3], etc.
+HOUR_BINS = tuple(f"{h:02d}-{(h+2) % 24:02d}" for h in range(0, 24, 2))
+HOUR_BIN_HOURS = {
+    "00-02": (0, 1),
+    "02-04": (2, 3),
+    "04-06": (4, 5),
+    "06-08": (6, 7),
+    "08-10": (8, 9),
+    "10-12": (10, 11),
+    "12-14": (12, 13),
+    "14-16": (14, 15),
+    "16-18": (16, 17),
+    "18-20": (18, 19),
+    "20-22": (20, 21),
+    "22-00": (22, 23),
+}
+_HOUR_TO_BIN = {h: name for name, hours in HOUR_BIN_HOURS.items() for h in hours}
+
+
+def hour_bin(hour):
+    """Map an hour (0–23, or None) to a 2-hour bin name. Null/negative → '00-02'."""
+    if hour is None or hour < 0:
+        return "00-02"
+    return _HOUR_TO_BIN.get(hour, "00-02")
