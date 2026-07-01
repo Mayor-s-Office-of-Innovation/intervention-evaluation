@@ -231,6 +231,55 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .map-tod-chip:hover { color: var(--text); border-color: var(--c-gray); }
 .map-tod-chip.is-active { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
 
+/* Hour scrubber (2-hour bins, below the granular time-of-day chips) */
+.hour-scrubber {
+  margin-bottom: .75rem; padding: .2rem 0;
+}
+.hour-scrubber:empty { display: none; }
+.hour-scrubber__row {
+  display: flex; align-items: center; gap: .5rem; margin-bottom: .35rem;
+}
+.hour-scrubber__label {
+  font-size: .72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .03em; color: var(--muted);
+}
+.hour-scrubber__reset {
+  font-size: .68rem; color: var(--c-blue); background: none; border: none;
+  cursor: pointer; padding: 0; text-decoration: underline;
+}
+.hour-scrubber__reset:hover { color: var(--c-blue-dark, #1d4ed8); }
+.hour-scrubber__reset.is-hidden { display: none; }
+.hour-scrubber__slider {
+  position: relative; height: 1.4rem; margin: 0 .15rem;
+}
+.hour-range {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  -webkit-appearance: none; appearance: none; background: transparent;
+  pointer-events: none;
+}
+.hour-range::-webkit-slider-runnable-track {
+  height: 4px; background: var(--c-line); border-radius: 2px;
+}
+.hour-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--c-blue); border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  margin-top: -5px; cursor: pointer; pointer-events: auto;
+}
+.hour-range::-moz-range-track {
+  height: 4px; background: var(--c-line); border-radius: 2px;
+}
+.hour-range::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--c-blue); border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  cursor: pointer;
+}
+.hour-scrubber__range {
+  font-size: .75rem; color: var(--text); margin-top: .25rem; text-align: center;
+}
+
 /* page-level time-of-day filter strip (top of <main>, above the headline cards) */
 .tod-filter {
   display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;

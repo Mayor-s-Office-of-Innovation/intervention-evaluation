@@ -28,12 +28,19 @@ let pendingRestore = null;   // a parsed {center,zoom,sig,cell} to apply on firs
 let lastMapState = null;
 function parseUrlParams() {
   const p = new URLSearchParams(location.search);
-  const out = { win: null, map: null };
+  const out = { win: null, map: null, hr: null };
   const w = p.get('w');
   if (w && w.includes('_')) {
     const [a, b] = w.split('_');
     const lo = AGG.months.indexOf(a), hi = AGG.months.indexOf(b);
     if (lo >= 0 && hi >= lo) out.win = { lo, hi };
+  }
+  // Hour range: hr=0-5 means bins [0..5] inclusive
+  const hr = p.get('hr');
+  if (hr && hr.includes('-')) {
+    const [a, b] = hr.split('-').map(Number);
+    if (Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b < 12 && a <= b)
+      out.hr = [a, b];
   }
   if (p.has('z') && p.has('ll')) {
     const [lat, lng] = (p.get('ll') || '').split(',').map(Number);
@@ -43,11 +50,13 @@ function parseUrlParams() {
   }
   return out;
 }
-// One writer for both the analysis window (w=startYM_endYM) and the pinned-cell map view (z/ll/sig/cl).
+// One writer for both the analysis window (w=startYM_endYM), hour range (hr=lo-hi), and pinned-cell map view (z/ll/sig/cl).
 function syncUrl() {
   const p = new URLSearchParams();
   if (win && !(win.lo === lurieIdx && win.hi === latestCompleteIdx))
     p.set('w', `${AGG.months[win.lo]}_${AGG.months[win.hi]}`);
+  if (hourRange)
+    p.set('hr', `${hourRange[0]}-${hourRange[1]}`);
   if (lastMapState) {
     p.set('z', String(lastMapState.zoom));
     p.set('ll', `${lastMapState.center.lat.toFixed(5)},${lastMapState.center.lng.toFixed(5)}`);
@@ -70,6 +79,12 @@ const transitionData = {};
 
 // ── map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
 let mapTodFilter = null;           // null = all, or Set of bucket names
+
+// ── hour scrubber (2-hour bins) ──
+// 12 bins per day, matching build/tod.py HOUR_BINS. Bin naming: "00-02" means hours [0, 1], etc.
+const HOUR_BINS = ['00-02', '02-04', '04-06', '06-08', '08-10', '10-12',
+                   '12-14', '14-16', '16-18', '18-20', '20-22', '22-00'];
+let hourRange = null;  // null = all hours, or [startIdx, endIdx] into HOUR_BINS (inclusive)
 
 // Element-wise sum of N equal-length arrays (for combining selected time-of-day buckets).
 const sumArrays = arrays =>
@@ -291,12 +306,20 @@ async function renderMap() {
   setTodFilter(todFilter);        // marker layer + cell-details honor the page-level filter…
   setMapTodFilter(mapTodFilter);  // …unless the granular map filter overrides it (transition-map.js)
 
-  // Pick the time slice to classify off. The granular map filter (morning/afternoon/evening/night) is a
-  // complete re-partition of the day, so when active it OVERRIDES the page-level Day/Night filter for the
-  // map: sum the selected buckets for BOTH the cell histograms and the district tide so the
+  // Pick the time slice to classify off. The hour scrubber (2-hour bins) takes highest precedence,
+  // then the granular map filter (morning/afternoon/evening/night), then the page-level Day/Night filter.
+  // Each is a complete re-partition of the day, so when active it OVERRIDES lower-precedence filters:
+  // sum the selected buckets for BOTH the cell histograms and the district tide so the
   // difference-in-differences numerator and denominator come from the same slice (no denominator skew).
   let cells, dm, monthlyKey;
-  if (mapTodFilter) {
+  if (hourRange) {
+    // Hour scrubber: sum selected 2-hour bins (highest precedence)
+    const bins = HOUR_BINS.slice(hourRange[0], hourRange[1] + 1);
+    cells = transitionData[mapSignal].map(c => ({ ...c, monthly_sel: sumArrays(bins.map(bk => c.monthly_hourly[bk])) }));
+    dm = Object.fromEntries(Object.entries(sigMeta.district_monthly_hourly[bins[0]]).map(([d]) =>
+      [d, sumArrays(bins.map(bk => sigMeta.district_monthly_hourly[bk][d]))]));
+    monthlyKey = 'monthly_sel';
+  } else if (mapTodFilter) {
     const buckets = [...mapTodFilter];
     cells = transitionData[mapSignal].map(c => ({ ...c, monthly_sel: sumArrays(buckets.map(bk => c.monthly_tod[bk])) }));
     dm = Object.fromEntries(Object.entries(sigMeta.district_monthly_tod[buckets[0]]).map(([d]) =>
@@ -391,6 +414,68 @@ function buildMapTodFilter() {
   });
 }
 
+// ── hour scrubber (2-hour bin selection for the map) ──
+function formatHourBin(bin) {
+  const [start] = bin.split('-').map(Number);
+  const suffix = start < 12 ? 'am' : 'pm';
+  const hr = start === 0 ? 12 : start > 12 ? start - 12 : start;
+  return `${hr}${suffix}`;
+}
+function buildHourScrubber() {
+  const container = $('#hour-scrubber');
+  if (!container) return;
+
+  const isActive = hourRange !== null;
+  const loIdx = hourRange ? hourRange[0] : 0;
+  const hiIdx = hourRange ? hourRange[1] : HOUR_BINS.length - 1;
+  const loLabel = formatHourBin(HOUR_BINS[loIdx]);
+  const hiLabel = formatHourBin(HOUR_BINS[(hiIdx + 1) % HOUR_BINS.length] || HOUR_BINS[0]);
+
+  container.innerHTML = `
+    <div class="hour-scrubber__row">
+      <span class="hour-scrubber__label">Hours</span>
+      <button class="hour-scrubber__reset ${isActive ? '' : 'is-hidden'}" data-reset>Reset</button>
+    </div>
+    <div class="hour-scrubber__slider">
+      <input type="range" min="0" max="${HOUR_BINS.length - 1}" value="${loIdx}" class="hour-range hour-range--lo" data-lo>
+      <input type="range" min="0" max="${HOUR_BINS.length - 1}" value="${hiIdx}" class="hour-range hour-range--hi" data-hi>
+    </div>
+    <div class="hour-scrubber__range">${isActive ? `${loLabel} – ${hiLabel}` : 'All hours'}</div>`;
+
+  const loSlider = container.querySelector('[data-lo]');
+  const hiSlider = container.querySelector('[data-hi]');
+  const rangeLabel = container.querySelector('.hour-scrubber__range');
+  const resetBtn = container.querySelector('[data-reset]');
+
+  const update = async () => {
+    let lo = parseInt(loSlider.value, 10);
+    let hi = parseInt(hiSlider.value, 10);
+    if (lo > hi) [lo, hi] = [hi, lo];
+    loSlider.value = lo;
+    hiSlider.value = hi;
+    const isAll = lo === 0 && hi === HOUR_BINS.length - 1;
+    hourRange = isAll ? null : [lo, hi];
+    const loLbl = formatHourBin(HOUR_BINS[lo]);
+    const hiLbl = formatHourBin(HOUR_BINS[(hi + 1) % HOUR_BINS.length] || HOUR_BINS[0]);
+    rangeLabel.textContent = isAll ? 'All hours' : `${loLbl} – ${hiLbl}`;
+    resetBtn.classList.toggle('is-hidden', !hourRange);
+    await renderMap();
+    syncUrl();
+  };
+
+  loSlider.oninput = update;
+  hiSlider.oninput = update;
+  resetBtn.onclick = async () => {
+    hourRange = null;
+    loSlider.value = 0;
+    hiSlider.value = HOUR_BINS.length - 1;
+    rangeLabel.textContent = 'All hours';
+    resetBtn.classList.add('is-hidden');
+    await renderMap();
+    syncUrl();
+  };
+}
+
 // ── page-level Day/Night filter (plan-time-of-day.md §5) ──
 // Two independent include/exclude chips at the top of the page; ≥1 must stay on. Changing the filter
 // re-renders every viz off the selected day/night slice (cards, citywide, chart, HSOC, map).
@@ -483,6 +568,7 @@ async function main() {
     buildPresets();
     const parsed = parseUrlParams();
     win = parsed.win ? clampWin(parsed.win.lo, parsed.win.hi) : { lo: lurieIdx, hi: latestCompleteIdx };
+    hourRange = parsed.hr;  // restore hour range from deep-link
 
     // Adopt any deep-linked map state before the first render (signal must be set before the map builds).
     pendingRestore = parsed.map;
@@ -494,6 +580,7 @@ async function main() {
     wireTodToggles();
     buildMapControls();
     buildMapTodFilter();
+    buildHourScrubber();
     renderScrubber();
     renderMethodology();
     $('#enc-only-toggle').addEventListener('change', (e) => { encOnly = e.target.checked; renderFocusChart(); });
