@@ -6,11 +6,12 @@
 // verdict + stats + chart + map all reflect it, before/after split at the date.
 // ──────────────────────────────────────────────────────────────────────
 
-import { DATAPOINTS, getDataPoint } from './datapoints.js';
+import { DATAPOINTS, getDataPoint, LEVERS } from './datapoints.js';
 import { fetchEvents, datasetLabel } from './soda.js';
 import { bucketSeries, chooseGranularity, analyzeWindow, detectWindowStart, addDays, daysBetween } from './analyze.js';
 import { renderChart } from './chart.js';
 import { initPicker, renderEvents } from './map.js';
+import { createFullIntervention, updateIntervention, getIntervention } from '../../js/interventions-client.js';
 
 // Page & Buchanan — NE corner of Koshland Park (exact intersection point).
 const KOSHLAND = { lat: 37.77346, lng: -122.42736 };
@@ -24,6 +25,7 @@ const fmtNice = iso => { const [y, m, d] = iso.split('-'); return `${MONTHS[+m -
 const fmtMonthYear = ym => { const [y, m] = ym.split('-'); return `${MONTHS[+m - 1]} ${y}`; };
 
 let loc = { ...KOSHLAND };
+let locSet = false;      // true once the user drops a pin (or an edited record supplies coords)
 let radiusM = 250;       // adjustable via the radius slider
 let hasRun = false;
 let allEvents = [];
@@ -35,16 +37,26 @@ let urlWindow = null;   // {start,end} parsed from a shared link; overrides smar
 let curStart = null;    // current analysis window (ISO), tracked for the shareable URL
 let curEnd = null;
 
+// Edit mode: if URL has ?edit=ID, we load that intervention and update instead of create
+let editId = null;
+let editRecord = null;
+
 async function init() {
   await customElements.whenDefined('wa-input');
   await customElements.whenDefined('wa-select');
+  await customElements.whenDefined('wa-textarea');
+
+  // Check for edit mode first
+  const urlParams = new URLSearchParams(location.search);
+  editId = urlParams.get('edit');
 
   const shared = readParams(); // a shared link overrides the defaults above
 
-  // populate the data-point dropdown from the registry
+  // populate the data-point dropdown from the registry (now with all levers)
   const sel = $('in-expect');
-  sel.innerHTML = DATAPOINTS.map(d => `<wa-option value="${d.key}">${d.label}</wa-option>`).join('');
-  sel.value = dp.key;
+  const leverOptions = LEVERS || DATAPOINTS;
+  sel.innerHTML = leverOptions.map(d => `<wa-option value="${d.key}">${d.label}</wa-option>`).join('');
+  if (!editId) sel.value = dp.key;
   setDescription();
   sel.addEventListener('change', () => {
     dp = getDataPoint(sel.value);
@@ -59,6 +71,7 @@ async function init() {
   updateReadout();
   picker = initPicker($('picker-map'), loc, p => {
     loc = p;
+    locSet = true;
     updateReadout();
     syncURL();
     if (hasRun) run();
@@ -72,10 +85,170 @@ async function init() {
   radiusSlider.addEventListener('input', applyRadius);
   radiusSlider.addEventListener('change', () => { applyRadius(); syncURL(); if (hasRun) run(); });
 
-  $('run-btn').addEventListener('click', () => run(true));
-  $('copy-link-btn').addEventListener('click', copyShareLink);
+  // Main button: submit or update
+  $('run-btn').addEventListener('click', handleSubmit);
+  $('copy-link-btn')?.addEventListener('click', copyShareLink);
 
-  if (shared) run(true); // a shared link auto-runs AND scrolls to the results (copy button at top)
+  // Keep the clickable links preview in sync as the user edits the field
+  $('in-links')?.addEventListener('input', () => renderLinksPreview());
+
+  // Load existing record if in edit mode
+  if (editId) {
+    await loadEditRecord();
+  } else if (shared) {
+    run(true); // a shared link auto-runs AND scrolls to the results
+  }
+}
+
+async function loadEditRecord() {
+  try {
+    editRecord = await getIntervention(editId);
+    if (!editRecord) throw new Error('Not found');
+
+    // Update page title
+    $('page-title').textContent = 'Edit intervention';
+    $('page-sub').textContent = 'Update this intervention and track its impact.';
+    $('form-title').textContent = 'Edit intervention';
+    $('submit-label').textContent = 'Update intervention';
+
+    // Populate form fields
+    $('in-what').value = editRecord.intervention || editRecord.what || '';
+    $('in-description').value = editRecord.description || '';
+    $('in-evidence').value = editRecord.evidence || '';
+    $('in-tactics').value = editRecord.tactics || '';
+    $('in-owner').value = editRecord.owner || '';
+    $('in-agencies').value = editRecord.agencies || '';
+    $('in-status').value = editRecord.status || 'open_in_progress';
+    $('in-district').value = editRecord.district || 'Central';
+    $('in-when').value = editRecord.start_date || editRecord.date || '';
+    $('in-roadblock').value = editRecord.roadblock || '';
+    $('in-outcomes').value = editRecord.outcomes || '';
+    $('in-notes').value = editRecord.notes || '';
+    $('in-links').value = (editRecord.links || []).join('\n');
+    renderLinksPreview(editRecord.links);
+    $('in-submitter').value = editRecord.person_submitted || '';
+
+    // Set levers (multi-select)
+    if (editRecord.levers?.length) {
+      $('in-expect').value = editRecord.levers;
+    } else if (editRecord.dp) {
+      $('in-expect').value = [editRecord.dp];
+    }
+
+    // Set location
+    if (editRecord.lat && editRecord.lng) {
+      loc = { lat: editRecord.lat, lng: editRecord.lng };
+      locSet = true;
+      picker?.setLocation(loc);
+    }
+    if (editRecord.radius) {
+      radiusM = editRecord.radius;
+      $('radius-slider').value = radiusM;
+      picker?.setRadius(radiusM);
+    }
+
+    updateReadout();
+    dateISO = editRecord.start_date || editRecord.date || DEFAULT_DATE;
+
+    // Auto-run the analysis
+    run(false);
+  } catch (e) {
+    console.error('Failed to load intervention:', e);
+    alert('Could not load intervention for editing.');
+  }
+}
+
+async function handleSubmit() {
+  // Validate required fields
+  const title = ($('in-what').value || '').trim();
+  const submitter = ($('in-submitter').value || '').trim();
+  const district = $('in-district').value;
+
+  if (!title) {
+    alert('Please enter an intervention title.');
+    $('in-what').focus();
+    return;
+  }
+  if (!submitter) {
+    alert('Please enter your name.');
+    $('in-submitter').focus();
+    return;
+  }
+
+  // Gather form data
+  const data = {
+    intervention: title,
+    description: ($('in-description').value || '').trim(),
+    evidence: ($('in-evidence').value || '').trim(),
+    tactics: ($('in-tactics').value || '').trim(),
+    owner: ($('in-owner').value || '').trim(),
+    agencies: ($('in-agencies').value || '').trim(),
+    levers: getSelectedLevers(),
+    status: $('in-status').value || 'open_in_progress',
+    district,
+    start_date: $('in-when').value || todayISO(),
+    roadblock: ($('in-roadblock').value || '').trim(),
+    outcomes: ($('in-outcomes').value || '').trim(),
+    notes: ($('in-notes').value || '').trim(),
+    links: parseLinks($('in-links').value),
+    person_submitted: submitter,
+    // Only send coordinates when a pin was actually placed — otherwise an edit would silently
+    // overwrite a record's stored location with the default Koshland pin.
+    ...(locSet ? { lat: loc.lat, lng: loc.lng } : {}),
+    radius: radiusM,
+  };
+
+  const btn = $('run-btn');
+  btn.loading = true;
+  btn.disabled = true;
+
+  try {
+    if (editId) {
+      data.edited_by = submitter;
+      await updateIntervention(editId, data);
+      alert('Intervention updated successfully!');
+    } else {
+      await createFullIntervention(data);
+      alert('Intervention submitted successfully!');
+      // Redirect to homepage after creating
+      window.location.href = '../';
+    }
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    btn.loading = false;
+    btn.disabled = false;
+    $('submit-label').textContent = editId ? 'Update intervention' : 'Submit intervention';
+  }
+}
+
+function getSelectedLevers() {
+  const sel = $('in-expect');
+  if (!sel.value) return [];
+  return Array.isArray(sel.value) ? sel.value : [sel.value];
+}
+
+// Parse the "Related documents" textarea (one URL per line) into a clean array of links.
+// Bare hostnames get an https:// prefix; blanks are dropped; capped at 20.
+function parseLinks(text) {
+  return (text || '')
+    .split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(u => /^https?:\/\//i.test(u) ? u : `https://${u}`)
+    .slice(0, 20);
+}
+
+// Render the current links as clickable items under the textarea. Pass an explicit array (on edit
+// load) or omit it to derive from the field's current text (live while typing).
+function renderLinksPreview(links) {
+  const el = $('links-preview');
+  if (!el) return;
+  const list = Array.isArray(links) ? links : parseLinks($('in-links').value);
+  el.innerHTML = list.map(u => {
+    const href = encodeURI(u).replace(/"/g, '%22');
+    return `<a class="link-chip" href="${href}" target="_blank" rel="noopener">${escHtml(u)}</a>`;
+  }).join('');
 }
 
 // ── Shareable URL: state ⇄ query params (live re-query, no backend) ──
@@ -88,7 +261,7 @@ function readParams() {
   const lat = parseFloat(p.get('lat')), lng = parseFloat(p.get('lng'));
   if (isFinite(lat) && isFinite(lng)) loc = { lat, lng };
   const r = parseInt(p.get('r'), 10);
-  if (isFinite(r)) radiusM = Math.min(1000, Math.max(100, Math.round(r / 50) * 50));
+  if (isFinite(r)) radiusM = Math.min(1000, Math.max(10, Math.round(r / 10) * 10));
   const d = p.get('date'); if (d) dateISO = d;
   const from = p.get('from'), to = p.get('to');
   if (from && to) urlWindow = { start: from, end: to };
@@ -99,6 +272,7 @@ function readParams() {
 
 function syncURL() {
   const p = new URLSearchParams();
+  if (editId) p.set('edit', editId);   // keep edit mode across reloads / the auto-run's syncURL
   p.set('dp', dp.key);
   const when = $('in-when').value; if (when) p.set('date', when);
   p.set('lat', loc.lat.toFixed(5));
@@ -255,13 +429,24 @@ function renderWindow(startDay, endDay, { updateMap = true, recenter = false } =
 
 function verdictHtml(w) {
   const arrow = w.direction === 'down' ? '▼' : w.direction === 'up' ? '▲' : '▬';
-  const pct = isFinite(w.pct) ? `${arrow} ${Math.abs(w.pct).toFixed(0)}%` : '—';
-  const plural = n => `${dp.noun}${n === 1 ? '' : 's'}`;
-  let html =
-    `<strong>${w.pre}</strong> ${plural(w.pre)} in the ${w.preDays} day${w.preDays === 1 ? '' : 's'} before → ` +
-    `<strong>${w.post}</strong> in the ${w.postDays} day${w.postDays === 1 ? '' : 's'} after ` +
-    `(≈${w.preRate.toFixed(1)} → ≈${w.postRate.toFixed(1)} per 30 days, ${pct}).`;
-  html += `<div class="verdict-note">Preliminary, descriptive only — a plain-language AI verdict will land here in a later version.</div>`;
+  const pctValue = isFinite(w.pct) ? Math.abs(w.pct).toFixed(0) : null;
+  const dirWord = w.direction === 'down' ? 'down' : w.direction === 'up' ? 'up' : 'unchanged';
+
+  // Anchor the summary to the intervention date
+  let html;
+  if (pctValue !== null) {
+    html = `Since this intervention was logged on <strong>${fmtNice(dateISO)}</strong>, ` +
+      `${dp.noun || 'report'}s within ${radiusM} m are <strong>${dirWord} ${pctValue}%</strong> ` +
+      `vs. the ${w.preDays} day${w.preDays === 1 ? '' : 's'} before it ` +
+      `(${w.pre} → ${w.post}, or ≈${w.preRate.toFixed(1)} → ≈${w.postRate.toFixed(1)} per 30 days).`;
+  } else {
+    html = `Since this intervention was logged on <strong>${fmtNice(dateISO)}</strong>, ` +
+      `there have been <strong>${w.post}</strong> ${dp.noun || 'report'}${w.post === 1 ? '' : 's'} ` +
+      `within ${radiusM} m (vs. ${w.pre} in the ${w.preDays} days before).`;
+  }
+
+  html += `<div class="verdict-note">Observational data only — compare carefully with the timeline above.</div>`;
+
   if (!w.interventionInWindow) {
     html += `<div class="verdict-warn">⚠ The intervention date (${fmtNice(dateISO)}) is outside the selected range — widen the date slider to span it for a before/after comparison.</div>`;
   } else if (w.shortWindow) {

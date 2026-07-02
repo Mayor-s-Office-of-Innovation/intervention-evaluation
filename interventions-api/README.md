@@ -1,7 +1,7 @@
 # interventions-api
 
 Cloudflare Worker + KV backing the homepage's "Saved intervention evaluations" list.
-See [`../plan-saved-interventions.md`](../plan-saved-interventions.md) for the design + decisions.
+See [`../docs/plan-saved-interventions.md`](../docs/plan-saved-interventions.md) for the design + decisions.
 
 **Front-end pieces** (the API base URL is set once in [`../js/interventions-client.js`](../js/interventions-client.js)):
 - [`../js/saved-interventions.js`](../js/saved-interventions.js) — homepage list + per-row soft-delete.

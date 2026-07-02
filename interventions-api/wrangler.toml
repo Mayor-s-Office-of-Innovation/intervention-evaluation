@@ -1,4 +1,4 @@
-# Saved-interventions API — Cloudflare Worker + KV (../plan-saved-interventions.md).
+# Saved-interventions API — Cloudflare Worker + KV (../docs/plan-saved-interventions.md).
 # Run locally:   cd interventions-api && npx wrangler dev      (local KV — no account needed)
 # Deploy:        npx wrangler deploy                            (after creating the KV namespace below)
 name = "interventions-api"

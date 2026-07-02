@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interventions flow — proposed changes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* product tokens (match the live dashboard) */
+    --slate:#1f2937; --blue:#3b82f6; --green:#22c55e; --gray:#6b7280;
+    --line:#e5e7eb; --bg:#f4f4f6; --surface:#ffffff;
+    /* doc + annotation */
+    --ink:#1b2230; --soft:#4a5365; --faint:#8b93a3;
+    --paper:#f1efe9; --mark:#e8590c; --mark-bg:#fdebdd;
+    --sys:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sys);line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 26px 90px;}
+  .mono{font-family:"IBM Plex Mono",monospace;}
+
+  header.mast{border-bottom:1px solid #d8d3c8;}
+  .mast .wrap{padding:32px 26px 22px;}
+  .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--mark);font-weight:600;margin:0 0 8px;}
+  h1{font-family:"Archivo",sans-serif;font-weight:800;font-size:clamp(26px,4.4vw,36px);line-height:1.05;letter-spacing:-.02em;margin:0 0 10px;}
+  .mast p{margin:0;color:var(--soft);max-width:70ch;}
+
+  /* index */
+  .legend{background:var(--surface);border:1px solid #e3ddd1;border-radius:12px;padding:18px 20px;margin:28px 0 8px;box-shadow:0 12px 30px -20px rgba(27,34,48,.3);}
+  .legend h3{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin:0 0 12px;font-weight:600;}
+  .legend-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 26px;}
+  .legend-grid .li{display:flex;gap:9px;align-items:baseline;font-size:13.5px;color:var(--soft);}
+  .legend .scr{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);white-space:nowrap;}
+
+  section.screen{border-top:1px solid #d8d3c8;margin-top:46px;padding-top:34px;}
+  .screen .eyebrow{color:var(--blue);}
+  .screen h2{font-family:"Archivo",sans-serif;font-weight:700;letter-spacing:-.018em;font-size:clamp(20px,3vw,26px);margin:0 0 8px;}
+  .screen .lead{color:var(--soft);max-width:74ch;margin:0 0 22px;}
+
+  /* annotation pin */
+  .pin{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;
+    border-radius:999px;background:var(--mark);color:#fff;font-family:"IBM Plex Mono",monospace;font-weight:600;
+    font-size:11px;line-height:1;vertical-align:middle;box-shadow:0 1px 2px rgba(0,0,0,.2);}
+  .pin--ghost{background:var(--mark-bg);color:var(--mark);}
+
+  /* mock frame */
+  .mock{background:var(--bg);border:1px solid #d8d3c8;border-radius:12px;overflow:hidden;box-shadow:0 18px 40px -26px rgba(27,34,48,.4);font-family:var(--sys);}
+  .mock__bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#e9e7e1;border-bottom:1px solid #d8d3c8;}
+  .mock__bar i{width:9px;height:9px;border-radius:50%;background:#cbc8bf;}
+  .mock__bar span{margin-left:8px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:#8a857a;}
+  .mock__body{padding:18px;}
+  .mhead{background:var(--slate);color:#fff;margin:-18px -18px 16px;padding:16px 18px;}
+  .mhead .eb{text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:600;color:#7fb0ff;}
+  .mhead h4{margin:3px 0 0;font-size:16px;font-weight:700;}
+
+  .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .ba-tag{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;margin:0 0 7px;}
+  .ba-tag.before{color:var(--faint);} .ba-tag.after{color:var(--green);}
+
+  /* product UI bits */
+  .pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;}
+  .pill{font-size:12px;font-weight:600;color:var(--gray);background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 12px;}
+  .pill.on{color:var(--blue);background:rgba(59,130,246,.13);border-color:rgba(59,130,246,.4);}
+  .ctabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:14px;}
+  .ctab{font-size:12.5px;font-weight:600;color:var(--gray);padding:8px 12px;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .ctab.on{color:var(--slate);border-bottom-color:var(--blue);}
+  .seclabel{text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;font-weight:700;color:var(--gray);margin:0 0 10px;display:flex;align-items:center;gap:8px;}
+  .okrrow{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;}
+  .okrc{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px;}
+  .okrc .e{font-size:8.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--blue);font-weight:600;}
+  .okrc .t{font-size:12px;font-weight:700;margin:3px 0 0;line-height:1.2;color:var(--slate);}
+  .linkcard{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px 14px;}
+  .linkcard .ic{width:26px;height:26px;border-radius:7px;background:rgba(59,130,246,.12);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:700;}
+  .linkcard .tt{font-weight:700;font-size:13.5px;color:var(--slate);}
+  .linkcard .ss{font-size:11.5px;color:var(--gray);}
+  .linkcard .arr{margin-left:auto;color:var(--gray);font-size:16px;}
+  .divider{height:1px;background:var(--line);margin:16px 0;}
+
+  /* table */
+  .itable{width:100%;border-collapse:collapse;font-size:11.5px;}
+  .itable th{text-align:left;padding:7px 8px;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray);border-bottom:2px solid var(--line);white-space:nowrap;font-weight:700;}
+  .itable td{padding:8px;border-bottom:1px solid var(--line);color:var(--slate);vertical-align:middle;white-space:nowrap;}
+  .itable .nm{font-weight:600;}
+  .krp{font-size:10.5px;font-weight:600;color:#1d4ed8;background:#dbeafe;border-left:3px solid var(--blue);border-radius:4px;padding:2px 6px;}
+  .st{font-size:9.5px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:4px;}
+  .st.active{background:#dbeafe;color:#1d4ed8;} .st.closed{background:#eef0f2;color:#6b7280;}
+  .imp{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:4px;} .imp.good{background:#dcfce7;color:#15803d;} .imp.bad{background:#fee2e2;color:#b91c1c;}
+  .rowact{color:var(--blue);font-weight:600;font-size:11px;}
+  .rowact.close{color:#b45309;}
+  .col-new{background:var(--mark-bg);}
+  th.col-new{background:var(--mark-bg);}
+  .viewclosed{font-size:11.5px;font-weight:600;color:var(--blue);margin-top:10px;display:inline-flex;align-items:center;gap:7px;}
+
+  /* form */
+  .formwrap{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:10.5px;font-weight:700;color:var(--slate);display:flex;align-items:center;gap:7px;}
+  .control{border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12px;color:#9aa0a6;background:#fbfbfc;min-height:34px;display:flex;align-items:center;}
+  .control.val{color:var(--slate);}
+  .control.sel{justify-content:space-between;}
+  .control.sel::after{content:"▾";color:var(--gray);font-size:11px;}
+  .dropzone{border:1.5px dashed #c7cdd6;border-radius:8px;padding:14px;text-align:center;color:var(--gray);font-size:11.5px;background:#fbfbfc;}
+  .map{position:relative;height:120px;border-radius:8px;border:1px solid var(--line);
+    background:repeating-linear-gradient(0deg,#eef1f4,#eef1f4 11px,#e7ebef 11px,#e7ebef 12px),repeating-linear-gradient(90deg,#eef1f4,#eef1f4 11px,#e7ebef 11px,#e7ebef 12px);overflow:hidden;}
+  .map .ring{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;border:2px solid var(--blue);background:rgba(59,130,246,.14);}
+  .map .dot{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px #fff;}
+  .slider{margin-top:8px;}
+  .track{position:relative;height:5px;border-radius:3px;background:#e3e7ec;}
+  .track .fill{position:absolute;left:0;top:0;height:5px;width:14%;background:var(--blue);border-radius:3px;}
+  .track .knob{position:absolute;left:14%;top:50%;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:50%;background:#fff;border:2px solid var(--blue);}
+  .ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--gray);margin-top:5px;}
+  .ticks .old{color:#c0392b;text-decoration:line-through;}
+  .btn{display:inline-flex;align-items:center;gap:8px;background:var(--blue);color:#fff;font-weight:700;font-size:13px;border-radius:8px;padding:10px 16px;}
+  .btn.ghost-old{background:#eef0f2;color:#9aa0a6;text-decoration:line-through;font-weight:600;}
+
+  /* chart + ai */
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;}
+  .panel h5{margin:0 0 10px;font-size:12.5px;font-weight:700;color:var(--slate);}
+  .ai{display:flex;gap:11px;background:#f6f8ff;border:1px solid #d8e2ff;border-radius:9px;padding:12px 14px;}
+  .ai .spark{flex:none;width:24px;height:24px;border-radius:7px;background:#dbe6ff;color:#2f5fd0;display:flex;align-items:center;justify-content:center;}
+  .ai .body{font-size:12.5px;color:var(--slate);}
+  .ai.bad{background:#fff5f1;border-color:#f6d3c4;}
+
+  /* stepper */
+  .stepper{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:stretch;gap:0;}
+  .step{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;}
+  .step .n{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;}
+  .step h6{margin:0 0 3px;font-size:13px;color:var(--slate);}
+  .step p{margin:0;font-size:11.5px;color:var(--gray);}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--gray);font-size:20px;padding:0 8px;}
+
+  /* annotation captions under each mock */
+  .ann{margin:16px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;}
+  .ann li{display:flex;gap:11px;align-items:baseline;}
+  .ann .txt{font-size:13.5px;color:var(--ink);}
+  .ann .txt b{font-weight:700;}
+  .capnote{margin-top:14px;font-size:12.5px;color:var(--soft);background:#fff;border:1px solid #e3ddd1;border-left:3px solid var(--blue);border-radius:7px;padding:10px 13px;}
+
+  figcaption{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--faint);margin-top:9px;}
+  figure{margin:0;}
+  footer{border-top:1px solid #d8d3c8;margin-top:48px;padding-top:18px;color:var(--faint);font-size:12.5px;}
+
+  @media(max-width:760px){
+    .legend-grid{grid-template-columns:1fr;}
+    .ba-grid{grid-template-columns:1fr;}
+    .formgrid{grid-template-columns:1fr;}
+    .stepper{grid-template-columns:1fr;gap:10px;}
+    .arrow{transform:rotate(90deg);padding:2px 0;}
+  }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="wrap">
+    <p class="eyebrow">Mayor's Office of Innovation · Public Safety Pods</p>
+    <h1>Interventions flow — proposed changes</h1>
+    <p>Static spec for revamping how interventions are added, monitored, and edited. Orange pins on each mock map to the numbered change list below, so the still and the change number can be read together.</p>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- INDEX -->
+  <div class="legend">
+    <h3>The 12 changes, by screen</h3>
+    <div class="legend-grid">
+      <div class="li"><span class="pin">10</span><span>Split OKRs / Interventions into scrolling sections; rename the card to "Add a new intervention"</span><span class="scr">Screen 1</span></div>
+      <div class="li"><span class="pin">1</span><span>Add from the hypothesis tool; monitor &amp; edit from each district's Interventions</span><span class="scr">Screen 1·2·5</span></div>
+      <div class="li"><span class="pin">2</span><span>Add-fields match the existing intervention tracker</span><span class="scr">Screen 2·3</span></div>
+      <div class="li"><span class="pin">11</span><span>Add "Person submitted" and "Last edited" to each intervention</span><span class="scr">Screen 2</span></div>
+      <div class="li"><span class="pin">12</span><span>Close interventions instead of deleting; browse closed ones</span><span class="scr">Screen 2</span></div>
+      <div class="li"><span class="pin">7</span><span>Adding via the tool should feel like the tracker — all fields, editable</span><span class="scr">Screen 3</span></div>
+      <div class="li"><span class="pin">6</span><span>"What do you expect to change" opens to any variable we have data on</span><span class="scr">Screen 3</span></div>
+      <div class="li"><span class="pin">5</span><span>CTA reads as submitting an intervention, not "Check the data"</span><span class="scr">Screen 3</span></div>
+      <div class="li"><span class="pin">4</span><span>Allow a much smaller radius (tiny corner), below today's 100 m floor</span><span class="scr">Screen 3</span></div>
+      <div class="li"><span class="pin">8</span><span>Attach a photo of the work done when adding</span><span class="scr">Screen 3</span></div>
+      <div class="li"><span class="pin">3</span><span>Keep the "created on" marker on the metric's timeline</span><span class="scr">Screen 4</span></div>
+      <div class="li"><span class="pin">9</span><span>Fix the AI summary: anchor timing to the intervention date</span><span class="scr">Screen 4</span></div>
+    </div>
+  </div>
+
+  <!-- SCREEN 1 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 1 · District home</p>
+    <h2>OKRs and Interventions become scrolling sections</h2>
+    <p class="lead">Today a district hides Interventions behind a tab. Make OKRs a section you land on, then scroll to Interventions below it — and rename the call-to-action so adding an intervention reads as its own action.</p>
+
+    <figure>
+      <div class="ba-grid">
+        <div>
+          <p class="ba-tag before">Before — tabbed</p>
+          <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>safety pod · district</span></div>
+            <div class="mock__body">
+              <div class="pills"><span class="pill">Northern</span><span class="pill on">Central</span><span class="pill">Mission</span><span class="pill">Tenderloin</span></div>
+              <div class="ctabs"><span class="ctab on">OKRs</span><span class="ctab">Interventions</span></div>
+              <div class="okrrow">
+                <div class="okrc"><div class="e">Drug activity</div><div class="t">Reduce visible disorder</div></div>
+                <div class="okrc"><div class="e">Unhoused</div><div class="t">Reduce homelessness</div></div>
+                <div class="okrc"><div class="e">Property crime</div><div class="t">Reduce theft</div></div>
+              </div>
+              <div class="linkcard"><span class="ic">⌕</span><div><div class="tt">Does the data support my hypothesis?</div><div class="ss">Explore interventions</div></div><span class="arr">→</span></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="ba-tag after">After — scrolling sections</p>
+          <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>safety pod · district</span></div>
+            <div class="mock__body">
+              <div class="pills"><span class="pill">Northern</span><span class="pill on">Central</span><span class="pill">Mission</span><span class="pill">Tenderloin</span></div>
+              <p class="seclabel"><span class="pin">10</span> OKRs</p>
+              <div class="okrrow">
+                <div class="okrc"><div class="e">Drug activity</div><div class="t">Reduce visible disorder</div></div>
+                <div class="okrc"><div class="e">Unhoused</div><div class="t">Reduce homelessness</div></div>
+                <div class="okrc"><div class="e">Property crime</div><div class="t">Reduce theft</div></div>
+              </div>
+              <div class="divider"></div>
+              <p class="seclabel">Interventions</p>
+              <table class="itable" style="margin-bottom:12px;">
+                <thead><tr><th>ID</th><th>Intervention</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono" style="color:var(--gray);">CEN002</td><td class="nm">Reduce dog incidents, Lower Nob Hill</td><td><span class="st active">Open · In progress</span></td></tr>
+                  <tr><td class="mono" style="color:var(--gray);">CEN001</td><td class="nm">Reduce illegal dumping, Chinatown</td><td><span class="st active">Open · In progress</span></td></tr>
+                </tbody>
+              </table>
+              <div class="linkcard"><span class="ic">＋</span><div><div class="tt">Add a new intervention <span class="pin">10</span></div><div class="ss">Log work done and start tracking its impact</div></div><span class="arr">→</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 1 — district home, before → after.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">10</span><span class="txt"><b>No more tab.</b> OKRs is a labeled section at the top; Interventions sits directly below it on scroll. The bottom card changes from "Explore interventions" to <b>"Add a new intervention,"</b> mirroring the existing "Explore" pattern but naming the action.</span></li>
+      <li><span class="pin">1</span><span class="txt"><b>Two entry points, one place to manage.</b> Add lands here from the tool (Screen 3); this Interventions section is where you monitor and edit them afterward (Screen 2).</span></li>
+    </ul>
+  </section>
+
+  <!-- SCREEN 2 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 2 · Interventions list</p>
+    <h2>Monitor, edit, and close — with who and when</h2>
+    <p class="lead">The list each district scrolls to — shown here with Central's real interventions. It carries every field from the current Excel tracker, adds accountability columns, lets you edit a row to monitor it, and closes rather than deletes, with closed ones still findable.</p>
+
+    <figure>
+      <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>safety pod · Central · interventions</span></div>
+        <div class="mock__body">
+          <p class="seclabel" style="justify-content:space-between;">
+            <span>Central — 8 interventions</span>
+            <span style="font-weight:600;letter-spacing:0;text-transform:none;color:var(--gray);">7 open · 1 closed · 0 at risk</span>
+          </p>
+          <div style="overflow-x:auto;">
+          <table class="itable" style="min-width:840px;">
+            <thead><tr>
+              <th>ID <span class="pin">2</span></th><th>Intervention</th><th>Expected change (levers)</th><th>Status</th><th>Owner</th><th>Started</th>
+              <th class="col-new">Person submitted <span class="pin">11</span></th><th class="col-new">Last edited <span class="pin">11</span></th><th></th>
+            </tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono" style="color:var(--gray);">CEN001</td>
+                <td class="nm">Reduce illegal dumping in Chinatown</td>
+                <td><span class="krp">↓ Illegal dumping</span> <span class="krp">↓ Health hazards</span></td>
+                <td><span class="st active">Open · In progress</span></td>
+                <td>DPW</td>
+                <td>—</td>
+                <td class="col-new">A. Rivera</td>
+                <td class="col-new">Jun 9, 2026</td>
+                <td><span class="rowact">Edit</span> · <span class="rowact close">Close</span> <span class="pin">12</span></td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--gray);">CEN002</td>
+                <td class="nm">Reduce vicious dog incidents, Lower Nob Hill</td>
+                <td><span class="krp">↓ Animal incidents</span></td>
+                <td><span class="st active">Open · In progress</span></td>
+                <td>SFPD · ACC</td>
+                <td>—</td>
+                <td class="col-new">Z. Okafor</td>
+                <td class="col-new">Jun 18, 2026</td>
+                <td><span class="rowact">Edit</span> · <span class="rowact close">Close</span></td>
+              </tr>
+              <tr>
+                <td class="mono" style="color:var(--gray);">CEN003</td>
+                <td class="nm">Reduce open drug activity, Lower Nob Hill</td>
+                <td><span class="krp">↓ Drug-related 911 calls</span></td>
+                <td><span class="st active">Open · In progress</span></td>
+                <td>SFPD</td>
+                <td>—</td>
+                <td class="col-new">A. Rivera</td>
+                <td class="col-new">Jun 22, 2026</td>
+                <td><span class="rowact">Edit</span> · <span class="rowact close">Close</span></td>
+              </tr>
+              <tr style="opacity:.72;">
+                <td class="mono" style="color:var(--gray);">CEN005</td>
+                <td class="nm">Clear and hold Halleck Alley</td>
+                <td><span class="krp">↓ Encampments</span> <span class="krp">↓ Health hazards</span></td>
+                <td><span class="st closed">Closed · Completed</span></td>
+                <td>DEM · SFPD</td>
+                <td>—</td>
+                <td class="col-new">Z. Okafor</td>
+                <td class="col-new">Jun 4, 2026</td>
+                <td><span class="rowact">Reopen</span> <span class="pin">12</span></td>
+              </tr>
+            </tbody>
+          </table>
+          </div>
+          <span class="viewclosed"><span class="pin">12</span> View closed interventions (1) →</span>
+        </div>
+      </div>
+      <figcaption>Screen 2 — Central's Interventions list, using their real tracker rows. Wide field set scrolls; full columns listed below.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">2</span><span class="txt"><b>Every field from the current Excel tracker.</b> ID · Intervention · Description (problem statement) · Evidence · Tactics · Owner · Associated agencies · Levers (expected change) · Status · Start date · End date · Roadblock / flag · Outcomes · Notes. The list shows a readable subset; the rest open on the row. Status values match theirs: <b>Open · In progress</b>, <b>Closed · Completed</b>, <b>At risk · On hold</b>.</span></li>
+      <li><span class="pin">11</span><span class="txt"><b>Person submitted + Last edited.</b> Two net-new columns (not in the Excel) so every intervention shows who logged it and when it last changed — distinct from Owner.</span></li>
+      <li><span class="pin">12</span><span class="txt"><b>Close, don't delete.</b> The trash action becomes <b>Close</b> — which sets Status to <i>Closed · Completed</i> and stamps an <b>End date</b> (and Outcomes). Closed rows leave the active list but stay reachable via <b>"View closed interventions,"</b> and can be reopened.</span></li>
+      <li><span class="pin">1</span><span class="txt"><b>Edit = monitor.</b> Editing a row reopens its full record (and its measurement deep dive) to update status, outcomes, or details over time. The dashboard also adds a live <b>Impact</b> read the Excel can't compute.</span></li>
+    </ul>
+  </section>
+
+  <!-- SCREEN 3 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 3 · Add an intervention (from the hypothesis tool)</p>
+    <h2>The add form should feel like the tracker</h2>
+    <p class="lead">Reframe "Does the data support my hypothesis?" as adding an intervention. Bring in every field from the current Excel tracker (shown here pre-filled with Central's CEN002), open up the Levers picker, allow a tiny radius, support a photo, and make the button say what it does.</p>
+
+    <figure>
+      <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>safety pod · add intervention</span></div>
+        <div class="mock__body">
+          <div class="mhead"><div class="eb">Central district · auto-ID CEN009</div><h4>Add an intervention <span class="pin" style="background:#e8590c">7</span></h4></div>
+          <div class="formwrap">
+            <div class="formgrid">
+              <div class="field full"><label>Intervention (title) <span class="pin">7</span></label><div class="control val">Reduce vicious dog incidents, Lower Nob Hill</div></div>
+
+              <div class="field full"><label>Description — problem statement <span class="pin">7</span></label><div class="control val" style="min-height:46px;">Rise in dog-bite incidents; aggressive shelter dogs; gaps in ACC response time and interagency coordination.</div></div>
+
+              <div class="field full"><label>Evidence <span class="pin">7</span></label><div class="control val" style="min-height:46px;">Dog bite &amp; attack incidents in Central rose 50% in 2025, clustering on the Post / Jones / Sutter corridor. Hotspots: Post &amp; Stockton (5), Jones &amp; Post (3)…</div></div>
+
+              <div class="field"><label>Levers — what do you expect to change? <span class="pin">6</span></label><div class="control sel val">↓ Animal incidents</div></div>
+              <div class="field"><label>Tactics <span class="pin">2</span></label><div class="control val">Resume dog hearings; SFPD–ACC tactical coordination…</div></div>
+
+              <div class="field"><label>Owner <span class="pin">2</span></label><div class="control">Assign owner</div></div>
+              <div class="field"><label>Associated agencies <span class="pin">2</span></label><div class="control val">SFPD, ACC</div></div>
+
+              <div class="field"><label>Status <span class="pin">2</span></label><div class="control sel">Open · In progress</div></div>
+              <div class="field"><label>Person submitting <span class="pin">11</span></label><div class="control val">A. Rivera</div></div>
+
+              <div class="field"><label>Start date</label><div class="control val">Jun 29, 2026</div></div>
+              <div class="field"><label>End date <span class="pin">2</span></label><div class="control" style="color:#9aa0a6;">— set on close</div></div>
+
+              <div class="field full"><label>Roadblock / flag <span class="pin">2</span></label><div class="control">Note any blocker…</div></div>
+              <div class="field full"><label>Outcomes <span class="pin">2</span></label><div class="control">Filled in as results come in / on close…</div></div>
+              <div class="field full"><label>Notes <span class="pin">2</span></label><div class="control">Anything else…</div></div>
+
+              <div class="field full"><label>Where did you do it? — drop a pin</label>
+                <div class="map"><div class="ring"></div><div class="dot"></div></div>
+                <div class="slider">
+                  <label style="margin-bottom:5px;">Area radius <span class="pin">4</span></label>
+                  <div class="track"><div class="fill"></div><div class="knob"></div></div>
+                  <div class="ticks"><span><span class="old">100 m min</span> → 10 m min</span><span>1000 m</span></div>
+                </div>
+              </div>
+
+              <div class="field full"><label>Attachments <span class="pin">8</span></label>
+                <div class="dropzone">📎 Drop a photo of the work done, or browse — JPG / PNG / PDF</div>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:14px;margin-top:16px;">
+              <span class="btn">＋ Submit intervention <span class="pin" style="background:#fff;color:#e8590c">5</span></span>
+              <span class="btn ghost-old">Check the data</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 3 — redesigned add-intervention form.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">7</span><span class="txt"><b>Mirror the real Excel tracker.</b> Every field from the Central tracker appears here and is editable — Intervention, Description (problem statement), Evidence, Levers, Tactics, Owner, Associated agencies, Status, Start/End date, Roadblock/flag, Outcomes, Notes — so adding in the tool and adding in the tracker are the same form.</span></li>
+      <li><span class="pin">6</span><span class="txt"><b>Levers open to any variable with data.</b> "What do you expect to change" becomes the <i>Levers</i> field — directional outcomes like ↓ Animal incidents or ↑ Public space use — no longer a short fixed list, and selectable for every signal we hold data on (multi-select, searchable).</span></li>
+      <li><span class="pin">5</span><span class="txt"><b>Name the action.</b> The primary button becomes <b>"Submit intervention"</b> (replacing "Check the data"), so it's clear you're creating something, not just running a query.</span></li>
+      <li><span class="pin">4</span><span class="txt"><b>Smaller radius.</b> Lower the minimum well below the current 100 m so a single corner (e.g. Post &amp; Stockton) can be logged precisely. The mock shows a 10 m floor as a placeholder; see open items below for the value to confirm.</span></li>
+      <li><span class="pin">8</span><span class="txt"><b>Attachments.</b> Let the submitter attach a photo of the work done (and other files).</span></li>
+      <li><span class="pin">2</span><span class="txt"><b>ID is auto-assigned</b> in the district's sequence (CEN009 here), matching the tracker's ID convention.</span></li>
+    </ul>
+
+    <div class="capnote" style="border-left-color:var(--mark);">
+      <b>Field parity — current Excel tracker → new add form</b><br>
+      <div style="overflow-x:auto;margin-top:8px;">
+      <table class="itable" style="min-width:560px;">
+        <thead><tr><th>Excel tracker field</th><th>In the new flow</th></tr></thead>
+        <tbody>
+          <tr><td class="nm">ID</td><td>Auto-assigned per district (CEN###)</td></tr>
+          <tr><td class="nm">Intervention</td><td>Title field</td></tr>
+          <tr><td class="nm">Description (problem statement)</td><td>Description field</td></tr>
+          <tr><td class="nm">Evidence</td><td>Evidence field (links to the data deep-dive, Screen 4)</td></tr>
+          <tr><td class="nm">Tactics</td><td>Tactics field</td></tr>
+          <tr><td class="nm">Owner</td><td>Owner field</td></tr>
+          <tr><td class="nm">Associated agencies</td><td>Associated agencies field</td></tr>
+          <tr><td class="nm">Levers</td><td>"What do you expect to change" → Levers <span class="pin">6</span></td></tr>
+          <tr><td class="nm">Status</td><td>Status — Open·In progress / Closed·Completed / At risk·On hold</td></tr>
+          <tr><td class="nm">Start date / End date</td><td>Start date · End date (stamped on close) <span class="pin">12</span></td></tr>
+          <tr><td class="nm">Roadblock / Flag</td><td>Roadblock / flag field</td></tr>
+          <tr><td class="nm">Outcomes</td><td>Outcomes field</td></tr>
+          <tr><td class="nm">Notes</td><td>Notes field</td></tr>
+          <tr style="background:var(--mark-bg);"><td class="nm">— (new)</td><td>Location + radius, Attachments, Person submitting, Last edited, live Impact</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 4 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 4 · Monitoring the impact</p>
+    <h2>Timeline marker stays; the summary speaks to the date</h2>
+    <p class="lead">Keep the "created on" marker on the metric you're testing, and rewrite the AI summary so its timing is anchored to when the intervention was logged.</p>
+
+    <figure>
+      <div class="mock"><div class="mock__bar"><i></i><i></i><i></i><span>safety pod · intervention impact</span></div>
+        <div class="mock__body">
+          <div class="panel" style="margin-bottom:14px;">
+            <h5>Dog incidents · Post &amp; Stockton — reports over time <span class="pin">3</span></h5>
+            <svg viewBox="0 0 600 180" width="100%" height="170" role="img" aria-label="Metric over time with an intervention marker">
+              <line x1="40" y1="150" x2="585" y2="150" stroke="#e5e7eb"/>
+              <line x1="40" y1="100" x2="585" y2="100" stroke="#f1f1f3"/>
+              <line x1="40" y1="50" x2="585" y2="50" stroke="#f1f1f3"/>
+              <polyline fill="none" stroke="#e8590c" stroke-width="2.5" stroke-linejoin="round"
+                points="40,70 95,62 150,88 205,60 260,75 315,66 370,95 425,112 480,120 535,128 585,134"/>
+              <!-- intervention marker -->
+              <line x1="370" y1="28" x2="370" y2="150" stroke="#2f4bd4" stroke-width="2" stroke-dasharray="5 4"/>
+              <circle cx="370" cy="28" r="4" fill="#2f4bd4"/>
+              <rect x="300" y="12" width="140" height="20" rx="5" fill="#eaedfb"/>
+              <text x="370" y="26" text-anchor="middle" font-size="11" font-family="monospace" fill="#2f4bd4">Intervention · Apr 22</text>
+              <text x="40" y="168" font-size="10" fill="#9aa0a6" font-family="monospace">Jan</text>
+              <text x="370" y="168" font-size="10" fill="#9aa0a6" font-family="monospace" text-anchor="middle">Apr</text>
+              <text x="585" y="168" font-size="10" fill="#9aa0a6" font-family="monospace" text-anchor="end">Jun</text>
+            </svg>
+          </div>
+
+          <p class="seclabel" style="margin-bottom:8px;">AI summary — before vs. after</p>
+          <div class="ai bad" style="margin-bottom:10px;">
+            <span class="spark">✦</span>
+            <div class="body"><b style="color:#b45309;">Today (not landing):</b> "Over the last 3 months, dog incidents in this area are down 22%." <span style="color:var(--gray);">— timing is vague; not tied to when the work happened.</span> <span class="pin">9</span></div>
+          </div>
+          <div class="ai">
+            <span class="spark">✦</span>
+            <div class="body"><b style="color:#2f5fd0;">Proposed:</b> "Since this intervention was logged on <b>Apr 22, 2026</b>, dog incidents within 100 m of Post &amp; Stockton are <b>down 22%</b> vs. the 3 months before it." <span class="pin">9</span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>Screen 4 — impact view: timeline marker + reworked summary.</figcaption>
+    </figure>
+
+    <ul class="ann">
+      <li><span class="pin">3</span><span class="txt"><b>Keep the marker.</b> The intervention's creation date stays drawn on the timeline of the exact metric you're testing, so the before/after is visible at a glance.</span></li>
+      <li><span class="pin">9</span><span class="txt"><b>Anchor the summary to the date.</b> Rewrite it to read "since you logged this on [date], here's what's changed" — comparing the period after the intervention to the period before it, instead of a vague rolling window.</span></li>
+    </ul>
+  </section>
+
+  <!-- SCREEN 5 -->
+  <section class="screen">
+    <p class="eyebrow">Screen 5 · End to end</p>
+    <h2>The full loop</h2>
+    <p class="lead">How the pieces connect: add from the tool, manage from the district, close when done.</p>
+
+    <figure>
+      <div class="stepper">
+        <div class="step"><div class="n">1</div><h6>Add a new intervention</h6><p>From the district's "Add a new intervention" card → the tracker-style form (Screen 3). Submit.</p></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="n">2</div><h6>Lands in that district</h6><p>It appears in the Interventions section (Screen 2) with submitter, date, and a live impact read.</p></div>
+        <div class="arrow">→</div>
+        <div class="step"><div class="n">3</div><h6>Monitor, edit, close</h6><p>Edit to update over time against the timeline (Screen 4). Close when done — still findable later.</p></div>
+      </div>
+      <figcaption>Screen 5 — add → manage → close.</figcaption>
+    </figure>
+
+    <p class="capnote"><b>Open item for implementation (#4):</b> the radius minimum and step are not yet specified — the mock uses a 10 m floor as a placeholder. Confirm the exact minimum and step before building. All other changes above are specified as shown.</p>
+  </section>
+
+  <footer>
+    <span class="mono">Interventions flow · visual spec v1 · 12 changes across 5 screens</span> — pins map 1:1 to the numbered change list.
+  </footer>
+
+</div>
+</body>
+</html>
