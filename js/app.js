@@ -1,5 +1,5 @@
 import { parseTSV, groupBy } from './tsv.js';
-import { listInterventions, deleteIntervention, closeIntervention, reopenIntervention } from './interventions-client.js';
+import { listInterventions, closeIntervention, reopenIntervention } from './interventions-client.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 

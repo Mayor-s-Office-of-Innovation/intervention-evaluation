@@ -51,7 +51,7 @@ test('landing page renders links to every dashboard without errors', async ({ pa
 test('the Interventions table lists saved interventions per district', async ({ page }) => {
   await page.goto('/index.html');
   await expect(page.locator('.district-tab')).toHaveCount(4);
-  await page.locator('.content-tab[data-tab="interventions"]').click();
+  // The OKRs and Interventions sections now render together (no tabs).
 
   // default district Northern → its saved item, with the Target KR derived from dp=drug
   const table = page.locator('.intervention-table');
@@ -68,17 +68,24 @@ test('the Interventions table lists saved interventions per district', async ({ 
   await expect(page.locator('.intervention-empty')).toBeVisible();
 });
 
-test('deleting a saved intervention removes its row', async ({ page }) => {
-  await page.route('**/interventions/*', route => route.fulfill({
+test('closing a saved intervention moves it behind the "view closed" toggle', async ({ page }) => {
+  // The close endpoint returns the updated (closed) item; the row then leaves the open view.
+  await page.route('**/interventions/*/close', route => route.fulfill({
     status: 200, contentType: 'application/json',
-    headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ ok: true }),
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ item: { ...SAVED[0], status: 'closed_completed' } }),
   }));
   page.on('dialog', d => d.accept());   // accept the confirm()
 
   await page.goto('/index.html');
-  await page.locator('.content-tab[data-tab="interventions"]').click();  // Northern → only "Alpha report"
-  await expect(page.locator('.intervention-table')).toContainText('Alpha report');
+  await expect(page.locator('.intervention-table')).toContainText('Alpha report');  // Northern, open
 
-  await page.locator('.intervention-delete').first().click();
-  await expect(page.locator('.intervention-empty')).toBeVisible();       // row gone → empty state
+  await page.locator('.action-close').first().click();
+
+  // closed → hidden from the default (open) view, revealed via the toggle
+  await expect(page.locator('.view-closed-toggle')).toBeVisible();
+  await expect(page.locator('.intervention-table')).not.toContainText('Alpha report');
+
+  await page.locator('.view-closed-toggle').click();
+  await expect(page.locator('.intervention-table')).toContainText('Alpha report');
 });
