@@ -1,4 +1,4 @@
-# Saved-interventions API — Cloudflare Worker + KV (../plan-saved-interventions.md).
+# Saved-interventions API — Cloudflare Worker + KV (../docs/plan-saved-interventions.md).
 # Run locally:   cd interventions-api && npx wrangler dev      (local KV — no account needed)
 # Deploy:        npx wrangler deploy                            (after creating the KV namespace below)
 name = "interventions-api"
@@ -12,12 +12,6 @@ compatibility_date = "2026-06-01"
 [[kv_namespaces]]
 binding = "INTERVENTIONS"
 id = "f5d4e1a36d594b448e2179f85c32f8d2"
-
-# R2 bucket for attachments (photos). Create it once:
-#   npx wrangler r2 bucket create interventions-attachments
-[[r2_buckets]]
-binding = "ATTACHMENTS"
-bucket_name = "interventions-attachments"
 
 [vars]
 # Comma-separated origins allowed for CORS AND that a saved URL must come from (the main spam defense).

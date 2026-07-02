@@ -11,7 +11,7 @@ import { fetchEvents, datasetLabel } from './soda.js';
 import { bucketSeries, chooseGranularity, analyzeWindow, detectWindowStart, addDays, daysBetween } from './analyze.js';
 import { renderChart } from './chart.js';
 import { initPicker, renderEvents } from './map.js';
-import { createFullIntervention, updateIntervention, getIntervention, uploadAttachment, getAttachmentUrl } from '../../js/interventions-client.js';
+import { createFullIntervention, updateIntervention, getIntervention } from '../../js/interventions-client.js';
 
 // Page & Buchanan — NE corner of Koshland Park (exact intersection point).
 const KOSHLAND = { lat: 37.77346, lng: -122.42736 };
@@ -25,6 +25,7 @@ const fmtNice = iso => { const [y, m, d] = iso.split('-'); return `${MONTHS[+m -
 const fmtMonthYear = ym => { const [y, m] = ym.split('-'); return `${MONTHS[+m - 1]} ${y}`; };
 
 let loc = { ...KOSHLAND };
+let locSet = false;      // true once the user drops a pin (or an edited record supplies coords)
 let radiusM = 250;       // adjustable via the radius slider
 let hasRun = false;
 let allEvents = [];
@@ -39,9 +40,6 @@ let curEnd = null;
 // Edit mode: if URL has ?edit=ID, we load that intervention and update instead of create
 let editId = null;
 let editRecord = null;
-
-// Attachments (files selected but not yet uploaded)
-let pendingFiles = [];
 
 async function init() {
   await customElements.whenDefined('wa-input');
@@ -73,6 +71,7 @@ async function init() {
   updateReadout();
   picker = initPicker($('picker-map'), loc, p => {
     loc = p;
+    locSet = true;
     updateReadout();
     syncURL();
     if (hasRun) run();
@@ -86,12 +85,12 @@ async function init() {
   radiusSlider.addEventListener('input', applyRadius);
   radiusSlider.addEventListener('change', () => { applyRadius(); syncURL(); if (hasRun) run(); });
 
-  // Attachments dropzone
-  setupDropzone();
-
   // Main button: submit or update
   $('run-btn').addEventListener('click', handleSubmit);
   $('copy-link-btn')?.addEventListener('click', copyShareLink);
+
+  // Keep the clickable links preview in sync as the user edits the field
+  $('in-links')?.addEventListener('input', () => renderLinksPreview());
 
   // Load existing record if in edit mode
   if (editId) {
@@ -125,6 +124,8 @@ async function loadEditRecord() {
     $('in-roadblock').value = editRecord.roadblock || '';
     $('in-outcomes').value = editRecord.outcomes || '';
     $('in-notes').value = editRecord.notes || '';
+    $('in-links').value = (editRecord.links || []).join('\n');
+    renderLinksPreview(editRecord.links);
     $('in-submitter').value = editRecord.person_submitted || '';
 
     // Set levers (multi-select)
@@ -137,7 +138,8 @@ async function loadEditRecord() {
     // Set location
     if (editRecord.lat && editRecord.lng) {
       loc = { lat: editRecord.lat, lng: editRecord.lng };
-      picker?.setView(loc.lat, loc.lng);
+      locSet = true;
+      picker?.setLocation(loc);
     }
     if (editRecord.radius) {
       radiusM = editRecord.radius;
@@ -148,31 +150,12 @@ async function loadEditRecord() {
     updateReadout();
     dateISO = editRecord.start_date || editRecord.date || DEFAULT_DATE;
 
-    // Show existing attachments
-    if (editRecord.attachments?.length) {
-      renderExistingAttachments(editRecord.attachments);
-    }
-
     // Auto-run the analysis
     run(false);
   } catch (e) {
     console.error('Failed to load intervention:', e);
     alert('Could not load intervention for editing.');
   }
-}
-
-function renderExistingAttachments(attachments) {
-  const preview = $('attachment-preview');
-  preview.innerHTML = attachments.map(a => {
-    const url = getAttachmentUrl(editId, a.filename);
-    const isImage = a.type?.startsWith('image/');
-    return `
-      <a class="attachment-item" href="${url}" target="_blank" rel="noopener">
-        ${isImage ? `<img src="${url}" alt="">` : ''}
-        <span>${escHtml(a.filename || 'Attachment')}</span>
-      </a>
-    `;
-  }).join('');
 }
 
 async function handleSubmit() {
@@ -207,11 +190,12 @@ async function handleSubmit() {
     roadblock: ($('in-roadblock').value || '').trim(),
     outcomes: ($('in-outcomes').value || '').trim(),
     notes: ($('in-notes').value || '').trim(),
+    links: parseLinks($('in-links').value),
     person_submitted: submitter,
-    lat: loc.lat,
-    lng: loc.lng,
+    // Only send coordinates when a pin was actually placed — otherwise an edit would silently
+    // overwrite a record's stored location with the default Koshland pin.
+    ...(locSet ? { lat: loc.lat, lng: loc.lng } : {}),
     radius: radiusM,
-    email: submitter + '@sfgov.org', // placeholder email
   };
 
   const btn = $('run-btn');
@@ -219,33 +203,12 @@ async function handleSubmit() {
   btn.disabled = true;
 
   try {
-    let interventionId;
-
     if (editId) {
       data.edited_by = submitter;
       await updateIntervention(editId, data);
-      interventionId = editId;
-    } else {
-      const result = await createFullIntervention(data);
-      interventionId = result.id;
-    }
-
-    // Upload any pending attachments
-    if (pendingFiles.length > 0 && interventionId) {
-      $('submit-label').textContent = 'Uploading attachments...';
-      for (const file of pendingFiles) {
-        try {
-          await uploadAttachment(interventionId, file);
-        } catch (e) {
-          console.error('Failed to upload attachment:', e);
-        }
-      }
-      pendingFiles = [];
-    }
-
-    if (editId) {
       alert('Intervention updated successfully!');
     } else {
+      await createFullIntervention(data);
       alert('Intervention submitted successfully!');
       // Redirect to homepage after creating
       window.location.href = '../';
@@ -265,73 +228,27 @@ function getSelectedLevers() {
   return Array.isArray(sel.value) ? sel.value : [sel.value];
 }
 
-function setupDropzone() {
-  const dropzone = $('attachment-drop');
-  const input = $('attachment-input');
-  const preview = $('attachment-preview');
-  const browseBtn = dropzone.querySelector('.dropzone-browse');
+// Parse the "Related documents" textarea (one URL per line) into a clean array of links.
+// Bare hostnames get an https:// prefix; blanks are dropped; capped at 20.
+function parseLinks(text) {
+  return (text || '')
+    .split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(u => /^https?:\/\//i.test(u) ? u : `https://${u}`)
+    .slice(0, 20);
+}
 
-  if (!dropzone || !input) return;
-
-  browseBtn?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    input.click();
-  });
-
-  dropzone.addEventListener('click', () => input.click());
-
-  dropzone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropzone.classList.add('is-dragging');
-  });
-
-  dropzone.addEventListener('dragleave', () => {
-    dropzone.classList.remove('is-dragging');
-  });
-
-  dropzone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropzone.classList.remove('is-dragging');
-    handleFiles(e.dataTransfer.files);
-  });
-
-  input.addEventListener('change', () => {
-    handleFiles(input.files);
-    input.value = ''; // allow re-selecting same file
-  });
-
-  function handleFiles(files) {
-    for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) {
-        alert(`File "${file.name}" is too large (max 10 MB).`);
-        continue;
-      }
-      pendingFiles.push(file);
-      renderPendingFiles();
-    }
-  }
-
-  function renderPendingFiles() {
-    preview.innerHTML = pendingFiles.map((f, i) => {
-      const isImage = f.type.startsWith('image/');
-      const thumb = isImage ? URL.createObjectURL(f) : null;
-      return `
-        <div class="attachment-item">
-          ${thumb ? `<img src="${thumb}" alt="">` : ''}
-          <span>${escHtml(f.name)}</span>
-          <button class="attachment-remove" type="button" data-index="${i}">&times;</button>
-        </div>
-      `;
-    }).join('');
-
-    preview.querySelectorAll('.attachment-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.index, 10);
-        pendingFiles.splice(idx, 1);
-        renderPendingFiles();
-      });
-    });
-  }
+// Render the current links as clickable items under the textarea. Pass an explicit array (on edit
+// load) or omit it to derive from the field's current text (live while typing).
+function renderLinksPreview(links) {
+  const el = $('links-preview');
+  if (!el) return;
+  const list = Array.isArray(links) ? links : parseLinks($('in-links').value);
+  el.innerHTML = list.map(u => {
+    const href = encodeURI(u).replace(/"/g, '%22');
+    return `<a class="link-chip" href="${href}" target="_blank" rel="noopener">${escHtml(u)}</a>`;
+  }).join('');
 }
 
 // ── Shareable URL: state ⇄ query params (live re-query, no backend) ──
@@ -355,6 +272,7 @@ function readParams() {
 
 function syncURL() {
   const p = new URLSearchParams();
+  if (editId) p.set('edit', editId);   // keep edit mode across reloads / the auto-run's syncURL
   p.set('dp', dp.key);
   const when = $('in-when').value; if (when) p.set('date', when);
   p.set('lat', loc.lat.toFixed(5));

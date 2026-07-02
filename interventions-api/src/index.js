@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────────────────────────────────
-// Saved-interventions API — Cloudflare Worker + KV (../plan-saved-interventions.md).
+// Saved-interventions API — Cloudflare Worker + KV (../docs/plan-saved-interventions.md).
 //
 // Public writes, guarded NOT by auth but by: an origin allowlist and length caps.
 // A city email is collected and RECORDED but not enforced (a deterrent + audit trail).
@@ -19,6 +19,9 @@
 //   POST   /interventions/:id/close → 200 { item } (sets status=closed, end_date=now)
 //   POST   /interventions/:id/reopen→ 200 { item } (sets status=open)
 //   DELETE /interventions/:id       → soft delete → 200 { ok:true }  (idempotent)
+//
+// Supporting documents are stored elsewhere (Drive, SharePoint, …) and referenced by URL in the
+// record's `links` array — no file storage in this service.
 // ──────────────────────────────────────────────────────────────────────────
 
 import DISTRICTS from "./districts.js";   // [{district, rings:[[[lng,lat],…]]}] — 4 target SF districts
@@ -104,23 +107,6 @@ export default {
         return json({ error: "method not allowed" }, 405, cors);
       }
 
-      // Match /interventions/:id/attachments
-      const attachMatch = url.pathname.match(/^\/interventions\/([A-Za-z0-9-]+)\/attachments$/);
-      if (attachMatch) {
-        const id = attachMatch[1];
-        if (request.method === "POST") return await uploadAttachment(id, request, env, cors);
-        if (request.method === "GET") return await listAttachments(id, env, cors);
-        return json({ error: "method not allowed" }, 405, cors);
-      }
-
-      // Match /interventions/:id/attachments/:filename for download
-      const downloadMatch = url.pathname.match(/^\/interventions\/([A-Za-z0-9-]+)\/attachments\/(.+)$/);
-      if (downloadMatch) {
-        const [, id, filename] = downloadMatch;
-        if (request.method === "GET") return await downloadAttachment(id, filename, env, cors);
-        return json({ error: "method not allowed" }, 405, cors);
-      }
-
       // Match /interventions/:id
       const m = url.pathname.match(/^\/interventions\/([A-Za-z0-9-]+)$/);
       if (m) {
@@ -142,7 +128,7 @@ export default {
 function corsHeaders(origin, env) {
   const allowed = listVar(env.ALLOWED_ORIGINS);
   const h = {
-    "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     Vary: "Origin",
   };
@@ -201,21 +187,38 @@ function publicItem(id, rec) {
     person_submitted: rec.person_submitted || null,
     last_edited: rec.last_edited || rec.created,
     last_edited_by: rec.last_edited_by || null,
-    attachments: rec.attachments || [],
+    links: rec.links || [],
     lat: rec.lat || lat || null,
     lng: rec.lng || lng || null,
     radius: rec.radius || null,
   };
 }
 
-/** Generate next auto-ID for a district (e.g., CEN001, CEN002) */
+/** Generate next auto-ID for a district (e.g., CEN001, CEN002).
+ * KV has no atomic increment/CAS, so a bare read-modify-write counter can hand the same
+ * number to two concurrent creates. We mitigate by claiming a per-id marker key and bumping
+ * past any already-claimed number; if we can't secure a sequential id (heavy contention),
+ * we fall back to a guaranteed-unique random suffix so two records never share an id.
+ * (For a hard guarantee under real concurrency, this counter would need a Durable Object.) */
 async function nextId(district, env) {
   const prefix = DISTRICT_PREFIX[district] || DISTRICT_PREFIX.Other;
-  const key = COUNTER + prefix;
-  const current = parseInt(await env.INTERVENTIONS.get(key) || "0", 10);
-  const next = current + 1;
-  await env.INTERVENTIONS.put(key, String(next));
-  return `${prefix}${String(next).padStart(3, "0")}`;
+  const counterKey = COUNTER + prefix;
+
+  let current = parseInt(await env.INTERVENTIONS.get(counterKey) || "0", 10);
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const next = current + 1;
+    const candidate = `${prefix}${String(next).padStart(3, "0")}`;
+    const claimKey = `${COUNTER}claim:${candidate}`;
+    if (await env.INTERVENTIONS.get(claimKey) === null) {
+      await env.INTERVENTIONS.put(claimKey, "1");
+      await env.INTERVENTIONS.put(counterKey, String(next));
+      return candidate;
+    }
+    current = next; // someone already took this number — try the next one
+  }
+
+  // Couldn't claim a sequential id — return a collision-proof fallback rather than a duplicate.
+  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
 }
 
 async function listActive(env) {
@@ -275,12 +278,16 @@ async function createFull(request, env, cors) {
 
   // Required fields
   const intervention = typeof body.intervention === "string" ? body.intervention.trim() : "";
-  const email = typeof body.email === "string" ? body.email.trim() : "";
+  const person_submitted = truncate(body.person_submitted, 200);
   const district = typeof body.district === "string" ? body.district.trim() : "";
+  // Email is optional here (the form collects a name, not an email). Recorded only if a real
+  // one is provided — never fabricated. The legacy URL-based create() still requires it.
+  const email = typeof body.email === "string" ? body.email.trim() : "";
 
   if (!intervention) return json({ error: "intervention title is required" }, 400, cors);
   if (intervention.length > 500) return json({ error: "intervention title too long (max 500)" }, 400, cors);
-  if (!isEmail(email) || email.length > 254) return json({ error: "a valid email is required" }, 400, cors);
+  if (!person_submitted) return json({ error: "your name is required" }, 400, cors);
+  if (email && (!isEmail(email) || email.length > 254)) return json({ error: "email is not valid" }, 400, cors);
   if (!district || !DISTRICT_PREFIX[district]) return json({ error: "valid district is required" }, 400, cors);
 
   // Validate status if provided
@@ -294,7 +301,7 @@ async function createFull(request, env, cors) {
   }
 
   const cityDomain = (env.CITY_EMAIL_DOMAIN || "").toLowerCase();
-  const cityEmailGuess = !!cityDomain && email.toLowerCase().endsWith("@" + cityDomain);
+  const cityEmailGuess = !!email && !!cityDomain && email.toLowerCase().endsWith("@" + cityDomain);
 
   const id = crypto.randomUUID();
   const intervention_id = await nextId(district, env);
@@ -315,6 +322,7 @@ async function createFull(request, env, cors) {
     roadblock: truncate(body.roadblock, 2000),
     outcomes: truncate(body.outcomes, 2000),
     notes: truncate(body.notes, 2000),
+    links: sanitizeLinks(body.links),
     district,
     lat: typeof body.lat === "number" ? body.lat : null,
     lng: typeof body.lng === "number" ? body.lng : null,
@@ -322,12 +330,11 @@ async function createFull(request, env, cors) {
     url: body.url || null,
     created: now,
     deleted: false,
-    email,
+    email: email || null,
     cityEmailGuess,
-    person_submitted: truncate(body.person_submitted, 200) || email.split("@")[0],
+    person_submitted,
     last_edited: now,
-    last_edited_by: truncate(body.person_submitted, 200) || email.split("@")[0],
-    attachments: [],
+    last_edited_by: person_submitted,
   };
 
   await env.INTERVENTIONS.put(ACTIVE + id, JSON.stringify(rec));
@@ -353,6 +360,7 @@ async function update(id, request, env, cors) {
   if (body.roadblock !== undefined) rec.roadblock = truncate(body.roadblock, 2000);
   if (body.outcomes !== undefined) rec.outcomes = truncate(body.outcomes, 2000);
   if (body.notes !== undefined) rec.notes = truncate(body.notes, 2000);
+  if (body.links !== undefined) rec.links = sanitizeLinks(body.links);
   if (body.start_date !== undefined) rec.start_date = body.start_date;
   if (body.end_date !== undefined) rec.end_date = body.end_date;
 
@@ -412,127 +420,14 @@ function truncate(s, max) {
   return s ? s.slice(0, max) : null;
 }
 
-// ── Attachment handling (R2) ──────────────────────────────────────────────
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
-
-/** POST /interventions/:id/attachments — upload a file */
-async function uploadAttachment(id, request, env, cors) {
-  const key = ACTIVE + id;
-  const rec = await env.INTERVENTIONS.get(key, "json");
-  if (!rec || rec.deleted) return json({ error: "intervention not found" }, 404, cors);
-
-  // Check if R2 binding is available
-  if (!env.ATTACHMENTS) {
-    return json({ error: "attachments not configured" }, 501, cors);
-  }
-
-  const contentType = request.headers.get("content-type") || "";
-
-  // Handle multipart form data
-  if (contentType.includes("multipart/form-data")) {
-    try {
-      const formData = await request.formData();
-      const file = formData.get("file");
-
-      if (!file || !(file instanceof File)) {
-        return json({ error: "no file provided" }, 400, cors);
-      }
-
-      return await processUpload(id, file, rec, key, env, cors);
-    } catch (e) {
-      return json({ error: "failed to parse form data: " + e.message }, 400, cors);
-    }
-  }
-
-  // Handle direct binary upload with filename in header
-  const filename = request.headers.get("x-filename") || `upload-${Date.now()}`;
-  const fileType = request.headers.get("content-type") || "application/octet-stream";
-  const body = await request.arrayBuffer();
-
-  const file = {
-    name: filename,
-    type: fileType,
-    size: body.byteLength,
-    arrayBuffer: async () => body,
-  };
-
-  return await processUpload(id, file, rec, key, env, cors);
-}
-
-async function processUpload(id, file, rec, key, env, cors) {
-  // Validate file type
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return json({ error: `file type not allowed: ${file.type}` }, 400, cors);
-  }
-
-  // Validate file size
-  if (file.size > MAX_FILE_SIZE) {
-    return json({ error: `file too large (max ${MAX_FILE_SIZE / 1024 / 1024} MB)` }, 400, cors);
-  }
-
-  // Generate unique key for R2
-  const timestamp = Date.now();
-  const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_").slice(0, 100);
-  const r2Key = `${id}/${timestamp}-${safeName}`;
-
-  // Upload to R2
-  const body = await file.arrayBuffer();
-  await env.ATTACHMENTS.put(r2Key, body, {
-    httpMetadata: { contentType: file.type },
-    customMetadata: { originalName: file.name },
-  });
-
-  // Update intervention record
-  const attachment = {
-    key: r2Key,
-    filename: file.name,
-    type: file.type,
-    size: file.size,
-    uploaded: new Date().toISOString(),
-  };
-  rec.attachments = rec.attachments || [];
-  rec.attachments.push(attachment);
-  rec.last_edited = new Date().toISOString();
-
-  await env.INTERVENTIONS.put(key, JSON.stringify(rec));
-
-  return json({ attachment }, 201, cors);
-}
-
-/** GET /interventions/:id/attachments — list attachments */
-async function listAttachments(id, env, cors) {
-  const rec = await env.INTERVENTIONS.get(ACTIVE + id, "json");
-  if (!rec || rec.deleted) return json({ error: "not found" }, 404, cors);
-  return json({ attachments: rec.attachments || [] }, 200, cors);
-}
-
-/** GET /interventions/:id/attachments/:filename — download a file */
-async function downloadAttachment(id, filename, env, cors) {
-  if (!env.ATTACHMENTS) {
-    return json({ error: "attachments not configured" }, 501, cors);
-  }
-
-  // Find the attachment in the record
-  const rec = await env.INTERVENTIONS.get(ACTIVE + id, "json");
-  if (!rec || rec.deleted) return json({ error: "intervention not found" }, 404, cors);
-
-  const attachment = (rec.attachments || []).find(
-    a => a.filename === filename || a.key.endsWith(filename)
-  );
-  if (!attachment) return json({ error: "attachment not found" }, 404, cors);
-
-  // Fetch from R2
-  const object = await env.ATTACHMENTS.get(attachment.key);
-  if (!object) return json({ error: "file not found in storage" }, 404, cors);
-
-  const headers = new Headers(cors);
-  headers.set("Content-Type", attachment.type || "application/octet-stream");
-  headers.set("Content-Disposition", `inline; filename="${attachment.filename}"`);
-  headers.set("Cache-Control", "public, max-age=31536000");
-
-  return new Response(object.body, { headers });
+/** Sanitize a list of document links: keep well-formed http(s) URLs, trim, cap length + count. */
+function sanitizeLinks(arr) {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .filter(u => typeof u === "string")
+    .map(u => u.trim())
+    .filter(u => /^https?:\/\//i.test(u) && u.length <= 2048)
+    .slice(0, 20);
 }
 
 // ── validation ──────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 // "Save this intervention" — POSTs the current report URL (which carries the full state) + a city
 // email to the interventions-api Worker, so it shows on the homepage list. The email is recorded for
-// accountability (unverified, server-side only). See ../../plan-saved-interventions.md.
+// accountability (unverified, server-side only). See ../../docs/plan-saved-interventions.md.
 // ──────────────────────────────────────────────────────────────────────────
 import { saveIntervention } from '../../js/interventions-client.js';
 

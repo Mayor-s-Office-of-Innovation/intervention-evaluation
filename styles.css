@@ -373,7 +373,10 @@ html.wa-dark .intervention-row:hover td {
 
 .intervention-cell--actions {
   min-width: 70px;
-  text-align: center;
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Status badges */

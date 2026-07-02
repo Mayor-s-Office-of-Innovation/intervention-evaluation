@@ -77,26 +77,3 @@ export async function reopenIntervention(id) {
   if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
   return json; // { item }
 }
-
-export async function uploadAttachment(interventionId, file) {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const res = await fetch(`${API}/interventions/${encodeURIComponent(interventionId)}/attachments`, {
-    method: 'POST',
-    body: formData,
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-  return json; // { attachment }
-}
-
-export async function listAttachments(interventionId) {
-  const res = await fetch(`${API}/interventions/${encodeURIComponent(interventionId)}/attachments`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return (await res.json()).attachments;
-}
-
-export function getAttachmentUrl(interventionId, filename) {
-  return `${API}/interventions/${encodeURIComponent(interventionId)}/attachments/${encodeURIComponent(filename)}`;
-}

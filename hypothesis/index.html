@@ -120,15 +120,13 @@
                    min="10" max="1000" value="250" step="10" with-tooltip
                    hint="Size of the circle searched around the pin."></wa-slider>
 
-        <!-- Attachments dropzone -->
+        <!-- Related documents (links) -->
         <div class="wa-stack wa-gap-2xs">
-          <label class="field-label">Attachments</label>
-          <div class="dropzone" id="attachment-drop">
-            <input type="file" id="attachment-input" accept="image/*,.pdf" multiple hidden>
-            <p class="dropzone-text">📎 Drop photos of the work done, or <button type="button" class="dropzone-browse">browse</button></p>
-            <small class="dropzone-hint">JPG, PNG, PDF — max 10 MB each</small>
-          </div>
-          <div id="attachment-preview" class="attachment-preview"></div>
+          <wa-textarea id="in-links" label="Related documents"
+                       placeholder="Paste links to supporting documents (one per line), e.g. https://drive.google.com/…"
+                       rows="3"
+                       hint="One URL per line. Store the files wherever you like (Drive, SharePoint, etc.) and link them here."></wa-textarea>
+          <div id="links-preview" class="links-preview"></div>
         </div>
 
         <!-- Person submitting -->
