@@ -28,6 +28,9 @@
   --cat-emerged:    #f59e0b;
   --cat-cooled:     #2563eb;
 
+  --c-day:    #e08a1e;   /* day/night split view — saturated enough to read on light + dark */
+  --c-night:  #4f46e5;
+
   --wa-color-brand-fill-loud: var(--c-blue);
   --wa-color-brand-fill-normal: var(--c-blue);
 }
@@ -241,6 +244,19 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .seg:hover { color: var(--text); }
 .seg.is-active { color: #fff; background: var(--c-slate); }
 .seg:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+
+/* ── Hotspots: Combined | Day-vs-night split view (Change #2) ── */
+.map-controls-row { display: inline-flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.map-controls:empty { display: none; }   /* drug has no signal buttons — don't render an empty pill */
+.split-legend { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: .75rem; font-size: .8rem; color: var(--muted); }
+.split-legend .k { display: inline-flex; align-items: center; gap: .35rem; }
+.split-legend .sw { width: .7rem; height: .7rem; border-radius: 50%; flex: none; }
+.split-legend .sw--day { background: var(--c-day); }
+.split-legend .sw--night { background: var(--c-night); }
+.split-legend__note { color: var(--muted); }
+/* Leaflet divIcon day/night pie: sized by volume, split by the cell's day/night share */
+.split-marker { background: none; border: none; }
+.split-marker__pie { display: block; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(31,41,55,.35); }
 .map-legend {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem;
   margin-bottom: 1rem; flex: none; align-items: stretch;

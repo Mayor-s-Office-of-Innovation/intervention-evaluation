@@ -58,6 +58,20 @@ export function setTodFilter(f) {
 }
 const passesTod = hour => todFilter === 'both' || todBucket(hour) === todFilter;
 
+// ── Day/Night split view (marker coloring) ──────────────────────────────
+// Combined (default) = classification circles. Split = each cell drawn as a day/night pie:
+// SIZED by window volume (same radius as combined) and SPLIT by the cell's day-vs-night share.
+// The share comes from the baked monthly_day/monthly_night arrays summed over the active window,
+// surfaced on each cell as `nightPct` by the orchestrator (see app.js renderMap). A cell with no
+// day/night volume has nightPct == null and falls back to its classification circle — never a
+// fabricated 50/50. Amber = day, indigo = night (own legend; distinct from the category colors).
+const DAY_COLOR = '#e08a1e', NIGHT_COLOR = '#4f46e5';
+let splitView = false;
+/** Set day/night split-marker mode. The caller re-renders the map afterwards (renderMap), so the
+ *  split share and marker size always reflect the SAME classification pass — no stale flash. */
+export function setSplitView(on) { splitView = !!on; }
+export function getSplitView() { return splitView; }
+
 let map = null, tile = null, boundary = null, cellLayer = null;
 let lastCells = [], lastDistrict = '', lastVisible = null;
 let sparkMonths = [], sparkLurieIdx = -1;
@@ -177,9 +191,24 @@ export function renderCells(cells, districtName, visible) {
     const r = 5 + Math.min(6, Math.sqrt(c.total));
     // Stable, shareable cell id from its (rounded) center — survives rebuilds.
     const cellId = `${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`;
-    const cm = L.circleMarker([c.lat, c.lng], {
-      radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
-    });
+    let cm;
+    if (splitView && c.nightPct != null) {
+      // Day/Night pie via a divIcon conic-gradient: sized by volume, split by real day/night share.
+      const size = Math.round(r * 2);
+      const nightPct = Math.round(c.nightPct);
+      cm = L.marker([c.lat, c.lng], {
+        icon: L.divIcon({
+          className: 'split-marker',
+          html: `<span class="split-marker__pie" style="width:${size}px;height:${size}px;` +
+            `background:conic-gradient(${NIGHT_COLOR} 0 ${nightPct}%, ${DAY_COLOR} ${nightPct}% 100%)"></span>`,
+          iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+        }),
+      });
+    } else {
+      cm = L.circleMarker([c.lat, c.lng], {
+        radius: r, color: meta.color, weight: 1.5, fillColor: meta.color, fillOpacity: 0.55,
+      });
+    }
     cm.bindPopup(
       (c.name ? `<div class="cell-loc">${esc(c.name)}</div>` : '') +
       `<strong>${meta.label}</strong> · ${esc(titleCase(c.district))}` +

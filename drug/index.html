@@ -111,9 +111,18 @@
     <wa-card class="panel">
       <div slot="header" class="panel__header">
         <h2 class="panel__title">Hotspots: what moved in the selected window</h2>
-        <div class="map-controls" id="map-controls"></div>
+        <div class="map-controls-row">
+          <div class="map-controls" id="map-controls"></div>
+          <div class="map-controls" id="map-view-toggle"></div>
+        </div>
       </div>
       <div class="map-legend" id="map-legend"></div>
+      <!-- Day vs night split legend (shown only in split view) -->
+      <div class="split-legend" id="split-legend" hidden>
+        <span class="k"><span class="sw sw--day"></span>☀ Day 6am–8pm</span>
+        <span class="k"><span class="sw sw--night"></span>☾ Night 8pm–6am</span>
+        <span class="split-legend__note">Marker size = window volume · split = day/night share</span>
+      </div>
       <div id="map" class="events-map"></div>
       <small id="map-note" class="repro-note"></small>
     </wa-card>
