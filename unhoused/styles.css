@@ -232,6 +232,20 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .split-marker { background: none; border: none; }
 .split-marker__pie { display: block; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(31,41,55,.35); }
 
+/* ── Hotspots: cross-street search (hybrid local + Nominatim) ── */
+.map-search-wrap { display: inline-flex; align-items: center; gap: .35rem; }
+.map-search-input { font: inherit; font-size: .82rem; width: 190px; max-width: 46vw; padding: .3rem .7rem; border: 1px solid var(--c-line); border-radius: 999px; background: var(--surface); color: var(--text); transition: border-color .12s; }
+.map-search-input:focus { outline: none; border-color: var(--c-blue); }
+.map-search-input::placeholder { color: var(--muted); }
+.map-search-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; border: 1px solid var(--c-line); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; }
+.map-search-btn:hover { color: var(--text); }
+.map-search-btn:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+.map-search-status { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.map-search-status.is-error { color: var(--c-red); }
+.search-marker { background: none; border: none; }
+.search-marker__pin { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--c-blue); box-shadow: 0 0 0 3px rgba(59,130,246,.3); animation: search-pulse 1.5s ease-out infinite; }
+@keyframes search-pulse { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,.45); } 70% { box-shadow: 0 0 0 12px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }
+
 /* Map time-of-day filter (below signal toggle, above legend) */
 .map-tod-filter {
   display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;

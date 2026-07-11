@@ -17,7 +17,7 @@ import {
   TIME_BUCKETS, setMapTodFilter, setSplitView, getSplitView,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
-import { wireSplitToggle, refreshSplitToggle } from '../../shared/hotspots-panel.js';
+import { wireSplitToggle, refreshSplitToggle, wireSearch } from '../../shared/hotspots-panel.js';
 
 const DISTRICTS = ['Northern', 'Mission', 'Tenderloin', 'Central'];
 const $ = sel => document.querySelector(sel);
@@ -515,6 +515,7 @@ async function main() {
     wireTodToggles();
     buildMapControls();
     wireSplitToggle({ onChange: enterSplitView });
+    wireSearch();
     buildMapTodFilter();
     renderScrubber();
     renderMethodology();
