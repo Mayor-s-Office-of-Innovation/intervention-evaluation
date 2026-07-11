@@ -170,3 +170,40 @@ test('methodology shows runnable queries, HSOC-as-response framing, and the wast
   await expect(meth).toContainText('Needles');
   await expect(meth).toContainText('human');
 });
+
+// Regression guard for the "See details" popup-close bug: clicking the in-popup button (and the tod
+// chips) must not propagate to the map (Leaflet's closePopupOnClick would otherwise close it). Also
+// asserts the popup actually WIDENS — a CSS-only max-width approach left it cramped (~230px).
+test('See details: popup stays open, widens, 5 tod chips, chips filter (no console errors)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('mission'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(700);
+
+  const markers = page.locator('#map path.leaflet-interactive');
+  const n = Math.min(await markers.count(), 12);
+  let opened = false;
+  for (let i = 0; i < n && !opened; i++) {
+    await markers.nth(i).click({ force: true });
+    await page.waitForTimeout(250);
+    if (await page.locator('.leaflet-popup .cell-details-btn').count()) { opened = true; break; }
+    await page.mouse.click(3, 3);
+    await page.waitForTimeout(120);
+  }
+  expect(opened, 'found a cell popup with a See details button').toBe(true);
+
+  await page.locator('.leaflet-popup .cell-details-btn').click();
+  await page.waitForTimeout(400);
+  await expect(page.locator('.leaflet-popup')).toBeVisible();
+  await expect(page.locator('.leaflet-popup .cell-details:not([hidden])')).toBeVisible();
+  await expect(page.locator('.leaflet-popup .tod-chip')).toHaveCount(5);
+
+  const w = await page.locator('.leaflet-popup-content').first().evaluate(el => el.offsetWidth);
+  expect(w, `expanded popup width ${w}px (should widen well past the ~230px default)`).toBeGreaterThan(300);
+
+  await page.locator('.leaflet-popup .tod-chip[data-tod="morning"]').click();
+  await page.waitForTimeout(250);
+  await expect(page.locator('.leaflet-popup')).toBeVisible();
+  await expect(page.locator('.leaflet-popup .tod-chip[data-tod="morning"]')).toHaveClass(/is-active/);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});

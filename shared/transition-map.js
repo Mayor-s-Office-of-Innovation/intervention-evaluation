@@ -346,6 +346,8 @@ async function showCellDetails(lat, lng, popupEl, cm) {
   // Widen the popup for the panel and reflow. NOTE: do NOT call popup.update() — it re-renders the
   // popup from the original bound HTML string and would wipe the breakdown DOM we just injected.
   // _updateLayout/_updatePosition re-fit width + reposition against the *live* DOM, preserving it.
+  // (PR #37 proposed a CSS-class widen instead, but max-width can't override Leaflet's inline width —
+  // measured 231px vs 327px here — so the panel stays cramped. Kept the working approach.)
   const popup = cm?.getPopup();
   if (popup) {
     popup.options.maxWidth = 340;
