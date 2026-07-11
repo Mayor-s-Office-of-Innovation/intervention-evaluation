@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "http-server . -p 8090 -c-1",
     "serve": "http-server . -p 8090 -c-1 -o /index.html",
-    "test": "playwright test -c hypothesis/playwright.config.js"
+    "test": "playwright test -c hypothesis/playwright.config.js",
+    "test:drug": "playwright test drug/tests/",
+    "test:unhoused": "playwright test unhoused/tests/",
+    "test:districts": "playwright test districts/tests/",
+    "test:all": "playwright test drug/tests/ unhoused/tests/ districts/tests/ && python validation/validate_build.py && node validation/parity.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
