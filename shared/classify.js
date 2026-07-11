@@ -50,11 +50,19 @@ export function classifyCell(cell, districtMonthly, win, base, knobs, monthlyKey
       else if (hotBefore && hotNow) category = 'persistent';
     }
   }
+  // Day/Night share over the SAME window (for the split-view markers + detail panel). Derived from
+  // the baked day/night histograms, independent of `monthlyKey`, so it never perturbs the `category`
+  // parity oracle. null when the cell has no day/night volume in the window (never faked to 50/50).
+  const dayVol = sumRange(cell.monthly_day || [], win.lo, win.hi);
+  const nightVol = sumRange(cell.monthly_night || [], win.lo, win.hi);
+  const nightPct = dayVol + nightVol > 0 ? (nightVol / (dayVol + nightVol)) * 100 : null;
+
   return {
     category, tide,
     preRate, nowRate,
     expectedRate: expected,                          // named to match the map's cell consumer
     total: sumRange(m, win.lo, win.hi),              // window volume (for marker sizing)
+    nightPct,                                        // 0–100 day/night split (null = no vol); split view + panel
   };
 }
 

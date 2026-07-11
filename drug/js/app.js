@@ -15,8 +15,10 @@ import {
 import {
   CATEGORY, focusDistrict, renderCells, setSparkMeta, setMarkers,
   onMapState, notifyState, queueRestore, restoreMapView, setTodFilter,
+  setSplitView, getSplitView,
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
+import { wireSplitToggle, refreshSplitToggle } from '../../shared/hotspots-panel.js';
 
 const DISTRICTS = ['Northern', 'Mission', 'Central', 'Tenderloin'];
 const $ = sel => document.querySelector(sel);
@@ -353,6 +355,9 @@ function applyTod() {
   const on = [...document.querySelectorAll('#tod-controls .tod-toggle')]
     .filter(b => b.classList.contains('is-active')).map(b => b.dataset.tod);
   todFilter = on.length === 2 ? 'both' : on[0];
+  // Split markers are a lens on the FULL day/night mix; a day- or night-only filter would make the
+  // pie contradict the (filtered) marker size, so exclude → force Combined view. (See plan §guardrails.)
+  if (todFilter !== 'both' && getSplitView()) { setSplitView(false); refreshSplitToggle(); }
   const hint = $('.tod-filter__hint');
   if (hint) hint.textContent =
     `Day 6am–8pm · Night 8pm–6am · showing ${todFilter === 'both' ? 'both' : todFilter + ' only'}`;
@@ -370,6 +375,19 @@ function wireTodToggles() {
     btn.setAttribute('aria-pressed', btn.classList.contains('is-active'));
     applyTod();
   });
+}
+
+// Split-view toggle callback: split markers are a lens on the FULL day/night mix, so entering split
+// resets the page Day/Night filter to both (keeps marker size and the day/night pie on the same data).
+function enterSplitView(isSplit) {
+  if (isSplit) {
+    document.querySelectorAll('#tod-controls .tod-toggle').forEach(b => {
+      b.classList.add('is-active'); b.setAttribute('aria-pressed', 'true');
+    });
+    applyTod();     // recomputes todFilter='both', updates hint, and renderMap() draws split markers
+  } else {
+    renderMap();    // back to combined
+  }
 }
 
 // ── district (locked from homepage selection) ──
@@ -481,6 +499,7 @@ async function main() {
     onMapState(onMapStateChange);
     initDistrict();
     wireTodToggles();
+    wireSplitToggle({ onChange: enterSplitView });
     renderScrubber();
     renderMethodology();
     renderDistrict();
