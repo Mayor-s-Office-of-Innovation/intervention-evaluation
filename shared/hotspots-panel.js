@@ -5,7 +5,7 @@
 // The docked detail panel + panel-scoped hour slider (Changes #3/#1) are added here too.
 // See plan-hotspots-enhancements.md.
 // ──────────────────────────────────────────────────────────────────────
-import { setSplitView, getSplitView } from './transition-map.js';
+import { setSplitView, getSplitView, searchIntersections, focusCellById, showSearchResult, clearSearchResult } from './transition-map.js';
 
 let _refresh = null;                 // re-renders the toggle buttons from current split state
 let _legendSel = '#split-legend';
@@ -49,4 +49,70 @@ export function refreshSplitToggle() {
   if (_refresh) _refresh();
   const legend = document.querySelector(_legendSel);
   if (legend) legend.hidden = !getSplitView();
+}
+
+/**
+ * Wire the cross-street search box (Change: hybrid local + Nominatim). Renders an input + button +
+ * status line into the container, and routes each search to the most specific honest result:
+ * tracked hotspot → select it; reported corner → locate + "not a tracked hotspot"; anywhere else in
+ * SF → Nominatim locate + "no tracked activity"; otherwise a clear status. Escape clears everything.
+ */
+export function wireSearch({ containerSel = '#map-search' } = {}) {
+  const container = document.querySelector(containerSel);
+  if (!container) return;
+  container.innerHTML =
+    `<div class="map-search-wrap">` +
+    `<input type="text" class="map-search-input" id="map-search-input" ` +
+    `placeholder="Find cross streets (e.g. 16th & Mission)" aria-label="Find cross streets">` +
+    `<button class="map-search-btn" id="map-search-btn" aria-label="Search">` +
+    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">` +
+    `<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg></button>` +
+    `<span class="map-search-status" id="map-search-status" role="status" aria-live="polite"></span>` +
+    `</div>`;
+
+  const input = container.querySelector('#map-search-input');
+  const btn = container.querySelector('#map-search-btn');
+  const statusEl = container.querySelector('#map-search-status');
+  const setStatus = (msg, isError = false) => {
+    statusEl.textContent = msg || '';
+    statusEl.classList.toggle('is-error', !!isError);
+  };
+
+  async function doSearch() {
+    const query = input.value.trim();
+    if (!query) return;
+    setStatus('Searching…');
+    let r;
+    try { r = await searchIntersections(query); }
+    catch { setStatus('Search failed', true); return; }
+
+    switch (r.status) {
+      case 'need-two':
+        setStatus('Enter two cross streets (e.g. 16th & Mission)', true); break;
+      case 'local':
+        if (r.isHotspot) {
+          if (focusCellById(r.cellId)) setStatus('');                       // selected the hotspot
+          else { showSearchResult(r.lat, r.lng, r.name); setStatus('Tracked hotspot (currently filtered out)'); }
+        } else {
+          showSearchResult(r.lat, r.lng, r.name);
+          setStatus('Reported location · not a tracked hotspot');
+        }
+        break;
+      case 'geo':
+        // Located outside our data — the pin + its tooltip show where; no status text (avoids a
+        // layout shift, and the absence of hotspot dots there is self-evident on the map).
+        showSearchResult(r.lat, r.lng, r.name);
+        setStatus(''); break;
+      case 'none':
+        setStatus('No results in SF', true); break;
+      default:
+        setStatus('Search failed', true);
+    }
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    else if (e.key === 'Escape') { input.value = ''; clearSearchResult(); setStatus(''); }
+  });
+  btn.addEventListener('click', doSearch);
 }

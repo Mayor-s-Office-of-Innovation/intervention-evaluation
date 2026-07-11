@@ -80,6 +80,10 @@ let markerKey = null, markerData = null, markerLoader = null, markerLoading = fa
 // Deep-link state: which intersection/block CELL is "expanded" (its popup pinned open), the one
 // queued to re-open on a shared-link load, and the callback that mirrors map state into the URL.
 let selectedCellId = null, pendingCellId = null, onState = null;
+// Cross-street search: cellId→marker registry (to open a rendered hotspot's popup), the temporary
+// result pin, and a cached intersection index (rebuilt when the signal/cells change). See plan-cross-street-search.md.
+const cellMarkers = new Map();
+let searchMarker = null, intersectionIndex = null, intersectionIndexKey = null;
 
 // ── Map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
 // Drives the cell classification in app.js (which sums the baked `monthly_tod` arrays); this setter is
@@ -182,6 +186,8 @@ export function renderCells(cells, districtName, visible) {
   if (!map) return {};
   lastCells = cells; lastDistrict = districtName; lastVisible = visible;
   cellLayer.clearLayers();
+  cellMarkers.clear();
+  clearSearchResult();   // drop any stale search pin on district/window change (fixes lingering marker)
   const counts = { persistent: 0, cooled: 0, emerged: 0 };
   for (const c of cells) {
     if (c.district !== districtName) continue;
@@ -236,6 +242,7 @@ export function renderCells(cells, districtName, visible) {
     });
     cm.on('popupclose', () => { if (selectedCellId === cellId) { selectedCellId = null; emitState(); } });
     cm.addTo(cellLayer);
+    cellMarkers.set(cellId, cm);   // registry for cross-street search to open this hotspot
     if (cellId === pendingCellId) { pendingCellId = null; cm.openPopup(); }   // deep-link target
   }
   return counts;
@@ -345,4 +352,130 @@ async function showCellDetails(lat, lng, popupEl, cm) {
     popup._updateLayout?.();
     popup._updatePosition?.();
   }
+}
+
+// ── Cross-street search (hybrid: local intersections first, Nominatim fallback) ──────────
+// SF bounding box for Nominatim viewbox (x1,y1,x2,y2 = lon,lat corners).
+const SF_VIEWBOX = '-122.5247,37.8324,-122.3366,37.7041';
+// Street-type words dropped when tokenizing an intersection, so "16th & Mission" ≡ "16TH ST / MISSION ST".
+const STREET_SUFFIX = new Set(['st', 'street', 'ave', 'avenue', 'blvd', 'boulevard', 'dr', 'drive',
+  'ct', 'court', 'ln', 'lane', 'pl', 'place', 'ter', 'terrace', 'way', 'hwy', 'highway', 'rd', 'road',
+  'plz', 'plaza', 'row', 'aly', 'alley', 'cir', 'circle']);
+
+/** Reduce an intersection string to its set of significant street tokens (order-independent match). */
+function streetTokens(str) {
+  const t = new Set();
+  String(str || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(w => {
+    if (!w || w === 'and') return;
+    w = w.replace(/^(\d+)(st|nd|rd|th)$/, '$1');   // 16th → 16
+    if (STREET_SUFFIX.has(w)) return;
+    t.add(w);
+  });
+  return t;
+}
+
+async function ensureMarkerData() {
+  if (!markerData && markerLoader && !markerLoading) {
+    markerLoading = true;
+    try { markerData = await markerLoader(); } finally { markerLoading = false; }
+  }
+  return markerData;
+}
+
+/** Build (and cache) the intersection index for the active signal: hotspot cells + all reported
+ *  marker intersections, deduped by normalized key (hotspot entries win). */
+async function buildIntersectionIndex() {
+  const key = markerKey || '';
+  if (intersectionIndex && intersectionIndexKey === key) return intersectionIndex;
+  const seen = new Map();   // normKey → entry
+  for (const c of lastCells) {
+    if (!c.name || !c.category) continue;   // only truly classified (rendered) hotspots are tier-1
+    const tokens = streetTokens(c.name);
+    const nk = [...tokens].sort().join(' ');
+    seen.set(nk, { key: nk, tokens, name: c.name, lat: c.lat, lng: c.lng,
+      isHotspot: true, cellId: `${c.lat.toFixed(4)}_${c.lng.toFixed(4)}` });
+  }
+  const md = await ensureMarkerData();
+  if (md?.pts) {
+    const { coordScale, pts } = md;
+    for (const pt of pts) {
+      const name = pt[4];
+      if (!name) continue;
+      const tokens = streetTokens(name);
+      const nk = [...tokens].sort().join(' ');
+      if (seen.has(nk)) continue;   // a hotspot cell already covers this intersection
+      seen.set(nk, { key: nk, tokens, name, lat: pt[0] / coordScale, lng: pt[1] / coordScale, isHotspot: false });
+    }
+  }
+  intersectionIndex = [...seen.values()];
+  intersectionIndexKey = key;
+  return intersectionIndex;
+}
+
+async function geocodeSF(query) {
+  // Nominatim REST call (no library, no page-load cost). User-Agent can't be set from fetch (forbidden
+  // header) — Nominatim identifies us by referer. Manual/occasional use only (respects 1 req/s policy).
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', San Francisco, CA')}` +
+    `&format=json&viewbox=${SF_VIEWBOX}&bounded=1&limit=1`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('geocode failed');
+  const d = await res.json();
+  if (!d.length) return null;
+  return { lat: +d[0].lat, lng: +d[0].lon, name: d[0].display_name };
+}
+
+/**
+ * Search for an intersection. Returns a tiered result:
+ *   { status:'need-two' }                              — need two cross streets
+ *   { status:'local', isHotspot, cellId?, lat,lng,name } — matched our data (hotspot or reported corner)
+ *   { status:'geo', lat,lng,name }                     — located via Nominatim (no tracked activity)
+ *   { status:'none' } | { status:'error' }
+ */
+export async function searchIntersections(query) {
+  const qTokens = streetTokens(query);
+  if (qTokens.size < 2) return { status: 'need-two' };
+  const idx = await buildIntersectionIndex();
+  const qkey = [...qTokens].sort().join(' ');
+  const q = [...qTokens];
+  let best = null, bestScore = -1;
+  for (const e of idx) {
+    let s = -1;
+    if (e.key === qkey) s = e.isHotspot ? 4 : 3;                 // exact set match
+    else if (q.every(t => e.tokens.has(t))) s = e.isHotspot ? 2 : 1;   // query ⊆ entry
+    if (s > bestScore) { bestScore = s; best = e; }
+  }
+  if (best && bestScore >= 1) return { status: 'local', ...best };
+  try {
+    const g = await geocodeSF(query);
+    return g ? { status: 'geo', ...g, isHotspot: false } : { status: 'none' };
+  } catch { return { status: 'error' }; }
+}
+
+/** Open a rendered hotspot's popup (reuses the click/pin/shareable-URL path). Returns false if the
+ *  cell isn't currently on the map (e.g. its category is filtered off). */
+export function focusCellById(cellId) {
+  clearSearchResult();
+  const cm = cellMarkers.get(cellId);
+  if (!cm || !map) return false;
+  map.setView(cm.getLatLng(), Math.max(map.getZoom(), 15));
+  cm.openPopup();
+  return true;
+}
+
+/** Drop/replace a single temporary result pin for a searched location. */
+export function showSearchResult(lat, lng, label) {
+  if (!map) return;
+  clearSearchResult();
+  map.setView([lat, lng], Math.max(map.getZoom(), 16));
+  searchMarker = L.marker([lat, lng], {
+    icon: L.divIcon({ className: 'search-marker', html: '<span class="search-marker__pin"></span>',
+      iconSize: [22, 22], iconAnchor: [11, 11] }),
+    keyboard: false,
+  }).addTo(map);
+  if (label) searchMarker.bindTooltip(label, { direction: 'top', offset: [0, -12] });
+}
+
+/** Remove the temporary search result pin (on Escape, new search, or district/window change). */
+export function clearSearchResult() {
+  if (searchMarker) { searchMarker.remove(); searchMarker = null; }
 }
