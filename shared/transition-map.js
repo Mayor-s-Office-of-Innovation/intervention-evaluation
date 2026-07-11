@@ -221,6 +221,16 @@ export function renderCells(cells, districtName, visible) {
     cm.on('popupopen', () => {
       selectedCellId = cellId; emitState();   // click → pin + shareable URL
       const popupEl = cm.getPopup()?.getElement();
+      // Keep clicks on the popup's own controls (See details, the tod-chip filters injected by
+      // showCellDetails) from bubbling to the map — otherwise Leaflet's closePopupOnClick treats them
+      // as a map click and closes the popup instead of running the handler. Leaflet's own
+      // disableClickPropagation doesn't cover these (it checks its skip-flag on the direct target
+      // only), so guard the content node once per popup element.
+      const content = popupEl?.querySelector('.leaflet-popup-content');
+      if (content && !content._detailsClickGuard) {
+        content._detailsClickGuard = true;
+        L.DomEvent.on(content, 'click', L.DomEvent.stopPropagation);
+      }
       const btn = popupEl?.querySelector('.cell-details-btn');
       btn?.addEventListener('click', () => showCellDetails(c.lat, c.lng, popupEl, cm));
     });
