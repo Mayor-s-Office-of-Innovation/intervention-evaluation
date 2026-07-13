@@ -444,6 +444,9 @@ function initDistrict() {
   active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
   const eyebrow = document.querySelector('.app-header__eyebrow');
   if (eyebrow) eyebrow.textContent = `San Francisco · ${active} district · Unhoused presence`;
+  // Carry the district back to the homepage so its pill stays selected
+  const back = document.querySelector('.back-home');
+  if (back) back.href = `../#${active.toLowerCase()}`;
 }
 
 // ── methodology (D7) — what's in/out, why, and the runnable queries ──

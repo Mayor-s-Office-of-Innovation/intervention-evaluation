@@ -176,34 +176,28 @@
         </form>
       </dialog>
 
-      <!-- Verdict slot — deterministic descriptive line now; AI synthesis drops in here later -->
-      <wa-callout id="verdict" variant="neutral" size="l">
-        <wa-icon slot="icon" name="wand-magic-sparkles"></wa-icon>
-        <div id="verdict-body"></div>
-      </wa-callout>
-
-      <!-- Stat cards -->
-      <div class="wa-grid wa-gap-l" id="stat-cards" style="--min-column-size: 13rem;"></div>
-
-      <!-- Chart -->
-      <wa-card class="panel">
-        <h2 slot="header" class="panel__title" id="chart-title">Complaints over time</h2>
+      <!-- Shared analysis window — one date range drives every lever panel + the map -->
+      <wa-card class="panel" id="window-card">
+        <h2 slot="header" class="panel__title">Analysis window</h2>
         <div class="chart-controls">
           <wa-slider id="range-slider" range size="s" with-tooltip
                      min="0" max="100" min-value="0" max-value="100"
-                     label="Date range — drag the handles to zoom in (bars and map adjust)"></wa-slider>
+                     label="Date range — drag the handles to zoom in (all charts and the map adjust)"></wa-slider>
           <div id="range-readout" class="range-readout"></div>
           <small id="range-suggest" class="range-suggest"></small>
         </div>
-        <div id="chart-host" class="chart-host"></div>
         <small id="chart-note" class="repro-note"></small>
       </wa-card>
 
-      <!-- Map of events -->
+      <!-- One panel per selected lever (verdict + stat cards + chart), injected by app.js -->
+      <div id="panels" class="wa-stack wa-gap-xl"></div>
+
+      <!-- Shared map of events — one dot per report, colored by lever -->
       <wa-card class="panel">
         <h2 slot="header" class="panel__title" id="map-title">Where the reports are</h2>
+        <div id="map-legend" class="map-legend"></div>
         <div id="events-map" class="events-map"></div>
-        <small class="repro-note">Each dot is one 911 call. Click a dot for the date and dispatcher notes.</small>
+        <small class="repro-note">Each dot is one report, colored by lever. Click a dot for the date and details.</small>
       </wa-card>
     </section>
 

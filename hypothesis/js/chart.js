@@ -116,8 +116,10 @@ function paint(host, series, opts) {
     parts.push(`<rect data-i="${i}" x="${x(i)}" y="${M.top}" width="${band}" height="${innerH}" fill="transparent"/>`);
   });
 
+  const noun = opts.noun || 'report';
+  const ariaLabel = `${opts.title || 'Reports'} over time`;
   host.innerHTML =
-    `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Drug-related complaints over time">${parts.join('')}</svg>` +
+    `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${ariaLabel}">${parts.join('')}</svg>` +
     `<div class="chart-tip" hidden></div>`;
 
   // tooltip wiring
@@ -126,7 +128,7 @@ function paint(host, series, opts) {
     rect.addEventListener('mouseenter', () => {
       const i = +rect.dataset.i;
       const s = series[i];
-      tip.innerHTML = `<strong>${s.tip}</strong>${s.n} complaint${s.n === 1 ? '' : 's'}`;
+      tip.innerHTML = `<strong>${s.tip}</strong>${s.n} ${noun}${s.n === 1 ? '' : 's'}`;
       tip.style.left = `${x(i) + band / 2}px`;
       tip.style.top = `${y(s.n) - 8}px`;
       tip.hidden = false;
