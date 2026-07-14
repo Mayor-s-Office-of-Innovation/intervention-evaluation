@@ -55,8 +55,10 @@ let urlWindow = null;   // {start,end} parsed from a shared link; overrides smar
 let curStart = null;    // current analysis window (ISO), tracked for the shareable URL
 let curEnd = null;
 
-// Edit mode: if URL has ?edit=ID, we load that intervention and update instead of create
+// Edit mode: ?edit=ID loads that intervention and updates instead of creating.
+// View mode: ?view=ID loads it read-first, shows the live results, and offers Edit.
 let editId = null;
+let viewId = null;
 let editRecord = null;
 
 async function init() {
@@ -64,9 +66,10 @@ async function init() {
   await customElements.whenDefined('wa-select');
   await customElements.whenDefined('wa-textarea');
 
-  // Check for edit mode first
+  // Check for edit / view mode first
   const urlParams = new URLSearchParams(location.search);
   editId = urlParams.get('edit');
+  viewId = urlParams.get('view');
 
   const shared = readParams(); // a shared link overrides the defaults above
 
@@ -74,7 +77,7 @@ async function init() {
   const sel = $('in-expect');
   const leverOptions = LEVERS || DATAPOINTS;
   sel.innerHTML = leverOptions.map(d => `<wa-option value="${d.key}">${d.label}</wa-option>`).join('');
-  if (!editId) sel.value = dps.map(d => d.key); // multi-select: array of keys
+  if (!editId && !viewId) sel.value = dps.map(d => d.key); // multi-select: array of keys
   setDescription();
   sel.addEventListener('change', () => {
     dps = selectedDps();
@@ -110,24 +113,22 @@ async function init() {
   // Keep the clickable links preview in sync as the user edits the field
   $('in-links')?.addEventListener('input', () => renderLinksPreview());
 
-  // Load existing record if in edit mode
+  // Load existing record for edit or view; otherwise a shared analysis link auto-runs.
   if (editId) {
-    await loadEditRecord();
+    await loadRecord(editId, 'edit');
+  } else if (viewId) {
+    await loadRecord(viewId, 'view');
   } else if (shared) {
     run(true); // a shared link auto-runs AND scrolls to the results
   }
 }
 
-async function loadEditRecord() {
+// Load a saved intervention and show its live analysis. mode 'edit' pre-fills
+// for updating; mode 'view' lands on the results and offers an Edit button.
+async function loadRecord(id, mode) {
   try {
-    editRecord = await getIntervention(editId);
+    editRecord = await getIntervention(id);
     if (!editRecord) throw new Error('Not found');
-
-    // Update page title
-    $('page-title').textContent = 'Edit intervention';
-    $('page-sub').textContent = 'Update this intervention and track its impact.';
-    $('form-title').textContent = 'Edit intervention';
-    $('submit-label').textContent = 'Update intervention';
 
     // Populate form fields
     $('in-what').value = editRecord.intervention || editRecord.what || '';
@@ -170,15 +171,35 @@ async function loadEditRecord() {
     updateReadout();
     dateISO = editRecord.start_date || editRecord.date || DEFAULT_DATE;
 
-    // Auto-run the analysis
-    run(false);
+    if (mode === 'edit') {
+      editId = id;
+      $('page-title').textContent = 'Edit intervention';
+      $('page-sub').textContent = 'Update this intervention and track its impact.';
+      $('form-title').textContent = 'Edit intervention';
+      $('submit-label').textContent = 'Update intervention';
+      run(false);
+    } else {
+      // View: results-first. The primary button becomes "Edit" (see handleSubmit).
+      viewId = id;
+      $('page-title').textContent = 'Intervention results';
+      $('page-sub').textContent = 'Live impact for this intervention. Use “Edit intervention” to change its details.';
+      $('form-title').textContent = 'Intervention details';
+      $('submit-label').textContent = 'Edit intervention';
+      run(true); // show + scroll straight to the results
+    }
   } catch (e) {
     console.error('Failed to load intervention:', e);
-    alert('Could not load intervention for editing.');
+    alert('Could not load intervention.');
   }
 }
 
 async function handleSubmit() {
+  // In view mode the primary button is an "Edit intervention" affordance.
+  if (viewId && !editId) {
+    window.location.search = `?edit=${encodeURIComponent(viewId)}`;
+    return;
+  }
+
   // Validate required fields
   const title = ($('in-what').value || '').trim();
   const submitter = ($('in-submitter').value || '').trim();
@@ -226,12 +247,20 @@ async function handleSubmit() {
     if (editId) {
       data.edited_by = submitter;
       await updateIntervention(editId, data);
-      alert('Intervention updated successfully!');
+      flashSaved('✓ Intervention updated. Live impact shown below.');
+      await run(true);
     } else {
-      await createFullIntervention(data);
-      alert('Intervention submitted successfully!');
-      // Redirect to homepage after creating
-      window.location.href = '../';
+      const { id } = await createFullIntervention(data);
+      // Stay on the page and show the analysis. Switch into the saved/edit state so a
+      // second click updates the same record instead of creating a duplicate.
+      if (id) {
+        editId = id;
+        $('page-title').textContent = 'Edit intervention';
+        $('page-sub').textContent = 'Saved — it now appears on the homepage. Update anytime; the impact below is live.';
+        $('form-title').textContent = 'Edit intervention';
+      }
+      await run(true); // render the per-lever analysis and scroll to it
+      flashSaved('✓ Intervention saved. It now appears on the homepage. Live impact shown below.');
     }
   } catch (e) {
     alert('Error: ' + e.message);
@@ -240,6 +269,14 @@ async function handleSubmit() {
     btn.disabled = false;
     $('submit-label').textContent = editId ? 'Update intervention' : 'Submit intervention';
   }
+}
+
+// Inline confirmation in the results share bar (replaces the old alert + redirect).
+function flashSaved(msg) {
+  const status = $('copy-status');
+  if (!status) return;
+  status.textContent = msg;
+  status.classList.remove('copy-status--error');
 }
 
 function getSelectedLevers() {
@@ -274,6 +311,10 @@ function renderLinksPreview(links) {
 // ── Shareable URL: state ⇄ query params (live re-query, no backend) ──
 // Params: dp, date, lat, lng, r, from, to, what. Plain & readable; the data
 // itself is never stored — it's re-queried live from Socrata on open (D1).
+// Returns true only when the link carries real ANALYSIS params (dp / lat+lng /
+// from+to) — the caller uses that to decide whether to auto-run. Prefill-only
+// params (district, what) are applied but must not trigger an analysis, so
+// arriving from the homepage to add a NEW intervention doesn't run one.
 function readParams() {
   const p = new URLSearchParams(location.search);
   if (![...p.keys()].length) return false;
@@ -283,15 +324,18 @@ function readParams() {
     if (picked.length) dps = picked;
   }
   const lat = parseFloat(p.get('lat')), lng = parseFloat(p.get('lng'));
-  if (isFinite(lat) && isFinite(lng)) loc = { lat, lng };
+  const hasLatLng = isFinite(lat) && isFinite(lng);
+  if (hasLatLng) loc = { lat, lng };
   const r = parseInt(p.get('r'), 10);
   if (isFinite(r)) radiusM = Math.min(1000, Math.max(10, Math.round(r / 10) * 10));
   const d = p.get('date'); if (d) dateISO = d;
   const from = p.get('from'), to = p.get('to');
   if (from && to) urlWindow = { start: from, end: to };
   const what = p.get('what'); if (what) $('in-what').value = what;
+  // Prefill the district from where the user came (homepage tab) — not an analysis param.
+  const dist = p.get('district'); if (dist) $('in-district').value = dist;
   $('radius-slider') && ($('radius-slider').value = radiusM);
-  return true;
+  return Boolean(k || hasLatLng || (from && to));
 }
 
 function syncURL() {

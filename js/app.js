@@ -285,9 +285,17 @@ const isStaleEval = i => i.last_evaluated && (Date.now() - new Date(i.last_evalu
 
 // Table columns in order. `always` columns always render; the rest render only when at least one row
 // has a value — so columns we don't have data for yet are hidden until data fills them.
+// Where a row links to see its live results. Prefer a stored shareable link when
+// present (curated/quick-saved rows reconstruct the exact analysis from it);
+// otherwise the view page for a saved record (reconstructs from its fields).
+const viewHref = i => i.eval_link || (i.id ? `./hypothesis/?view=${encodeURIComponent(i.id)}` : null);
+
 const INTERVENTION_COLUMNS = [
   { header: 'ID', cls: 'id', always: true, cell: i => `<span class="mono">${esc(i.intervention_id || i.id?.slice(0,8) || '—')}</span>` },
-  { header: 'Intervention', cls: 'name', always: true, cell: i => `<strong>${esc(i.intervention || '')}</strong>` },
+  { header: 'Intervention', cls: 'name', always: true, cell: i => {
+      const h = viewHref(i), name = esc(i.intervention || '');
+      return h ? `<a class="intervention-link" href="${esc(h)}">${name}</a>` : `<strong>${name}</strong>`;
+    } },
   { header: 'Levers', cls: 'levers', has: i => i.levers?.length || i.target_kr, cell: i => renderLeverBadges(i.levers, i.target_kr) },
   { header: 'Status', cls: 'status', always: true, cell: i => renderStatusBadge(i.status) },
   { header: 'Owner', cls: 'owner', has: i => i.owner, cell: i => esc(i.owner || '') },
@@ -336,7 +344,8 @@ function renderActions(i) {
 }
 
 function renderInterventionRow(i, cols) {
-  return `<tr class="intervention-row">${cols.map(c =>
+  const h = viewHref(i);
+  return `<tr class="intervention-row${h ? ' is-clickable' : ''}"${h ? ` data-href="${esc(h)}"` : ''}>${cols.map(c =>
     `<td class="intervention-cell intervention-cell--${c.cls}${c.tdClass ? ' ' + c.tdClass(i) : ''}">${c.cell(i)}</td>`
   ).join('')}</tr>`;
 }
@@ -415,6 +424,13 @@ function renderInterventions() {
 }
 
 
+// Carry the district the user is viewing into the "Add intervention" tool so the
+// form's (required) District field pre-populates. The card is static in index.html.
+function updateAddLink() {
+  const card = document.querySelector('.tool-card');
+  if (card) card.href = `./hypothesis/?district=${encodeURIComponent(currentDistrict)}`;
+}
+
 function render(container) {
   container.innerHTML = `
     ${renderDistrictTabs()}
@@ -429,6 +445,7 @@ function render(container) {
     </section>
   `;
   wireEvents(container);
+  updateAddLink();
 }
 
 function wireEvents(container) {
@@ -437,6 +454,16 @@ function wireEvents(container) {
       currentDistrict = btn.dataset.district;
       syncUrlHash();
       render(container);
+    });
+  });
+
+  // Whole-row click opens the intervention's results — except when the click is on
+  // an action link/button (Edit / Close / the name link), which handle themselves.
+  container.querySelectorAll('.intervention-row.is-clickable').forEach(row => {
+    row.addEventListener('click', e => {
+      if (e.target.closest('a, button')) return;
+      const href = row.dataset.href;
+      if (href) window.location.href = href;
     });
   });
 

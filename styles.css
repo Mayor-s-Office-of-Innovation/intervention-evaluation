@@ -325,6 +325,9 @@ html.wa-dark .district-tab.is-active {
 html.wa-dark .intervention-row:hover td {
   background: rgba(255, 255, 255, 0.03);
 }
+.intervention-row.is-clickable { cursor: pointer; }
+.intervention-link { color: var(--c-blue); font-weight: 600; text-decoration: none; }
+.intervention-link:hover { text-decoration: underline; }
 
 .intervention-cell--name {
   min-width: 130px;
