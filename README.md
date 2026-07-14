@@ -49,6 +49,27 @@ validation/                 ← build invariants, classifier parity, source↔da
 .github/workflows/          ← deploy.yml (test-gated GitHub Pages) + trace.yml (nightly)
 ```
 
+## Refreshing the data
+
+The dashboards ship **pre-baked JSON** rebuilt offline from Socrata (stdlib Python 3, anonymous
+read-only GETs — no token, no `pip install`). To bring everything current:
+
+1. **Rebuild each dashboard** using its own pipeline (see the "Refresh the data" section in each
+   README): [`drug/`](drug/README.md) and [`unhoused/`](unhoused/README.md) are 5-stage
+   (`01_pull → 02_assign → 03_rollup → 04_transitions → 05_markers`, run from `<dash>/build/`);
+   [`theft/`](theft/README.md) is a single `python3 theft/build/build.py`.
+2. **The homepage auto-follows — no separate step.** [`index.html`](index.html) / [`js/app.js`](js/app.js)
+   fetch each dashboard's `data/aggregates.json` live, and the district cards' emerging signals are
+   fetched live in-browser. Rebuilding the three dashboards refreshes the homepage.
+3. **Validate** (see [Checks](#checks) below): `validate_build.py`, `parity.mjs {drug,unhoused}`,
+   `trace.py {drug,unhoused}`, then `npm run test:all`.
+4. **On any validation mismatch, stop and report** (source drift or an unexplained count cliff) before
+   committing — don't auto-commit a partial refresh.
+
+`provenance.json`'s `generated` date and the partial/settled-month shading update themselves from
+`date.today()` at build time — no manual date edits. Refresh cadence is manual; a scheduled
+rebuild-and-commit Action is a noted later option.
+
 ## Checks
 
 ```bash
