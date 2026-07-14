@@ -41,8 +41,9 @@ test('landing page renders links to every dashboard without errors', async ({ pa
     await expect(links.first()).toBeVisible();
   }
 
-  // the self-serve hypothesis tool is linked statically
-  await expect(page.locator('a[href="./hypothesis/"]').first()).toBeVisible();
+  // the self-serve hypothesis tool is linked; its href now carries the selected
+  // district (e.g. ./hypothesis/?district=Northern) to pre-fill the form, so match by prefix.
+  await expect(page.locator('a[href^="./hypothesis/"]').first()).toBeVisible();
 
   // a broken app.js load or failed TSV fetch would surface as a console/page error
   expect(errors).toEqual([]);
