@@ -64,12 +64,25 @@ export function initPicker(el, init, onChange, radiusM = 250) {
 let eMap = null;
 let eLayer = null;
 
+// darken a #rrggbb hex by a factor (for the marker stroke) — keeps each lever's
+// dot readable against the map without hard-coding a second color per lever.
+function darken(hex, f = 0.75) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const r = Math.round(((n >> 16) & 255) * f);
+  const g = Math.round(((n >> 8) & 255) * f);
+  const b = Math.round((n & 255) * f);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
 /**
- * Draw the result map: pin + radius + one dot per event.
+ * Draw the result map: pin + radius + one dot per event, colored by lever.
+ * @param {{color:string,label:string,events:object[]}[]} groups one entry per lever.
  * @param {{recenter?:boolean}} [opts] recenter the view on the pin (default true).
  *   Pass false for slider-driven window changes so the user's pan/zoom is kept.
  */
-export function renderEvents(el, center, radiusM, events, { recenter = true } = {}) {
+export function renderEvents(el, center, radiusM, groups, { recenter = true } = {}) {
   if (!eMap) {
     eMap = L.map(el).setView([center.lat, center.lng], 15);
     baseTiles(eMap);
@@ -82,16 +95,19 @@ export function renderEvents(el, center, radiusM, events, { recenter = true } = 
   L.circle([center.lat, center.lng], { radius: radiusM, color: '#3b82f6', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.04 }).addTo(eLayer);
   L.marker([center.lat, center.lng]).addTo(eLayer);
 
-  for (const ev of events) {
-    if (ev.lat == null || ev.lng == null) continue;
-    const m = L.circleMarker([ev.lat, ev.lng], {
-      radius: 5, color: '#b91c1c', weight: 1, fillColor: '#ef4444', fillOpacity: 0.7,
-    });
-    m.bindPopup(
-      `<strong>${esc(ev.day)}</strong><br>${esc(ev.place)}<br>` +
-      `<em>${esc(ev.notes) || '(no details)'}</em>`
-    );
-    m.addTo(eLayer);
+  for (const g of groups) {
+    const stroke = darken(g.color);
+    for (const ev of g.events) {
+      if (ev.lat == null || ev.lng == null) continue;
+      const m = L.circleMarker([ev.lat, ev.lng], {
+        radius: 5, color: stroke, weight: 1, fillColor: g.color, fillOpacity: 0.7,
+      });
+      m.bindPopup(
+        `<strong>${esc(g.label)}</strong><br>${esc(ev.day)}<br>${esc(ev.place)}<br>` +
+        `<em>${esc(ev.notes) || '(no details)'}</em>`
+      );
+      m.addTo(eLayer);
+    }
   }
 
   setTimeout(() => eMap.invalidateSize(), 0);

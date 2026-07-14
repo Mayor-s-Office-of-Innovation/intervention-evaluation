@@ -8,7 +8,12 @@
 
 const SODA_BASE = 'https://data.sfgov.org/resource';
 
-const DATASET_LABEL = { '2zdj-bwza': '911 CFS', 'vw6y-z8j6': '311' };
+// Max rows fetched per source. A source that returns exactly this many was
+// almost certainly truncated (ordered newest-first), so only the most recent
+// records are present — app.js warns the user when their window predates them.
+export const ROW_CAP = 5000;
+
+const DATASET_LABEL = { '2zdj-bwza': '911 CFS', 'vw6y-z8j6': '311', 'wg3w-h783': 'SFPD incidents', 'nuek-vuh3': 'Fire/EMS' };
 export const datasetLabel = id => DATASET_LABEL[id] || 'data.sfgov.org';
 
 /** Build the live Socrata query URL for one source at a pin + radius. */
@@ -23,7 +28,7 @@ export function buildQueryUrl(src, { lat, lng, radiusM = 250, startISO = '2023-0
     '$select': src.select,
     '$where': where,
     '$order': `${src.dateCol} DESC`,
-    '$limit': '5000',
+    '$limit': String(ROW_CAP),
   });
   return `${SODA_BASE}/${src.dataset}.json?${params.toString()}`;
 }
@@ -46,7 +51,7 @@ async function fetchSource(src, opts) {
     }
     events.push(e);
   }
-  return { dataset: src.dataset, url, filterDesc: src.filterDesc, signalWhere: src.signalWhere, events };
+  return { dataset: src.dataset, url, filterDesc: src.filterDesc, signalWhere: src.signalWhere, events, truncated: rows.length >= ROW_CAP };
 }
 
 /**
@@ -62,5 +67,6 @@ export async function fetchEvents(dp, opts) {
   return {
     events: results.flatMap(r => r.events),
     queries: results.map(r => ({ dataset: r.dataset, url: r.url, filterDesc: r.filterDesc, signalWhere: r.signalWhere })),
+    truncated: results.some(r => r.truncated), // any source hit the row cap
   };
 }

@@ -6,8 +6,8 @@
 // verdict + stats + chart + map all reflect it, before/after split at the date.
 // ──────────────────────────────────────────────────────────────────────
 
-import { DATAPOINTS, getDataPoint, LEVERS } from './datapoints.js';
-import { fetchEvents, datasetLabel } from './soda.js';
+import { DATAPOINTS, LEVERS } from './datapoints.js';
+import { fetchEvents, datasetLabel, ROW_CAP } from './soda.js';
 import { bucketSeries, chooseGranularity, analyzeWindow, detectWindowStart, addDays, daysBetween } from './analyze.js';
 import { renderChart } from './chart.js';
 import { initPicker, renderEvents } from './map.js';
@@ -28,17 +28,37 @@ let loc = { ...KOSHLAND };
 let locSet = false;      // true once the user drops a pin (or an edited record supplies coords)
 let radiusM = 250;       // adjustable via the radius slider
 let hasRun = false;
-let allEvents = [];
 let dateISO = DEFAULT_DATE;
-let dp = DATAPOINTS[0]; // selected data point
+let dps = [DATAPOINTS[0]];   // selected data points (one panel each)
+let panelData = [];          // per-lever: { dp, color, events, queries }
 let runSeq = 0;         // guards against overlapping fetches (latest wins)
+
+// Categorical palette indexed by selection order — reused for each lever's
+// panel swatch, its map dots, and the legend so a lever reads the same everywhere.
+const LEVER_COLORS = ['#3b82f6', '#f97316', '#a855f7', '#22c55e', '#ef4444', '#0ea5e9', '#eab308', '#ec4899', '#14b8a6', '#8b5cf6', '#f43f5e', '#84cc16'];
+
+// Strict key → data point (no drug fallback); used when resolving levers from
+// the dropdown, a shared link, or an edited record.
+const resolveKey = k => DATAPOINTS.find(d => d.key === k) || null;
+// The currently-selected data points, de-duped and order-preserving; never empty.
+function selectedDps() {
+  const seen = new Set();
+  const out = [];
+  for (const k of getSelectedLevers()) {
+    const d = resolveKey(k);
+    if (d && !seen.has(d.key)) { seen.add(d.key); out.push(d); }
+  }
+  return out.length ? out : [DATAPOINTS[0]];
+}
 let picker = null;
 let urlWindow = null;   // {start,end} parsed from a shared link; overrides smart-default once
 let curStart = null;    // current analysis window (ISO), tracked for the shareable URL
 let curEnd = null;
 
-// Edit mode: if URL has ?edit=ID, we load that intervention and update instead of create
+// Edit mode: ?edit=ID loads that intervention and updates instead of creating.
+// View mode: ?view=ID loads it read-first, shows the live results, and offers Edit.
 let editId = null;
+let viewId = null;
 let editRecord = null;
 
 async function init() {
@@ -46,9 +66,10 @@ async function init() {
   await customElements.whenDefined('wa-select');
   await customElements.whenDefined('wa-textarea');
 
-  // Check for edit mode first
+  // Check for edit / view mode first
   const urlParams = new URLSearchParams(location.search);
   editId = urlParams.get('edit');
+  viewId = urlParams.get('view');
 
   const shared = readParams(); // a shared link overrides the defaults above
 
@@ -56,13 +77,13 @@ async function init() {
   const sel = $('in-expect');
   const leverOptions = LEVERS || DATAPOINTS;
   sel.innerHTML = leverOptions.map(d => `<wa-option value="${d.key}">${d.label}</wa-option>`).join('');
-  if (!editId) sel.value = dp.key;
+  if (!editId && !viewId) sel.value = dps.map(d => d.key); // multi-select: array of keys
   setDescription();
   sel.addEventListener('change', () => {
-    dp = getDataPoint(sel.value);
+    dps = selectedDps();
     setDescription();
     syncURL();
-    if (hasRun) run(); // data point changed → refetch
+    if (hasRun) run(); // selection changed → refetch every selected lever
   });
 
   $('in-when').value = dateISO;
@@ -92,24 +113,22 @@ async function init() {
   // Keep the clickable links preview in sync as the user edits the field
   $('in-links')?.addEventListener('input', () => renderLinksPreview());
 
-  // Load existing record if in edit mode
+  // Load existing record for edit or view; otherwise a shared analysis link auto-runs.
   if (editId) {
-    await loadEditRecord();
+    await loadRecord(editId, 'edit');
+  } else if (viewId) {
+    await loadRecord(viewId, 'view');
   } else if (shared) {
     run(true); // a shared link auto-runs AND scrolls to the results
   }
 }
 
-async function loadEditRecord() {
+// Load a saved intervention and show its live analysis. mode 'edit' pre-fills
+// for updating; mode 'view' lands on the results and offers an Edit button.
+async function loadRecord(id, mode) {
   try {
-    editRecord = await getIntervention(editId);
+    editRecord = await getIntervention(id);
     if (!editRecord) throw new Error('Not found');
-
-    // Update page title
-    $('page-title').textContent = 'Edit intervention';
-    $('page-sub').textContent = 'Update this intervention and track its impact.';
-    $('form-title').textContent = 'Edit intervention';
-    $('submit-label').textContent = 'Update intervention';
 
     // Populate form fields
     $('in-what').value = editRecord.intervention || editRecord.what || '';
@@ -128,12 +147,14 @@ async function loadEditRecord() {
     renderLinksPreview(editRecord.links);
     $('in-submitter').value = editRecord.person_submitted || '';
 
-    // Set levers (multi-select)
+    // Set levers (multi-select) and drive the analysis from them (not the drug default).
     if (editRecord.levers?.length) {
       $('in-expect').value = editRecord.levers;
     } else if (editRecord.dp) {
       $('in-expect').value = [editRecord.dp];
     }
+    dps = selectedDps();
+    setDescription();
 
     // Set location
     if (editRecord.lat && editRecord.lng) {
@@ -150,15 +171,35 @@ async function loadEditRecord() {
     updateReadout();
     dateISO = editRecord.start_date || editRecord.date || DEFAULT_DATE;
 
-    // Auto-run the analysis
-    run(false);
+    if (mode === 'edit') {
+      editId = id;
+      $('page-title').textContent = 'Edit intervention';
+      $('page-sub').textContent = 'Update this intervention and track its impact.';
+      $('form-title').textContent = 'Edit intervention';
+      $('submit-label').textContent = 'Update intervention';
+      run(false);
+    } else {
+      // View: results-first. The primary button becomes "Edit" (see handleSubmit).
+      viewId = id;
+      $('page-title').textContent = 'Intervention results';
+      $('page-sub').textContent = 'Live impact for this intervention. Use “Edit intervention” to change its details.';
+      $('form-title').textContent = 'Intervention details';
+      $('submit-label').textContent = 'Edit intervention';
+      run(true); // show + scroll straight to the results
+    }
   } catch (e) {
     console.error('Failed to load intervention:', e);
-    alert('Could not load intervention for editing.');
+    alert('Could not load intervention.');
   }
 }
 
 async function handleSubmit() {
+  // In view mode the primary button is an "Edit intervention" affordance.
+  if (viewId && !editId) {
+    window.location.search = `?edit=${encodeURIComponent(viewId)}`;
+    return;
+  }
+
   // Validate required fields
   const title = ($('in-what').value || '').trim();
   const submitter = ($('in-submitter').value || '').trim();
@@ -206,12 +247,20 @@ async function handleSubmit() {
     if (editId) {
       data.edited_by = submitter;
       await updateIntervention(editId, data);
-      alert('Intervention updated successfully!');
+      flashSaved('✓ Intervention updated. Live impact shown below.');
+      await run(true);
     } else {
-      await createFullIntervention(data);
-      alert('Intervention submitted successfully!');
-      // Redirect to homepage after creating
-      window.location.href = '../';
+      const { id } = await createFullIntervention(data);
+      // Stay on the page and show the analysis. Switch into the saved/edit state so a
+      // second click updates the same record instead of creating a duplicate.
+      if (id) {
+        editId = id;
+        $('page-title').textContent = 'Edit intervention';
+        $('page-sub').textContent = 'Saved — it now appears on the homepage. Update anytime; the impact below is live.';
+        $('form-title').textContent = 'Edit intervention';
+      }
+      await run(true); // render the per-lever analysis and scroll to it
+      flashSaved('✓ Intervention saved. It now appears on the homepage. Live impact shown below.');
     }
   } catch (e) {
     alert('Error: ' + e.message);
@@ -220,6 +269,14 @@ async function handleSubmit() {
     btn.disabled = false;
     $('submit-label').textContent = editId ? 'Update intervention' : 'Submit intervention';
   }
+}
+
+// Inline confirmation in the results share bar (replaces the old alert + redirect).
+function flashSaved(msg) {
+  const status = $('copy-status');
+  if (!status) return;
+  status.textContent = msg;
+  status.classList.remove('copy-status--error');
 }
 
 function getSelectedLevers() {
@@ -254,26 +311,37 @@ function renderLinksPreview(links) {
 // ── Shareable URL: state ⇄ query params (live re-query, no backend) ──
 // Params: dp, date, lat, lng, r, from, to, what. Plain & readable; the data
 // itself is never stored — it's re-queried live from Socrata on open (D1).
+// Returns true only when the link carries real ANALYSIS params (dp / lat+lng /
+// from+to) — the caller uses that to decide whether to auto-run. Prefill-only
+// params (district, what) are applied but must not trigger an analysis, so
+// arriving from the homepage to add a NEW intervention doesn't run one.
 function readParams() {
   const p = new URLSearchParams(location.search);
   if (![...p.keys()].length) return false;
-  const k = p.get('dp'); if (k && getDataPoint(k)) dp = getDataPoint(k);
+  const k = p.get('dp');
+  if (k) {
+    const picked = k.split(',').map(s => resolveKey(s.trim())).filter(Boolean);
+    if (picked.length) dps = picked;
+  }
   const lat = parseFloat(p.get('lat')), lng = parseFloat(p.get('lng'));
-  if (isFinite(lat) && isFinite(lng)) loc = { lat, lng };
+  const hasLatLng = isFinite(lat) && isFinite(lng);
+  if (hasLatLng) loc = { lat, lng };
   const r = parseInt(p.get('r'), 10);
   if (isFinite(r)) radiusM = Math.min(1000, Math.max(10, Math.round(r / 10) * 10));
   const d = p.get('date'); if (d) dateISO = d;
   const from = p.get('from'), to = p.get('to');
   if (from && to) urlWindow = { start: from, end: to };
   const what = p.get('what'); if (what) $('in-what').value = what;
+  // Prefill the district from where the user came (homepage tab) — not an analysis param.
+  const dist = p.get('district'); if (dist) $('in-district').value = dist;
   $('radius-slider') && ($('radius-slider').value = radiusM);
-  return true;
+  return Boolean(k || hasLatLng || (from && to));
 }
 
 function syncURL() {
   const p = new URLSearchParams();
   if (editId) p.set('edit', editId);   // keep edit mode across reloads / the auto-run's syncURL
-  p.set('dp', dp.key);
+  p.set('dp', dps.map(d => d.key).join(','));
   const when = $('in-when').value; if (when) p.set('date', when);
   p.set('lat', loc.lat.toFixed(5));
   p.set('lng', loc.lng.toFixed(5));
@@ -317,16 +385,23 @@ const escHtml = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt
 // Sets the dropdown description (with a jump link) and refreshes the
 // methodology section's static content (live query links fill in on run).
 function setDescription() {
-  $('expect-desc').innerHTML = `${dp.description} <a class="method-jump" href="#methodology">How this is measured ↓</a>`;
-  $('methodology-body').innerHTML = methodologyHtml(dp, null);
+  const desc = dps.length === 1
+    ? (dps[0].description || '')
+    : `${dps.length} outcomes selected — each is analyzed separately below.`;
+  $('expect-desc').innerHTML = `${desc} <a class="method-jump" href="#methodology">How this is measured ↓</a>`;
+  $('methodology-body').innerHTML = allMethodologyHtml(null);
 }
 
-// "How this is measured" — per-source filtering description + exact live query.
-function methodologyHtml(d, queries) {
-  const pre = `<p class="method-pre">Every figure on this page comes from a live query to SF OpenData (Socrata), ` +
+// Intro paragraph for the methodology section (shown once).
+function methodologyPre() {
+  return `<p class="method-pre">Every figure on this page comes from a live query to SF OpenData (Socrata), ` +
     `restricted to within <strong>${radiusM} m</strong> of the pin and to reports since <strong>Jan 1, 2023</strong>. ` +
     `Open a query link to inspect the raw records.</p>`;
-  const blocks = sourcesOf(d).map((src, i) => {
+}
+
+// Per-source filtering description + exact live query for one data point.
+function methodologySources(d, queries) {
+  return sourcesOf(d).map((src, i) => {
     const q = queries && queries[i];
     const link = q
       ? `<a href="${q.url}" target="_blank" rel="noopener">▶ Open this exact query on data.sfgov.org</a>`
@@ -338,33 +413,80 @@ function methodologyHtml(d, queries) {
       <p class="method-src__link">${link}</p>
     </div>`;
   }).join('');
-  return pre + blocks;
+}
+
+// "How this is measured" for every selected lever. `queriesByKey` maps a
+// data-point key → its live queries (null before a run, so links show pending).
+function allMethodologyHtml(queriesByKey) {
+  return methodologyPre() + dps.map(d =>
+    `<div class="method-lever"><h3 class="method-lever__title">${escHtml(d.title || d.label)}</h3>` +
+    `${methodologySources(d, queriesByKey && queriesByKey[d.key])}</div>`
+  ).join('');
+}
+
+// Build the empty per-lever panel skeletons (verdict + stat cards + chart host).
+// renderAllWindows() fills them; hosts are addressed by their data-* index.
+function buildPanels() {
+  $('panels').innerHTML = panelData.map((p, i) => `
+    <article class="lever-panel" data-i="${i}">
+      <header class="lever-panel__head">
+        <span class="lever-swatch" style="background:${p.color}"></span>
+        <h2 class="panel__title">${escHtml(p.dp.title || p.dp.label)} over time</h2>
+      </header>
+      <wa-callout class="lever-verdict" variant="neutral">
+        <wa-icon slot="icon" name="wand-magic-sparkles"></wa-icon>
+        <div class="verdict-body" data-verdict="${i}"></div>
+      </wa-callout>
+      <div class="wa-grid wa-gap-l stat-cards" data-stats="${i}" style="--min-column-size: 13rem;"></div>
+      <wa-card class="panel"><div class="chart-host" data-chart="${i}"></div></wa-card>
+    </article>`).join('');
 }
 
 async function run(scroll = false) {
   const myRun = ++runSeq;
   dateISO = $('in-when').value || DEFAULT_DATE;
+  if (!dps.length) dps = [DATAPOINTS[0]];
   setStatus('Querying live SF OpenData…', 'loading');
   $('run-btn').loading = true;
   try {
-    const { events, queries } = await fetchEvents(dp, { lat: loc.lat, lng: loc.lng, radiusM: radiusM });
+    const opts = { lat: loc.lat, lng: loc.lng, radiusM: radiusM };
+    const results = await Promise.all(dps.map(d => fetchEvents(d, opts)));
     if (myRun !== runSeq) return; // a newer run started — discard this stale result
-    allEvents = events;
+    panelData = dps.map((d, i) => {
+      const evs = results[i].events;
+      // When a fetch hit the row cap, the oldest loaded day is the truncation
+      // floor — data before it is missing. renderAllWindows warns if the window
+      // starts earlier than this.
+      const earliest = results[i].truncated
+        ? evs.reduce((m, e) => (e.day && (!m || e.day < m)) ? e.day : m, null)
+        : null;
+      return {
+        dp: d,
+        color: LEVER_COLORS[i % LEVER_COLORS.length],
+        events: evs,
+        queries: results[i].queries,
+        truncated: results[i].truncated,
+        earliest,
+      };
+    });
+    const combined = panelData.flatMap(p => p.events); // default window spans all levers
     const now = todayISO();
     // A shared link carries its own window; otherwise use the smart default.
     const fromURL = urlWindow;
-    const ws = fromURL || detectWindowStart(allEvents, dateISO, FULL_START);
+    const ws = fromURL || detectWindowStart(combined, dateISO, FULL_START);
     const winStart = ws.start;
     const winEnd = (fromURL && fromURL.end) || now;
     urlWindow = null; // consumed — later re-runs (e.g. radius change) recompute the default
 
     $('results').hidden = false;
-    $('chart-title').textContent = `${dp.title} over time`;
-    $('methodology-body').innerHTML = methodologyHtml(dp, queries);
+    buildPanels();
+    const qByKey = {};
+    panelData.forEach(p => { qByKey[p.dp.key] = p.queries; });
+    $('methodology-body').innerHTML = allMethodologyHtml(qByKey);
     $('chart-note').innerHTML = `Sources &amp; exact queries: <a href="#methodology">How this is measured ↓</a>`;
 
     await setupSlider(now, winStart, winEnd);
-    renderWindow(winStart, winEnd, { updateMap: true, recenter: true });
+    renderAllWindows(winStart, winEnd, { updateMap: true, recenter: true });
     $('range-suggest').textContent = fromURL
       ? `Showing the shared report’s saved date range. Drag the handles to change.`
       : ws.method === 'regime'
@@ -398,37 +520,55 @@ async function setupSlider(nowISO, startDay, endDay = nowISO) {
 
   if (!slider._wired) {
     slider.addEventListener('input', () => {
-      renderWindow(dayOf(slider.minValue), dayOf(slider.maxValue), { updateMap: false });
+      renderAllWindows(dayOf(slider.minValue), dayOf(slider.maxValue), { updateMap: false });
     });
     slider.addEventListener('change', () => {
-      renderWindow(dayOf(slider.minValue), dayOf(slider.maxValue), { updateMap: true, recenter: false });
+      renderAllWindows(dayOf(slider.minValue), dayOf(slider.maxValue), { updateMap: true, recenter: false });
       syncURL(); // committed window → update the shareable link
     });
     slider._wired = true;
   }
 }
 
-function renderWindow(startDay, endDay, { updateMap = true, recenter = false } = {}) {
+// Render every lever panel (chart + verdict + stat cards) over the same window,
+// then draw the one shared color-coded map from all panels' windowed events.
+function renderAllWindows(startDay, endDay, { updateMap = true, recenter = false } = {}) {
   if (endDay <= startDay) endDay = addDays(startDay, 1);
   curStart = startDay; curEnd = endDay; // remember the window for the shareable URL
   const gran = chooseGranularity(startDay, endDay);
-  const series = bucketSeries(allEvents, startDay, endDay, gran);
-  renderChart($('chart-host'), series, { interventionISO: dateISO, breaks: dp.breaks });
+  const host = $('panels');
 
-  // D12 — the slider window is the analysis window; verdict + stats recompute live.
-  const w = analyzeWindow(allEvents, dateISO, startDay, endDay);
-  $('verdict-body').innerHTML = verdictHtml(w);
-  $('stat-cards').innerHTML = statCards(w);
+  panelData.forEach((p, i) => {
+    const series = bucketSeries(p.events, startDay, endDay, gran);
+    renderChart(host.querySelector(`[data-chart="${i}"]`), series,
+      { interventionISO: dateISO, breaks: p.dp.breaks, noun: p.dp.noun, title: p.dp.title });
+    // D12 — the slider window is the analysis window; verdict + stats recompute live.
+    const w = analyzeWindow(p.events, dateISO, startDay, endDay);
+    let vhtml = verdictHtml(w, p.dp);
+    if (p.truncated && p.earliest && curStart < p.earliest) {
+      vhtml += `<div class="verdict-warn">⚠ This lever hit the ${ROW_CAP.toLocaleString()}-record query cap, so only reports since <strong>${fmtNice(p.earliest)}</strong> are loaded at this radius. Earlier reports in the selected range are missing — narrow the radius or shorten the date range for a complete before/after.</div>`;
+    }
+    host.querySelector(`[data-verdict="${i}"]`).innerHTML = vhtml;
+    host.querySelector(`[data-stats="${i}"]`).innerHTML = statCards(w, p.dp);
+  });
 
-  const windowed = allEvents.filter(e => e.day && e.day >= startDay && e.day <= endDay);
-  if (updateMap) renderEvents($('events-map'), loc, radiusM, windowed, { recenter });
+  if (updateMap) {
+    const groups = panelData.map(p => ({
+      color: p.color,
+      label: p.dp.title || p.dp.label,
+      events: p.events.filter(e => e.day && e.day >= startDay && e.day <= endDay),
+    }));
+    renderEvents($('events-map'), loc, radiusM, groups, { recenter });
+    $('map-legend').innerHTML = groups.map(g =>
+      `<span class="map-legend__item"><span class="map-legend__dot" style="background:${g.color}"></span>${escHtml(g.label)}</span>`
+    ).join('');
+  }
 
   const granLabel = gran === 'day' ? 'daily' : gran === 'week' ? 'weekly' : 'monthly';
   $('range-readout').textContent = `${fmtNice(startDay)} – ${fmtNice(endDay)} · ${granLabel} bars`;
 }
 
-function verdictHtml(w) {
-  const arrow = w.direction === 'down' ? '▼' : w.direction === 'up' ? '▲' : '▬';
+function verdictHtml(w, dp) {
   const pctValue = isFinite(w.pct) ? Math.abs(w.pct).toFixed(0) : null;
   const dirWord = w.direction === 'down' ? 'down' : w.direction === 'up' ? 'up' : 'unchanged';
 
@@ -459,10 +599,16 @@ function verdictHtml(w) {
       html += `<div class="verdict-warn">⚠ This window crosses a known reporting change (${fmtNice(b.date)}): ${b.detail}</div>`;
     }
   }
+  // Settled-month caveat for datasets with report-approval lag (SFPD incidents).
+  // Only relevant when the window's trailing edge reaches into the still-settling
+  // recent months, which is exactly where a spurious "drop" would appear.
+  if (dp.settle && daysBetween(addDays(todayISO(), -dp.settle.lagMonths * 31), curEnd) > 0) {
+    html += `<div class="verdict-warn">⚠ ${dp.settle.note}</div>`;
+  }
   return html;
 }
 
-function statCards(w) {
+function statCards(w, dp) {
   const pctLabel = isFinite(w.pct) ? `${w.pct > 0 ? '+' : ''}${w.pct.toFixed(0)}%` : '—';
   const dirSub = w.direction === 'down' ? 'fewer per day' : w.direction === 'up' ? 'more per day' : 'no change';
   const cards = [

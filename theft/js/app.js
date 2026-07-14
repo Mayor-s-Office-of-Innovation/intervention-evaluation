@@ -31,6 +31,9 @@ function initDistrict() {
   if (eyebrow) {
     eyebrow.textContent = `San Francisco · ${active} district · Property & street crime`;
   }
+  // Carry the district back to the homepage so its pill stays selected
+  const back = document.querySelector('.back-home');
+  if (back) back.href = `../#${active.toLowerCase()}`;
 }
 
 function renderDistrict() {

@@ -53,6 +53,55 @@ const mapCFS = r => {
   };
 };
 
+// SFPD Incident Reports (wg3w-h783) row → normalized event. A different shape
+// than 311/CFS: geo is `point`, date is `incident_datetime`, and a single
+// incident can span multiple rows, so we dedupe on incident_id (soda.js dedups
+// by the returned `id`). Counts each incident once.
+const SELECT_SFPD = 'incident_datetime, incident_id, incident_subcategory, incident_description, intersection, point';
+const mapSFPD = r => {
+  const c = r.point?.coordinates ?? [null, null];
+  const dt = r.incident_datetime ?? null;
+  return {
+    datetime: dt,
+    day: dt ? dt.slice(0, 10) : null,
+    ym: dt ? dt.slice(0, 7) : null,
+    id: r.incident_id ?? null,
+    place: r.intersection ?? '(unknown location)',
+    lat: c[1], lng: c[0],
+    notes: r.incident_description || r.incident_subcategory || '',
+  };
+};
+
+// Report-approval lag for SFPD incident reports. Unlike 311/CFS (creation-
+// stamped, no lag), incidents only appear after supervisor approval, so the
+// most recent months undercount. The theft dashboard MEASURED this at ~2 months
+// for theft-family crimes (theft/build/build.py). We can't measure it live, so
+// we carry it as a fixed caveat, surfaced only when the analysis window touches
+// those still-settling recent months.
+const SFPD_SETTLE = {
+  lagMonths: 2,
+  note: 'SFPD incident reports appear only after supervisor approval, so the most recent ~2 months are still settling and undercount. A drop at the trailing (right) edge of the timeline may reflect this reporting lag, not a real decline.',
+};
+
+// SF Fire/EMS Dispatched Calls (nuek-vuh3) row → event. There are multiple
+// unit-rows per call; the signalWhere keeps only the first-dispatched unit
+// (unit_sequence_in_call_dispatch = 1) so each call is a single row server-side.
+// Geo is case_location (intersection/call-box level). Real-time — no settle lag.
+const SELECT_EMS = 'call_number, received_dttm, call_type, call_type_group, address, case_location';
+const mapEMS = r => {
+  const c = r.case_location?.coordinates ?? [null, null];
+  const dt = r.received_dttm ?? null;
+  return {
+    datetime: dt,
+    day: dt ? dt.slice(0, 10) : null,
+    ym: dt ? dt.slice(0, 7) : null,
+    id: r.call_number ?? null,
+    place: r.address ?? '(unknown location)',
+    lat: c[1], lng: c[0],
+    notes: r.call_type_group ? `${r.call_type} — ${r.call_type_group}` : (r.call_type || ''),
+  };
+};
+
 export const DATAPOINTS = [
   {
     key: 'drug',
@@ -182,25 +231,178 @@ export const DATAPOINTS = [
       },
     ],
   },
+
+  // ── 911 mental-health crisis calls (CFS, same shape as drug/homeless) ──
+  {
+    key: 'mental_health',
+    label: 'Reduce mental-health crisis calls',
+    title: 'Mental-health crisis calls',
+    noun: 'mental-health crisis call',
+    description:
+      '911 "Mentally Disturbed" dispatch calls (including the critical variant) — community/police-reported ' +
+      'mental-health crises. This measures 911 crisis-response DEMAND, not the clinical prevalence of mental ' +
+      'illness. Interpret direction with care: a drop can mean fewer crises, or calls routed to non-police ' +
+      'crisis teams (e.g. the Street Crisis Response Team) — a good outcome via a different mechanism.',
+    dataset: '2zdj-bwza',
+    dateCol: 'received_datetime',
+    geoCol: 'intersection_point',
+    select: SELECT_CFS,
+    signalWhere: "call_type_final_desc IN ('MENTALLY DISTURBED','MENTALLY DIST CRIT') AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+    filterDesc: "SFPD 911 Calls for Service. Community-reported (onview_flag N or HSOC) 'Mentally Disturbed' calls, including the critical variant; SF-flagged duplicate calls (dup_cad_number) excluded. Measures 911 crisis-response demand, not the clinical prevalence of mental illness. 'Well being check' and 'Person down' are deliberately excluded — they're mostly generic welfare/triage, not mental-health-specific.",
+    mapRow: mapCFS,
+  },
+
+  {
+    key: 'medical_emergencies',
+    label: 'Reduce life-threatening medical emergencies',
+    title: 'Potentially life-threatening medical emergencies',
+    noun: 'life-threatening medical call',
+    description:
+      'SF Fire/EMS 911 "Medical Incident" dispatches graded Potentially Life-Threatening — acute medical ' +
+      'emergencies (cardiac, trauma, overdoses, and more), one row per call, geolocated to the intersection/' +
+      'call-box. This is an ALL-CAUSE signal, NOT overdose-specific: overdoses are only ~2.4% of medical 911 ' +
+      'calls citywide and cannot be isolated in this data. Updated daily (no reporting lag).',
+    dataset: 'nuek-vuh3',
+    dateCol: 'received_dttm',
+    geoCol: 'case_location',
+    select: SELECT_EMS,
+    signalWhere: "call_type = 'Medical Incident' AND call_type_group = 'Potentially Life-Threatening' AND unit_sequence_in_call_dispatch = 1",
+    filterDesc: "SF Fire Department & EMS Dispatched Calls for Service. 'Medical Incident' dispatches graded 'Potentially Life-Threatening', limited to the first-dispatched unit (unit_sequence_in_call_dispatch = 1) so each 911 call counts once. Locations are intersection/call-box level (addresses obfuscated for caller privacy). All-cause acute medical — not overdose-specific.",
+    mapRow: mapEMS,
+  },
+
+  // ── 311 single-service signals ──
+  {
+    key: 'encampments',
+    label: 'Reduce encampments',
+    title: 'Encampment reports',
+    noun: 'encampment report',
+    description:
+      '311 Encampment reports — community reports of tents/structures. Includes homelessness requests ' +
+      'rerouted to "General Request" after SF\'s June-2025 category change (unioned in, so the series stays ' +
+      'continuous instead of showing an artificial drop). This is the encampment slice of "homelessness presence".',
+    dataset: 'vw6y-z8j6',
+    dateCol: 'requested_datetime',
+    geoCol: 'point',
+    select: SELECT_311,
+    signalWhere: "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
+    filterDesc: "SF 311 Encampment reports (tents/structures), unioned with post-June-2025 homelessness requests rerouted to 'General Request' (service_subtype contains 'homeless') so the count stays continuous across the reroute.",
+    mapRow: map311,
+  },
+
+  {
+    key: 'graffiti',
+    label: 'Reduce graffiti',
+    title: 'Graffiti reports',
+    noun: 'graffiti report',
+    description:
+      'SF 311 graffiti reports across public and private property (the Graffiti, Graffiti Public, and ' +
+      'Graffiti Private service categories). A community/DPW-reported vandalism signal.',
+    dataset: 'vw6y-z8j6',
+    dateCol: 'requested_datetime',
+    geoCol: 'point',
+    select: SELECT_311,
+    signalWhere: "service_name IN ('Graffiti','Graffiti Public','Graffiti Private')",
+    filterDesc: "SF 311 graffiti reports — the Graffiti, Graffiti Public, and Graffiti Private service categories combined.",
+    mapRow: map311,
+  },
+
+  {
+    key: 'noise',
+    label: 'Reduce noise complaints',
+    title: 'Noise complaints',
+    noun: 'noise complaint',
+    description:
+      'SF 311 noise complaints (the Noise Report and Noise service categories). Community-reported noise ' +
+      'nuisance — useful for testing whether an intervention reduced noise complaints nearby.',
+    dataset: 'vw6y-z8j6',
+    dateCol: 'requested_datetime',
+    geoCol: 'point',
+    select: SELECT_311,
+    signalWhere: "service_name IN ('Noise Report','Noise')",
+    filterDesc: "SF 311 noise complaints — the Noise Report and Noise service categories combined.",
+    mapRow: map311,
+  },
+
+  {
+    key: 'lighting',
+    label: 'Improve lighting',
+    title: 'Streetlight reports',
+    noun: 'streetlight report',
+    description:
+      'SF 311 Streetlights reports — outages and repair requests for public street lighting. A proxy for ' +
+      'lighting conditions: fewer open reports suggests lights are being fixed / staying lit.',
+    dataset: 'vw6y-z8j6',
+    dateCol: 'requested_datetime',
+    geoCol: 'point',
+    select: SELECT_311,
+    signalWhere: "service_name = 'Streetlights'",
+    filterDesc: "SF 311 Streetlights reports — outages and repair requests for public street lighting.",
+    mapRow: map311,
+  },
+
+  // ── SFPD Incident Reports (wg3w-h783) — reported crime, settles ~2 months ──
+  {
+    key: 'shoplifting',
+    label: 'Reduce shoplifting',
+    title: 'Shoplifting incidents',
+    noun: 'shoplifting report',
+    description:
+      'SFPD reported shoplifting — incident reports in the "Larceny Theft - Shoplifting" subcategory. ' +
+      'Victim/officer-reported crime (not a 311 complaint). Recent months undercount until reports clear approval.',
+    dataset: 'wg3w-h783',
+    dateCol: 'incident_datetime',
+    geoCol: 'point',
+    select: SELECT_SFPD,
+    signalWhere: "incident_subcategory = 'Larceny Theft - Shoplifting'",
+    filterDesc: "SFPD Incident Reports. Incidents in the 'Larceny Theft - Shoplifting' subcategory, each counted once (deduped by incident_id).",
+    settle: SFPD_SETTLE,
+    mapRow: mapSFPD,
+  },
+
+  {
+    key: 'street_robbery',
+    label: 'Reduce street robbery',
+    title: 'Street robbery incidents',
+    noun: 'street-robbery report',
+    description:
+      'SFPD reported street robbery — incident reports in the "Robbery - Street" subcategory (robbery in a ' +
+      'public way, distinct from commercial or residential). Victim/officer-reported crime. Recent months undercount until reports clear approval.',
+    dataset: 'wg3w-h783',
+    dateCol: 'incident_datetime',
+    geoCol: 'point',
+    select: SELECT_SFPD,
+    signalWhere: "incident_subcategory = 'Robbery - Street'",
+    filterDesc: "SFPD Incident Reports. Incidents in the 'Robbery - Street' subcategory, each counted once (deduped by incident_id).",
+    settle: SFPD_SETTLE,
+    mapRow: mapSFPD,
+  },
+
+  {
+    key: 'commercial_burglary',
+    label: 'Reduce commercial burglary',
+    title: 'Commercial burglary incidents',
+    noun: 'commercial-burglary report',
+    description:
+      'SFPD reported commercial burglary — incident reports in the "Burglary - Commercial" subcategory ' +
+      '(break-ins at businesses). Victim/officer-reported crime. Recent months undercount until reports clear approval.',
+    dataset: 'wg3w-h783',
+    dateCol: 'incident_datetime',
+    geoCol: 'point',
+    select: SELECT_SFPD,
+    signalWhere: "incident_subcategory = 'Burglary - Commercial'",
+    filterDesc: "SFPD Incident Reports. Incidents in the 'Burglary - Commercial' subcategory, each counted once (deduped by incident_id).",
+    settle: SFPD_SETTLE,
+    mapRow: mapSFPD,
+  },
 ];
 
 export const getDataPoint = key => DATAPOINTS.find(d => d.key === key) || LEVERS.find(d => d.key === key) || DATAPOINTS[0];
 
-// Extended list of levers (expected changes) for the intervention form
-// Includes all DATAPOINTS plus additional common intervention outcomes
-export const LEVERS = [
-  ...DATAPOINTS,
-  // Additional levers not in DATAPOINTS
-  { key: 'encampments', label: 'Reduce encampments' },
-  { key: 'animal_incidents', label: 'Reduce animal incidents' },
-  { key: 'fraud', label: 'Reduce fraud' },
-  { key: 'street_robbery', label: 'Reduce street robbery' },
-  { key: 'shoplifting', label: 'Reduce shoplifting' },
-  { key: 'commercial_burglary', label: 'Reduce commercial burglary' },
-  { key: 'graffiti', label: 'Reduce graffiti' },
-  { key: 'noise', label: 'Reduce noise complaints' },
-  { key: 'public_safety', label: 'Improve public safety' },
-  { key: 'cleanliness', label: 'Improve cleanliness' },
-  { key: 'lighting', label: 'Improve lighting' },
-  { key: 'public_space', label: 'Increase public space use' },
-];
+// Levers (expected changes) offered in the intervention form. Every lever is
+// now a fully-wired DATAPOINTS entry with a live Socrata query — no label-only
+// stubs. History (see levers-audit.md): the no-clean-source options (fraud,
+// animal_incidents, public_safety, public_space) were removed on 2026-07-13,
+// and `cleanliness` was dropped (composite; overlaps overflow/dumping/hazard and
+// is scoped to the standalone cleanliness project instead).
+export const LEVERS = [...DATAPOINTS];

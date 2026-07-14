@@ -397,6 +397,9 @@ function initDistrict() {
   // Update header to show which district we're viewing
   const eyebrow = document.querySelector('.app-header__eyebrow');
   if (eyebrow) eyebrow.textContent = `San Francisco · ${active} district · Drug activity`;
+  // Carry the district back to the homepage so its pill stays selected
+  const back = document.querySelector('.back-home');
+  if (back) back.href = `../#${active.toLowerCase()}`;
 }
 function renderDistrict() {
   renderSummary();
