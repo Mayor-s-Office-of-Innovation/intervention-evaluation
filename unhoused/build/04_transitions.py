@@ -46,9 +46,11 @@ NOW_MONTHS = 3                               # "hot now" = trailing 3 complete m
 
 # When True, the latest (in-progress) calendar month is treated as the newest analysis month so the
 # map's "now" window reflects the freshest data, even though that month is not yet complete (its monthly
-# RATE reads slightly low). Deliberate choice (2026-06-29): freshness over the partial-month false-drop
-# guard. Set False to revert to the prior convention (analyze only through the last COMPLETE month).
-INCLUDE_PARTIAL_MONTH = True
+# RATE reads slightly low). This was True (2026-06-29) but reverted to False (2026-07-14): dividing a
+# half-elapsed month by NOW_MONTHS biased the "now" rate ~18% low MID-month, false-cooling the map, and
+# the map (unlike the chart) surfaced no partial-month cue. Now matches drug/: analyze only through the
+# last COMPLETE month. See dashboard-refresh-review.md finding #1.
+INCLUDE_PARTIAL_MONTH = False
 
 # ── Tunable classification knobs (D12) ──
 CELL_DECIMALS = 3        # ~111 m N–S cells (block-ish)
