@@ -5,7 +5,7 @@
 // The docked detail panel + panel-scoped hour slider (Changes #3/#1) are added here too.
 // See plan-hotspots-enhancements.md.
 // ──────────────────────────────────────────────────────────────────────
-import { setSplitView, getSplitView, searchIntersections, focusCellById, showSearchResult, clearSearchResult } from './transition-map.js';
+import { setSplitView, getSplitView, searchIntersections, ensureCityIntersections, focusCellById, showSearchResult, clearSearchResult } from './transition-map.js';
 
 let _refresh = null;                 // re-renders the toggle buttons from current split state
 let _legendSel = '#split-legend';
@@ -98,11 +98,14 @@ export function wireSearch({ containerSel = '#map-search' } = {}) {
           setStatus('Reported location · not a tracked hotspot');
         }
         break;
-      case 'geo':
-        // Located outside our data — the pin + its tooltip show where; no status text (avoids a
-        // layout shift, and the absence of hotspot dots there is self-evident on the map).
+      case 'city':
+        // A real SF corner located via the authoritative baked index. If tracked activity sits just
+        // off it (block-level attribution — see NEARBY_M), soften the note instead of implying the
+        // area is clean; otherwise say plainly there's nothing logged here.
         showSearchResult(r.lat, r.lng, r.name);
-        setStatus(''); break;
+        setStatus(r.nearby ? 'None logged at this exact corner — see nearby markers'
+                           : 'No tracked activity at this corner');
+        break;
       case 'none':
         setStatus('No results in SF', true); break;
       default:
@@ -110,6 +113,10 @@ export function wireSearch({ containerSel = '#map-search' } = {}) {
     }
   }
 
+  // Deferred cost: the ~113 KB authoritative corner index is fetched only once the user actually
+  // engages the box (focus), so it's warm by the time they hit Enter — with zero page-load impact.
+  // Fire-and-forget; a failure here is retried (and surfaced) by the search itself.
+  input.addEventListener('focus', () => { ensureCityIntersections().catch(() => {}); }, { once: true });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
     else if (e.key === 'Escape') { input.value = ''; clearSearchResult(); setStatus(''); }
