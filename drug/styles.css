@@ -246,7 +246,8 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .seg:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
 
 /* ── Hotspots: Combined | Day-vs-night split view (Change #2) ── */
-.map-controls-row { display: inline-flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.map-controls-row { display: flex; width: 100%; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.map-controls-row > #map-view-toggle { margin-left: auto; }   /* search left · view toggle right */
 .map-controls:empty { display: none; }   /* drug has no signal buttons — don't render an empty pill */
 .split-legend { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: .75rem; font-size: .8rem; color: var(--muted); }
 .split-legend .k { display: inline-flex; align-items: center; gap: .35rem; }
@@ -259,14 +260,16 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .split-marker__pie { display: block; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(31,41,55,.35); }
 
 /* ── Hotspots: cross-street search (hybrid local + Nominatim) ── */
-.map-search-wrap { display: inline-flex; align-items: center; gap: .35rem; }
+.map-search-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; }
+.map-search-label { font-size: .74rem; font-weight: 600; color: var(--text); }
+.map-search-controls { display: inline-flex; align-items: center; gap: .35rem; }
 .map-search-input { font: inherit; font-size: .82rem; width: 190px; max-width: 46vw; padding: .3rem .7rem; border: 1px solid var(--c-line); border-radius: 999px; background: var(--surface); color: var(--text); transition: border-color .12s; }
 .map-search-input:focus { outline: none; border-color: var(--c-blue); }
 .map-search-input::placeholder { color: var(--muted); }
-.map-search-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; border: 1px solid var(--c-line); border-radius: 999px; background: var(--surface); color: var(--muted); cursor: pointer; }
-.map-search-btn:hover { color: var(--text); }
-.map-search-btn:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
-.map-search-status { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+.map-search-btn { display: inline-flex; align-items: center; gap: .3rem; height: 28px; padding: 0 .75rem; flex: none; font: inherit; font-size: .76rem; font-weight: 600; border: 1px solid var(--c-blue); border-radius: 999px; background: var(--c-blue); color: #fff; cursor: pointer; }
+.map-search-btn:hover { filter: brightness(1.08); }
+.map-search-btn:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.map-search-status { font-size: .72rem; color: var(--muted); }
 .map-search-status.is-error { color: var(--c-red); }
 .search-marker { background: none; border: none; }
 .search-marker__pin { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--c-blue); box-shadow: 0 0 0 3px rgba(59,130,246,.3); animation: search-pulse 1.5s ease-out infinite; }

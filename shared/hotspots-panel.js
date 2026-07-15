@@ -61,17 +61,21 @@ export function wireSearch({ containerSel = '#map-search' } = {}) {
   const container = document.querySelector(containerSel);
   if (!container) return;
   container.innerHTML =
-    `<div class="map-search-wrap">` +
+    `<form class="map-search-wrap" role="search">` +
+    `<label class="map-search-label" for="map-search-input">Find cross streets</label>` +
+    `<span class="map-search-controls">` +
     `<input type="text" class="map-search-input" id="map-search-input" ` +
-    `placeholder="Find cross streets (e.g. 16th & Mission)" aria-label="Find cross streets">` +
-    `<button class="map-search-btn" id="map-search-btn" aria-label="Search">` +
+    `placeholder="e.g. 16th &amp; Mission" autocomplete="off">` +
+    `<button type="submit" class="map-search-btn" id="map-search-btn">` +
     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">` +
-    `<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg></button>` +
+    `<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>` +
+    `<span>Search</span></button>` +
+    `</span>` +
     `<span class="map-search-status" id="map-search-status" role="status" aria-live="polite"></span>` +
-    `</div>`;
+    `</form>`;
 
+  const form = container.querySelector('.map-search-wrap');
   const input = container.querySelector('#map-search-input');
-  const btn = container.querySelector('#map-search-btn');
   const statusEl = container.querySelector('#map-search-status');
   const setStatus = (msg, isError = false) => {
     statusEl.textContent = msg || '';
@@ -114,12 +118,12 @@ export function wireSearch({ containerSel = '#map-search' } = {}) {
   }
 
   // Deferred cost: the ~113 KB authoritative corner index is fetched only once the user actually
-  // engages the box (focus), so it's warm by the time they hit Enter — with zero page-load impact.
+  // engages the box (focus), so it's warm by the time they submit — with zero page-load impact.
   // Fire-and-forget; a failure here is retried (and surfaced) by the search itself.
   input.addEventListener('focus', () => { ensureCityIntersections().catch(() => {}); }, { once: true });
+  // The submit button (click) and Enter both fire the form's submit — one path, natively accessible.
+  form.addEventListener('submit', (e) => { e.preventDefault(); doSearch(); });
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
-    else if (e.key === 'Escape') { input.value = ''; clearSearchResult(); setStatus(''); }
+    if (e.key === 'Escape') { input.value = ''; clearSearchResult(); setStatus(''); }
   });
-  btn.addEventListener('click', doSearch);
 }
