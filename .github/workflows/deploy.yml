@@ -82,6 +82,12 @@ jobs:
           if [ -d shared ]; then
             mkdir -p _site/shared
             cp shared/*.js _site/shared/
+            # Baked shared data (e.g. the authoritative SF cross-street index the map search
+            # lazy-loads via ./data/sf-intersections.json relative to shared/transition-map.js).
+            if [ -d shared/data ]; then
+              mkdir -p _site/shared/data
+              cp -r shared/data/. _site/shared/data/
+            fi
           fi
           # Each project lives in its own subdir with an identical static layout:
           #   index.html + styles.css + js/*.js + pre-baked data/ JSON (build/ is

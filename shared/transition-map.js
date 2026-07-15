@@ -84,6 +84,7 @@ let selectedCellId = null, pendingCellId = null, onState = null;
 // result pin, and a cached intersection index (rebuilt when the signal/cells change). See plan-cross-street-search.md.
 const cellMarkers = new Map();
 let searchMarker = null, intersectionIndex = null, intersectionIndexKey = null;
+let cityIndex = null, cityIndexPromise = null;   // baked authoritative SF corner list (lazy-loaded)
 
 // ── Map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
 // Drives the cell classification in app.js (which sums the baked `monthly_tod` arrays); this setter is
@@ -356,9 +357,7 @@ async function showCellDetails(lat, lng, popupEl, cm) {
   }
 }
 
-// ── Cross-street search (hybrid: local intersections first, Nominatim fallback) ──────────
-// SF bounding box for Nominatim viewbox (x1,y1,x2,y2 = lon,lat corners).
-const SF_VIEWBOX = '-122.5247,37.8324,-122.3366,37.7041';
+// ── Cross-street search (local activity data first, then the baked authoritative SF corner index) ──
 // Street-type words dropped when tokenizing an intersection, so "16th & Mission" ≡ "16TH ST / MISSION ST".
 const STREET_SUFFIX = new Set(['st', 'street', 'ave', 'avenue', 'blvd', 'boulevard', 'dr', 'drive',
   'ct', 'court', 'ln', 'lane', 'pl', 'place', 'ter', 'terrace', 'way', 'hwy', 'highway', 'rd', 'road',
@@ -414,43 +413,91 @@ async function buildIntersectionIndex() {
   return intersectionIndex;
 }
 
-async function geocodeSF(query) {
-  // Nominatim REST call (no library, no page-load cost). User-Agent can't be set from fetch (forbidden
-  // header) — Nominatim identifies us by referer. Manual/occasional use only (respects 1 req/s policy).
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', San Francisco, CA')}` +
-    `&format=json&viewbox=${SF_VIEWBOX}&bounded=1&limit=1`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('geocode failed');
-  const d = await res.json();
-  if (!d.length) return null;
-  return { lat: +d[0].lat, lng: +d[0].lon, name: d[0].display_name };
+/** Lazy-load the baked authoritative SF cross-street index (shared/data/sf-intersections.json).
+ *  Module-relative URL so it resolves from any dashboard. Cached; safe to call repeatedly (e.g. to
+ *  prefetch on search-box focus). Parses the compact dictionary format into match-ready entries.
+ *  Rejects on network/parse failure and clears the cache so a later attempt can retry. */
+export function ensureCityIntersections() {
+  if (cityIndex) return Promise.resolve(cityIndex);
+  if (cityIndexPromise) return cityIndexPromise;
+  const url = new URL('./data/sf-intersections.json', import.meta.url);
+  cityIndexPromise = fetch(url)
+    .then(res => { if (!res.ok) throw new Error('city index fetch failed'); return res.json(); })
+    .then(data => {
+      const { coordScale, streets, pts } = data;
+      const streetTok = streets.map(streetTokens);                // tokenize each unique street once
+      cityIndex = pts.map(([latE5, lngE5, a, b]) => {
+        const tokens = new Set([...streetTok[a], ...streetTok[b]]);
+        return { key: [...tokens].sort().join(' '), tokens,
+          name: `${streets[a]} / ${streets[b]}`, lat: latE5 / coordScale, lng: lngE5 / coordScale };
+      });
+      return cityIndex;
+    })
+    .catch(err => { cityIndexPromise = null; throw err; });        // allow retry on next call
+  return cityIndexPromise;
+}
+
+// A city-index corner this close to tracked activity isn't really "empty" — block-level attribution
+// (CFS snaps calls to the nearest named node) means a busy corner's activity can be logged one node
+// over, e.g. the 16th & Mission plaza's calls land on the adjacent 16TH/WIESE + 16TH/HOFF alleys.
+const NEARBY_M = 80;
+
+/** Approximate metres between two lat/lng points (equirectangular — accurate enough under ~100 m). */
+function distMeters(aLat, aLng, bLat, bLng) {
+  const R = 6371000, rad = Math.PI / 180;
+  const x = (bLng - aLng) * rad * Math.cos((aLat + bLat) / 2 * rad);
+  const y = (bLat - aLat) * rad;
+  return Math.hypot(x, y) * R;
+}
+
+/** Best token-subset match of a query against an index (exact set-equality outranks subset). */
+function matchIndex(idx, qkey, qTokens, hotspotAware) {
+  let best = null, bestScore = -1;
+  for (const e of idx) {
+    let s = -1;
+    if (e.key === qkey) s = hotspotAware && e.isHotspot ? 4 : (hotspotAware ? 3 : 2);
+    else if (qTokens.every(t => e.tokens.has(t))) s = hotspotAware && e.isHotspot ? 2 : 1;
+    if (s > bestScore) { bestScore = s; best = e; }
+  }
+  return bestScore >= 1 ? best : null;
 }
 
 /**
- * Search for an intersection. Returns a tiered result:
+ * Search for an intersection. Purely local/offline — no external geocoder. Returns a tiered result:
  *   { status:'need-two' }                              — need two cross streets
  *   { status:'local', isHotspot, cellId?, lat,lng,name } — matched our data (hotspot or reported corner)
- *   { status:'geo', lat,lng,name }                     — located via Nominatim (no tracked activity)
- *   { status:'none' } | { status:'error' }
+ *   { status:'city', lat,lng,name, nearby, nearName? }  — a real SF corner (baked DataSF index); no
+ *        activity logged AT it, but `nearby` is true when tracked activity sits within NEARBY_M
+ *        (nearName = that nearest tracked corner) — softens the "no activity" note honestly.
+ *   { status:'none' }                                  — not a matchable SF corner (gibberish/typo)
+ *   { status:'error' }                                 — city index failed to load
  */
 export async function searchIntersections(query) {
   const qTokens = streetTokens(query);
   if (qTokens.size < 2) return { status: 'need-two' };
-  const idx = await buildIntersectionIndex();
   const qkey = [...qTokens].sort().join(' ');
   const q = [...qTokens];
-  let best = null, bestScore = -1;
+
+  // Tiers 1–2: our own activity data (tracked hotspot / reported corner).
+  const idx = await buildIntersectionIndex();
+  const local = matchIndex(idx, qkey, q, true);
+  if (local) return { status: 'local', ...local };
+
+  // Tier 3: authoritative baked SF corner index (every real corner, incl. zero-activity ones).
+  let city;
+  try { city = await ensureCityIntersections(); }
+  catch { return { status: 'error' }; }
+  const hit = matchIndex(city, qkey, q, false);
+  if (!hit) return { status: 'none' };
+
+  // Is tracked activity logged just off this corner (block-level attribution)? Find the nearest.
+  let near = null;
   for (const e of idx) {
-    let s = -1;
-    if (e.key === qkey) s = e.isHotspot ? 4 : 3;                 // exact set match
-    else if (q.every(t => e.tokens.has(t))) s = e.isHotspot ? 2 : 1;   // query ⊆ entry
-    if (s > bestScore) { bestScore = s; best = e; }
+    const d = distMeters(hit.lat, hit.lng, e.lat, e.lng);
+    if (d <= NEARBY_M && (!near || d < near.d)) near = { d, name: e.name };
   }
-  if (best && bestScore >= 1) return { status: 'local', ...best };
-  try {
-    const g = await geocodeSF(query);
-    return g ? { status: 'geo', ...g, isHotspot: false } : { status: 'none' };
-  } catch { return { status: 'error' }; }
+  return { status: 'city', lat: hit.lat, lng: hit.lng, name: hit.name,
+    nearby: !!near, nearName: near?.name };
 }
 
 /** Open a rendered hotspot's popup (reuses the click/pin/shareable-URL path). Returns false if the
