@@ -204,3 +204,7 @@ html.wa-dark .method-warn { color: #fcd34d; background: #422006; border-color: #
 .status--loading { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
 .status--error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 .app-footer { margin-top: 1rem; color: var(--muted); }
+
+/* Web Awesome rounds every <img> (border-radius: 6px); on Leaflet 256px tiles that leaves white
+   "diamonds" where four tiles meet. Square the tiles back off. */
+.leaflet-tile { border-radius: 0 !important; }

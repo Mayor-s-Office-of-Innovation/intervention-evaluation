@@ -1,0 +1,6 @@
+[
+  {"intersection_name":"EDDY ST \\ HYDE ST","received_datetime":"2026-07-14T13:05:00.000","intersection_point":{"type":"Point","coordinates":[-122.4159,37.7835]}},
+  {"intersection_name":"ELLIS ST \\ LEAVENWORTH ST","received_datetime":"2026-07-11T10:20:00.000","intersection_point":{"type":"Point","coordinates":[-122.4144,37.7847]}},
+  {"intersection_name":"TURK ST \\ JONES ST","received_datetime":"2026-07-05T22:15:00.000","intersection_point":{"type":"Point","coordinates":[-122.4128,37.7827]}},
+  {"intersection_name":"GOLDEN GATE AVE \\ LEAVENWORTH ST","received_datetime":"2026-06-25T15:30:00.000","intersection_point":{"type":"Point","coordinates":[-122.4145,37.7818]}}
+]

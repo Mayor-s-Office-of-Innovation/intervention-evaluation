@@ -18,6 +18,24 @@ import {
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 import { wireSplitToggle, refreshSplitToggle, wireSearch } from '../../shared/hotspots-panel.js';
+import { initRecentActivity } from '../../shared/recent-activity.js';
+
+// Evergreen recent-activity signals — mirror unhoused/build/signals.py filters verbatim.
+// encampment = 311 (lat/long cols); cfs_presence = SFPD CFS union (sit/lie + homeless complaint).
+const RECENT_SIGNALS = [
+  {
+    key: 'encampment', dataset: 'vw6y-z8j6', dateCol: 'requested_datetime',
+    where: "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
+    geo: { kind: 'latlong', latCol: 'lat', lngCol: 'long' }, nameCol: 'address',
+    label: 'encampment & homelessness reports (311)', chip: 'Encampment',
+  },
+  {
+    key: 'cfs_presence', dataset: '2zdj-bwza', dateCol: 'received_datetime',
+    where: "call_type_final_desc IN ('SIT/LIE ENFORCEMENT','HOMELESS COMPLAINT') AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+    geo: { kind: 'point', col: 'intersection_point' }, nameCol: 'intersection_name',
+    label: '911 presence calls (sit/lie + homeless)', chip: '911 presence',
+  },
+];
 
 const DISTRICTS = ['Northern', 'Mission', 'Tenderloin', 'Central'];
 const $ = sel => document.querySelector(sel);
@@ -275,6 +293,28 @@ function renderDistrict() {
   renderFocusChart();
   renderHSOC();
   renderMap();
+  setupRecentActivity();
+}
+
+// Lazy-init the evergreen recent-activity section (live DataSF query) the first time it scrolls near
+// view — keeps the network calls off the initial page load (CWV). District is fixed per page load.
+let raStarted = false;
+function setupRecentActivity() {
+  if (raStarted) return;
+  const panel = document.getElementById('recent-activity');
+  const feature = GEO && GEO.features.find(f => (f.properties.district || '').toUpperCase() === active.toUpperCase());
+  if (!panel || !feature) return;
+  const start = () => {
+    if (raStarted) return;
+    raStarted = true;
+    initRecentActivity({ districtName: active.toUpperCase(), districtFeature: feature, signals: RECENT_SIGNALS });
+  };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); start(); }
+    }, { rootMargin: '300px' });
+    io.observe(panel);
+  } else { start(); }
 }
 
 // ── transition map ──
@@ -487,6 +527,22 @@ function renderMethodology() {
       <li><strong>Needles / syringes</strong> — a drug-use signal that co-locates with homelessness but isn’t a measure of it. Covered in a dedicated drug-use project.</li>
       <li><strong>Human / animal waste</strong> — excluded after analysis: 311 records this as one “human <em>or</em> animal waste” category that can’t separate dog waste from human waste; it clusters near encampments (~49% of waste reports sit on heavy-encampment blocks vs ~15% for ordinary overflowing-trash-can reports) <em>but</em> doesn’t rise and fall with encampments month to month in the highest-homeless neighborhoods — so we can’t confidently call it an unhoused measure. Covered in a dedicated street-cleanliness project.</li>
     </ul>
+    <h3>“Where reports are appearing recently” — the evergreen operational view</h3>
+    <p>A different question from the hot/cold map above: not <em>what changed since Lurie</em> but
+      <em>where and when are reports showing up right now</em>, for resource planning. It is
+      <strong>queried live from DataSF</strong> each time you open it, so it is <strong>evergreen</strong>
+      and can be a day or two newer than the rest of this page (a fixed snapshot). Two report types,
+      switchable: <strong>Encampment &amp; homelessness reports</strong> (SF 311, <code>vw6y-z8j6</code>) and
+      <strong>911 presence calls</strong> (SFPD CFS sit/lie + homeless complaint, <code>2zdj-bwza</code>) —
+      the same filters as the metrics above.</p>
+    <ul class="meth-list">
+      <li><strong>Window</strong> — the last 1–8 weeks, anchored to the most recent report in the data
+        (not your device clock).</li>
+      <li><strong>District</strong> — scoped by point-in-polygon against the same boundary the map draws.</li>
+      <li><strong>Hours, not verified counts.</strong> These are community <em>reports</em> (demand for
+        service); a busy hex marks a reported <em>area</em>, approximately, not a confirmed count at one address.</li>
+    </ul>
+
     <p class="meth-foot">Data current to ${PROV.generated}. History from ${PROV.history_start}. Seasonality-aware,
       observational (not causal). Recent complete months are reliable — these datasets are creation-stamped,
       so unlike police incident reports there is no approval-lag backfill (only the in-progress month is partial).</p>`;

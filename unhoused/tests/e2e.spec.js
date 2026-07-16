@@ -207,3 +207,65 @@ test('See details: popup stays open, widens, 5 tod chips, chips filter (no conso
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+// ── Recent-activity section (evergreen live DataSF query) — network STUBBED (offline CI). Two
+// signals: encampment (311, vw6y-z8j6, default) + 911 presence (CFS, 2zdj-bwza). ──
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+const UDIR = dirname(fileURLToPath(import.meta.url));
+const RA_ENC = JSON.parse(readFileSync(join(UDIR, 'fixtures', 'recent-encampment.json'), 'utf8'));
+const RA_PRES = JSON.parse(readFileSync(join(UDIR, 'fixtures', 'recent-presence.json'), 'utf8'));
+
+async function stubDataSF(page, { fail = false } = {}) {
+  await page.route('**/data.sfgov.org/**', (route) => {
+    if (fail) return route.abort();
+    const u = decodeURIComponent(route.request().url());
+    const rows = u.includes('vw6y-z8j6') ? RA_ENC : RA_PRES;    // dataset id picks the fixture
+    if (u.includes('max(')) {
+      const col = u.includes('vw6y-z8j6') ? 'requested_datetime' : 'received_datetime';
+      const mx = rows.map(r => r[col]).sort().at(-1);
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ mx }]) });
+    }
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(rows) });
+  });
+}
+async function revealRecent(page) {
+  await page.locator('#recent-activity').scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelectorAll('#ra-hours .ra-bar').length > 0, null, { timeout: 15000 });
+}
+
+test('recent-activity: renders (stubbed); signal picker switches encampment ↔ 911 presence', async ({ page }) => {
+  const errors = trackErrors(page);
+  await stubDataSF(page);
+  await page.goto(url('tenderloin'), { waitUntil: 'networkidle' });
+  await revealRecent(page);
+
+  await expect(page.locator('#ra-body')).toBeVisible();
+  await expect(page.locator('#ra-hours .ra-bar')).toHaveCount(24);
+  await expect(page.locator('#ra-map path.leaflet-interactive').first()).toBeVisible();
+  await expect(page.locator('#ra-signal .seg')).toHaveCount(2);
+  await expect(page.locator('#ra-signal .seg.is-active')).toHaveText('Encampment');
+  await expect(page.locator('#ra-note')).toContainText('encampment');
+
+  // switch to the 911-presence signal (different dataset)
+  await page.locator('#ra-signal .seg', { hasText: '911 presence' }).click();
+  await expect(page.locator('#ra-signal .seg.is-active')).toHaveText('911 presence');
+  await expect(page.locator('#ra-note')).toContainText('911 presence');
+  await expect(page.locator('#ra-hours .ra-bar')).toHaveCount(24);
+
+  // brush an hour bar → map filters
+  await page.locator('#ra-hours .ra-bar[data-hour="13"]').click();
+  await expect(page.locator('#ra-note')).toContainText('filtered to');
+  await expect(page.locator('.ra-clear')).toBeVisible();
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('recent-activity: DataSF failure shows a graceful message and hides the body', async ({ page }) => {
+  await stubDataSF(page, { fail: true });
+  await page.goto(url('mission'), { waitUntil: 'networkidle' });
+  await page.locator('#recent-activity').scrollIntoViewIfNeeded();
+  await expect(page.locator('#ra-status.ra-status--error')).toBeVisible();
+  await expect(page.locator('#ra-body')).toBeHidden();
+});

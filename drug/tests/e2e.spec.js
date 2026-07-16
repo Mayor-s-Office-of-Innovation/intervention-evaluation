@@ -108,3 +108,71 @@ test('See details: popup stays open, widens, 5 tod chips, chips filter (no conso
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+// ── Recent-activity section (evergreen live DataSF query) — network STUBBED for a deterministic,
+// offline CI run (hop-② convention: no live network on the PR path). ──
+const RA_ROWS = JSON.parse(readFileSync(join(DRUG, 'tests', 'fixtures', 'recent-activity.json'), 'utf8'));
+
+async function stubDataSF(page, { fail = false } = {}) {
+  await page.route('**/data.sfgov.org/**', (route) => {
+    if (fail) return route.abort();
+    const u = decodeURIComponent(route.request().url());
+    if (u.includes('max(received_datetime)')) {
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ mx: '2026-07-14T18:14:30.000' }]) });
+    }
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(RA_ROWS) });
+  });
+}
+
+async function revealRecent(page) {
+  await page.locator('#recent-activity').scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => document.querySelectorAll('#ra-hours .ra-bar').length > 0, null, { timeout: 15000 });
+}
+
+test('recent-activity: heatmap + hex map render from the live query (stubbed); chips + brush work', async ({ page }) => {
+  const errors = trackErrors(page);
+  await stubDataSF(page);
+  await page.goto(url('tenderloin'), { waitUntil: 'networkidle' });
+  await revealRecent(page);
+
+  await expect(page.locator('#ra-body')).toBeVisible();
+  await expect(page.locator('#ra-hours .ra-bar')).toHaveCount(24);                      // 24 hour bars
+  await expect(page.locator('#ra-map path.leaflet-interactive').first()).toBeVisible(); // hexes drawn
+  await expect(page.locator('#ra-note')).toContainText('Live from DataSF');
+  await expect(page.locator('#ra-note')).toContainText('Tenderloin');
+  await expect(page.locator('#ra-recency .seg')).toHaveCount(4);
+  await expect(page.locator('#ra-recency .seg.is-active')).toHaveText('Last 4 wks');
+
+  // recency chip switches the window
+  await page.locator('#ra-recency .seg', { hasText: 'Last 8 wks' }).click();
+  await expect(page.locator('#ra-note')).toContainText('last 8 weeks');
+
+  // brushing an hour bar filters the map to that hour
+  const litBefore = await page.locator('#ra-map path.leaflet-interactive').count();
+  await page.locator('#ra-hours .ra-bar[data-hour="13"]').click();                      // 13:00 has fixture reports
+  await expect(page.locator('#ra-note')).toContainText('filtered to');
+  await expect(page.locator('.ra-clear')).toBeVisible();                                // "Show all hours" reset
+  const litAfter = await page.locator('#ra-map path.leaflet-interactive').count();
+  expect(litAfter).toBeLessThanOrEqual(litBefore);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('recent-activity: clicking a hex shows the corner drill-down popup', async ({ page }) => {
+  await stubDataSF(page);
+  await page.goto(url('tenderloin'), { waitUntil: 'networkidle' });
+  await revealRecent(page);
+  const hex = page.locator('#ra-map path.leaflet-interactive').first();
+  await hex.click({ force: true });
+  await expect(page.locator('.leaflet-popup .ra-pop')).toBeVisible();
+  await expect(page.locator('.leaflet-popup .ra-pop thead')).toContainText(/Location/i);
+});
+
+test('recent-activity: DataSF failure shows a graceful message and hides the body', async ({ page }) => {
+  await stubDataSF(page, { fail: true });
+  await page.goto(url('mission'), { waitUntil: 'networkidle' });
+  await page.locator('#recent-activity').scrollIntoViewIfNeeded();
+  await expect(page.locator('#ra-status.ra-status--error')).toBeVisible();
+  await expect(page.locator('#ra-status')).toContainText(/Couldn.t reach DataSF/i);
+  await expect(page.locator('#ra-body')).toBeHidden();
+});

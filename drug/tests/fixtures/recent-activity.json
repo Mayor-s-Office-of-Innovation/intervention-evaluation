@@ -1,0 +1,10 @@
+[
+  {"intersection_point":{"type":"Point","coordinates":[-122.4144,37.7847]},"intersection_name":"ELLIS ST \\ LEAVENWORTH ST","received_datetime":"2026-07-14T13:05:00.000","call_type_original_notes":"DRUGS","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4144,37.7847]},"intersection_name":"ELLIS ST \\ LEAVENWORTH ST","received_datetime":"2026-07-13T09:20:00.000","call_type_original_notes":"DEALER","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4159,37.7835]},"intersection_name":"EDDY ST \\ HYDE ST","received_datetime":"2026-07-10T18:40:00.000","call_type_original_notes":"DRUGS","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4159,37.7835]},"intersection_name":"EDDY ST \\ HYDE ST","received_datetime":"2026-07-08T12:15:00.000","call_type_original_notes":"METH","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4122,37.7821]},"intersection_name":"GOLDEN GATE AVE \\ JONES ST","received_datetime":"2026-07-04T22:05:00.000","call_type_original_notes":"SALES","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4122,37.7821]},"intersection_name":"GOLDEN GATE AVE \\ JONES ST","received_datetime":"2026-06-30T14:30:00.000","call_type_original_notes":"DRUGS","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4157,37.7825]},"intersection_name":"TURK ST \\ HYDE ST","received_datetime":"2026-06-25T11:00:00.000","call_type_original_notes":"DRUGS","call_type_final_notes":"DRUGS"},
+  {"intersection_point":{"type":"Point","coordinates":[-122.4157,37.7825]},"intersection_name":"TURK ST \\ HYDE ST","received_datetime":"2026-06-20T20:45:00.000","call_type_original_notes":"DEALER","call_type_final_notes":"DRUGS"}
+]

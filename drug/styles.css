@@ -206,6 +206,9 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 /* ───────────── Transition map ───────────── */
 .events-map { height: 540px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--c-line); }
 .leaflet-container { font-family: var(--font-sans); }
+/* Web Awesome's base stylesheet rounds every <img> (border-radius: 6px); on Leaflet's 256px tile
+   images that leaves white "diamonds" where four tiles meet. Square the tiles back off. */
+.leaflet-tile { border-radius: 0 !important; }
 /* segmented control: one container, segments touch, active segment filled */
 .map-controls {
   display: inline-flex; gap: 0; padding: 3px;
@@ -370,3 +373,51 @@ html.wa-dark .leaflet-popup-close-button:hover { color: var(--text); }
 .back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }
 .back-home:hover { opacity: 1; color: #fff; }
 .back-home:focus-visible { opacity: 1; color: #fff; outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }
+
+/* ── "Where reports are appearing recently" — evergreen recent-activity section ── */
+.ra-lead { margin: 0 0 .9rem; font-size: .95rem; line-height: 1.5; color: var(--text); }
+.ra-subhead { margin: 1rem 0 .5rem; font-size: .82rem; font-weight: 700; letter-spacing: .03em;
+  text-transform: uppercase; color: var(--muted); }
+.ra-status { padding: .8rem 1rem; border-radius: var(--radius); font-size: .9rem;
+  background: var(--bg); color: var(--muted); border: 1px solid var(--c-line); }
+.ra-status--error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+html.wa-dark .ra-status--error { background: #3b1213; color: #fca5a5; border-color: #7f1d1d; }
+#ra-map { height: 460px; }
+
+/* section divider marking the shift from the baked analysis to the live/operational view */
+.section-break { margin: .5rem 0 -.25rem; padding-top: 1.5rem; border-top: 2px solid var(--c-line); }
+.section-break__title { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--text); }
+.section-break__sub { margin: .25rem 0 0; color: var(--muted); font-size: .9rem; max-width: 70ch; }
+
+/* density-map legend — makes the sequential ramp direction explicit (flips with theme, like the hexes) */
+.ra-scale { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 0; font-size: .72rem; color: var(--muted); }
+.ra-scale__ramp { flex: 0 1 200px; height: 10px; border-radius: 999px;
+  background: linear-gradient(to right, #d8f3ea, #a6e3d0, #6bcbb0, #2ba98a, #158066, #0c5a48); }
+html.wa-dark .ra-scale__ramp { background: linear-gradient(to right, #0c5a48, #158066, #2ba98a, #6bcbb0, #a6e3d0, #d8f3ea); }
+
+/* hour-of-day bar strip (compact; height encodes volume, single hue; drag to brush hours) */
+.ra-hours { width: 100%; user-select: none; -webkit-user-select: none; touch-action: none; }
+.ra-hours__bars { display: flex; align-items: flex-end; gap: 2px; height: 84px; }
+.ra-bar { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: flex-end;
+  border: none; padding: 0; background: transparent; cursor: pointer;
+  border-radius: 3px 3px 0 0; transition: opacity .1s; }
+.ra-bar:hover { background: color-mix(in srgb, var(--c-slate) 8%, transparent); }
+.ra-bar:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 1px; }
+.ra-bar__fill { display: block; width: 100%; min-height: 2px; border-radius: 3px 3px 0 0;
+  background: #158066; }   /* single hue — height alone encodes volume (no confusing light→dark ramp) */
+html.wa-dark .ra-bar__fill { background: #2ba98a; }   /* brighter teal for the dark surface */
+.ra-bar--off { opacity: .3; }
+.ra-hours__axis { display: flex; justify-content: space-between; margin-top: .3rem;
+  font-size: .68rem; color: var(--muted); }
+.ra-clear { font: inherit; font-size: .76rem; color: var(--c-blue); background: none; border: none;
+  cursor: pointer; padding: 0; text-decoration: underline; }
+
+/* hex + drill-down popup */
+.ra-hex { cursor: pointer; }
+.ra-hex:hover { fill-opacity: .95; }
+.ra-pop { font-size: .82rem; color: var(--text); }
+.ra-pop .sub { color: var(--muted); }
+.ra-pop table { border-collapse: collapse; margin-top: .4rem; width: 100%; }
+.ra-pop th, .ra-pop td { text-align: left; padding: .12rem .5rem .12rem 0; border-bottom: 1px solid var(--c-line); }
+.ra-pop td.n, .ra-pop th.n { text-align: right; font-variant-numeric: tabular-nums; padding-right: 0; }
+.ra-pop thead th { color: var(--muted); font-weight: 600; font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
