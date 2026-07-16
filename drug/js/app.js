@@ -19,6 +19,21 @@ import {
 } from '../../shared/transition-map.js';
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 import { wireSplitToggle, refreshSplitToggle, wireSearch } from '../../shared/hotspots-panel.js';
+import { initRecentActivity } from '../../shared/recent-activity.js';
+
+// Evergreen recent-activity signal — mirrors drug/build/signals.py `_CFS_DRUG_WHERE` verbatim.
+const RECENT_SIGNALS = [{
+  key: 'cfs_drug',
+  dataset: '2zdj-bwza',
+  dateCol: 'received_datetime',
+  where: "call_type_final_desc = 'SUSPICIOUS PERSON' AND onview_flag IN ('N','HSOC') AND (" +
+    ['DRUG', 'DEALER', 'SALES', 'METH']
+      .map(t => `upper(call_type_original_notes) LIKE '%${t}%' OR upper(call_type_final_notes) LIKE '%${t}%'`)
+      .join(' OR ') + ')',
+  geo: { kind: 'point', col: 'intersection_point' },
+  nameCol: 'intersection_name',
+  label: 'community drug-activity calls (911 CFS)',
+}];
 
 const DISTRICTS = ['Northern', 'Mission', 'Central', 'Tenderloin'];
 const $ = sel => document.querySelector(sel);
@@ -407,6 +422,28 @@ function renderDistrict() {
   renderFocusChart();
   renderComposition();
   renderMap();
+  setupRecentActivity();
+}
+
+// Lazy-init the evergreen recent-activity section (live DataSF query) the first time it scrolls
+// near view — keeps the ~2 network calls off the initial page load (CWV). District is fixed per page.
+let raStarted = false;
+function setupRecentActivity() {
+  if (raStarted) return;
+  const panel = document.getElementById('recent-activity');
+  const feature = GEO && GEO.features.find(f => (f.properties.district || '').toUpperCase() === active.toUpperCase());
+  if (!panel || !feature) return;
+  const start = () => {
+    if (raStarted) return;
+    raStarted = true;
+    initRecentActivity({ districtName: active.toUpperCase(), districtFeature: feature, signals: RECENT_SIGNALS });
+  };
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); start(); }
+    }, { rootMargin: '300px' });
+    io.observe(panel);
+  } else { start(); }
 }
 
 // ── methodology (D5 / D7 / D9) ──
@@ -475,6 +512,24 @@ function renderMethodology() {
       shows the same emerged-heavy shape for the same reason. Read “emerged” as <em>“hot now, wasn’t before
       2025,”</em> and use the district-tide figure (in the note under the map) to see how much of that is the
       district rising overall versus this specific block.</p>
+
+    <h3>“Where reports are appearing recently” — the evergreen operational view</h3>
+    <p>A different question from the hot/cold map above: not <em>what changed since Lurie</em> but
+      <em>where and when are reports showing up right now</em>, for resource planning. It is
+      <strong>queried live from DataSF</strong> each time you open it (the same public 911-CFS dataset
+      and drug-activity filter as the <strong>${AGG.signals.cfs_drug.label}</strong> metric —
+      <code>${s.cfs_drug.dataset_id}</code>, ${q(s.cfs_drug.query_url)}), so it is <strong>evergreen</strong>
+      and can be a day or two newer than the rest of this page (which is a fixed, validated snapshot).</p>
+    <ul class="meth-list">
+      <li><strong>Window</strong> — the last 1–8 weeks, anchored to the most recent report in the data
+        (not your device clock), so a slow data day never silently shortens it.</li>
+      <li><strong>District</strong> — scoped to this page’s district by point-in-polygon against the same
+        boundary the map draws, matching the rest of the dashboard (not the dataset’s own, less reliable,
+        police-district field).</li>
+      <li><strong>Hours, not raw counts of “hot corners.”</strong> These are community <em>reports</em>
+        (demand for service), and calls snap to the nearest named intersection — so a busy hex marks a
+        reported <em>area</em>, approximately, not a verified count at one address.</li>
+    </ul>
 
     <p class="meth-foot">${PROV.settle_note}<br>Data current to ${PROV.generated}. History from
       ${PROV.history_start}. Seasonality-aware, observational (not causal).</p>`;

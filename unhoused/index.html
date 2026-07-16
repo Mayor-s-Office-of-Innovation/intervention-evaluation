@@ -133,6 +133,30 @@
       <small id="map-note" class="repro-note"></small>
     </wa-card>
 
+    <!-- EVERGREEN operational view (live DataSF query), separate from the baked hot/cold map above:
+         where/when are reports showing up recently, for THIS district. -->
+    <div class="section-break">
+      <h2 class="section-break__title">Most recent activity</h2>
+      <p class="section-break__sub">Live from DataSF and always current — a separate, operational view from the point-in-time analysis above.</p>
+    </div>
+    <wa-card class="panel" id="recent-activity">
+      <div slot="header" class="panel__header">
+        <h2 class="panel__title">Where reports are appearing recently</h2>
+        <div class="map-controls" id="ra-recency" role="group" aria-label="Recency window"></div>
+      </div>
+      <p class="ra-lead">Community reports over the last few weeks, by <strong>place</strong> and <strong>time of day</strong>. Click a hex to see the locations inside it; click or drag across the hour bars to filter the map by time.</p>
+      <div class="map-controls" id="ra-signal" role="group" aria-label="Report type"></div>
+      <div id="ra-status" class="ra-status" hidden></div>
+      <div id="ra-body" hidden>
+        <h3 class="ra-subhead">Where — report density</h3>
+        <div id="ra-map" class="events-map"></div>
+        <div class="ra-scale"><span>fewer reports</span><span class="ra-scale__ramp"></span><span>more</span></div>
+        <h3 class="ra-subhead">When — reports by hour of day</h3>
+        <div id="ra-hours" class="ra-hours" aria-label="Reports by hour of day; drag across bars to filter the map by time"></div>
+        <small id="ra-note" class="repro-note"></small>
+      </div>
+    </wa-card>
+
     <!-- Response signal — below the map so drug + unhoused share one cards → chart → map → panel spine. -->
     <section class="response-block" id="hsoc-block"></section>
 

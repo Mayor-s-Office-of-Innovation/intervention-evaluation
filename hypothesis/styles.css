@@ -258,3 +258,7 @@ html.wa-dark .map-legend__dot { border-color: rgba(255, 255, 255, .25); }
 .links-preview:empty { display: none; }
 .link-chip { font-size: .82rem; color: var(--c-blue); text-decoration: none; word-break: break-all; }
 .link-chip:hover { text-decoration: underline; }
+
+/* Web Awesome rounds every <img> (border-radius: 6px); on Leaflet 256px tiles that leaves white
+   "diamonds" where four tiles meet. Square the tiles back off. */
+.leaflet-tile { border-radius: 0 !important; }
