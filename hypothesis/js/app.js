@@ -179,18 +179,82 @@ async function loadRecord(id, mode) {
       $('submit-label').textContent = 'Update intervention';
       run(false);
     } else {
-      // View: results-first. The primary button becomes "Edit" (see handleSubmit).
+      // View: a clean, read-only summary + the live impact analysis. Nothing editable.
       viewId = id;
       $('page-title').textContent = 'Intervention results';
-      $('page-sub').textContent = 'Live impact for this intervention. Use “Edit intervention” to change its details.';
-      $('form-title').textContent = 'Intervention details';
-      $('submit-label').textContent = 'Edit intervention';
+      $('page-sub').textContent = 'Live impact for this intervention.';
+      // Hide the editable form entirely; show a read-only details card in its place.
+      $('input-panel').hidden = true;
+      $('run-btn').hidden = true;
+      renderViewDetails(editRecord);
+      $('view-details').hidden = false;
+      // Read-only: nothing to save. Hide Save and lift the copy-link control up to
+      // the top-right, above the details card (the just-saved/create flow is untouched).
+      $('save-btn').hidden = true;
+      const shareBar = document.querySelector('.share-bar');
+      if (shareBar) {
+        shareBar.classList.add('share-bar--top');
+        $('view-details').insertAdjacentElement('beforebegin', shareBar);
+      }
       run(true); // show + scroll straight to the results
     }
   } catch (e) {
     console.error('Failed to load intervention:', e);
     alert('Could not load intervention.');
   }
+}
+
+// Human labels for stored status codes (mirrors the homepage's STATUS_LABELS).
+const STATUS_LABELS = {
+  open_in_progress: 'Open · In progress',
+  at_risk_on_hold: 'At risk · On hold',
+  closed_completed: 'Closed · Completed',
+};
+// key → label for the lever registry that populates the dropdown.
+const LEVER_LABEL = Object.fromEntries((LEVERS || DATAPOINTS).map(d => [d.key, d.label]));
+const fmtDate = v => { const iso = (v || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? fmtNice(iso) : ''; };
+
+// Render a saved intervention as a read-only definition list. Only fields with a
+// value are emitted — a sparse record shows just its filled-in rows, no blanks.
+function renderViewDetails(rec) {
+  $('view-details-title').textContent = rec.intervention || rec.what || 'Intervention';
+
+  const leverKeys = rec.levers?.length ? rec.levers : (rec.dp ? [rec.dp] : []);
+  const leversHtml = leverKeys.length
+    ? `<span class="view-details__badges">${leverKeys.map(k => `<span class="view-badge">${escHtml(LEVER_LABEL[k] || k)}</span>`).join('')}</span>`
+    : '';
+  const linksHtml = (rec.links || []).length
+    ? (rec.links).map(u => { const href = encodeURI(u).replace(/"/g, '%22'); return `<a class="link-chip" href="${href}" target="_blank" rel="noopener">${escHtml(u)}</a>`; }).join('')
+    : '';
+  const locHtml = (rec.lat && rec.lng)
+    ? `${(+rec.lat).toFixed(5)}, ${(+rec.lng).toFixed(5)}${rec.radius ? ` · ${rec.radius} m radius` : ''}`
+    : '';
+
+  // [label, valueHtml, isBlock]. Blank valueHtml rows are dropped.
+  const rows = [
+    ['District', escHtml(rec.district || '')],
+    ['Status', escHtml(STATUS_LABELS[rec.status] || rec.status || '')],
+    ['Levers', leversHtml],
+    ['Owner', escHtml(rec.owner || '')],
+    ['Agencies', escHtml(rec.agencies || '')],
+    ['Start date', escHtml(fmtDate(rec.start_date || rec.date))],
+    ['End date', escHtml(fmtDate(rec.end_date))],
+    ['Description', escHtml(rec.description || ''), true],
+    ['Evidence', escHtml(rec.evidence || ''), true],
+    ['Tactics', escHtml(rec.tactics || ''), true],
+    ['Roadblock', escHtml(rec.roadblock || ''), true],
+    ['Outcomes', escHtml(rec.outcomes || ''), true],
+    ['Notes', escHtml(rec.notes || ''), true],
+    ['Related documents', linksHtml],
+    ['Location', escHtml(locHtml)],
+    ['Submitted by', escHtml(rec.person_submitted || '')],
+    ['Last edited', escHtml(fmtDate(rec.last_edited))],
+  ];
+
+  $('view-details-list').innerHTML = rows
+    .filter(([, v]) => v)
+    .map(([label, v, block]) => `<dt>${escHtml(label)}</dt><dd${block ? ' class="view-details__block"' : ''}>${v}</dd>`)
+    .join('');
 }
 
 async function handleSubmit() {
@@ -213,6 +277,17 @@ async function handleSubmit() {
   if (!submitter) {
     alert('Please enter your name.');
     $('in-submitter').focus();
+    return;
+  }
+  // Levers + a placed pin are required — they're what make the impact analysis possible.
+  if (getSelectedLevers().length === 0) {
+    alert('Please select at least one lever — this is what the analysis measures.');
+    $('in-expect').focus();
+    return;
+  }
+  if (!locSet) {
+    alert('Please drop a pin on the map to set the intervention location.');
+    $('picker-map').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 

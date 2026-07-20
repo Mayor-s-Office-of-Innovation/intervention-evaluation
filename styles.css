@@ -58,7 +58,7 @@ a { color: var(--c-blue); }
 
 /* ───────────── Main ───────────── */
 .app-main { max-width: 1040px; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
-.section-label { text-transform: uppercase; letter-spacing: .08em; font-size: .72rem; font-weight: 700; color: var(--muted); margin: 0 0 1rem; }
+.section-label { text-transform: uppercase; letter-spacing: .08em; font-size: 1rem; font-weight: 700; color: var(--muted); margin: 0 0 1rem; }
 
 /* Section divider between OKRs and Interventions */
 .section-divider {
@@ -452,15 +452,31 @@ html.wa-dark .stale-flag {
   color: #fff;
 }
 
-.interventions-head {
-  font-weight: 700; font-size: .95rem; color: var(--text);
-  margin: 0 0 .6rem;
+.interventions-scope {
   display: flex;
-  align-items: baseline;
-  gap: .75rem;
+  align-items: center;
+  gap: .5rem;
   flex-wrap: wrap;
+  margin: 0 0 .75rem;
+  padding: .5rem .75rem;
+  border: 1px solid var(--c-line);
+  border-left: 3px solid var(--c-blue);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--c-blue) 6%, var(--surface));
+}
+.interventions-scope__dot {
+  width: 8px; height: 8px; flex: none;
+  border-radius: 50%;
+  background: var(--c-blue);
+}
+.interventions-scope__text {
+  font-weight: 700; font-size: .95rem; color: var(--text);
+}
+.interventions-scope__hint {
+  font-weight: 500; font-size: .8rem; color: var(--muted);
 }
 .interventions-counts {
+  margin-left: auto;
   font-weight: 500;
   font-size: .78rem;
   color: var(--muted);
@@ -510,6 +526,58 @@ html.wa-dark .action-close:hover {
 html.wa-dark .action-reopen:hover {
   background: #1e3a5f;
 }
+
+/* ───────────── Inline row editor ───────────── */
+.action-edit {
+  font-size: .75rem; font-weight: 600;
+  color: var(--c-blue); background: transparent;
+  border: none; padding: 0; cursor: pointer;
+}
+.action-edit:hover { text-decoration: underline; }
+.action-editing { font-size: .75rem; font-weight: 600; color: var(--muted); font-style: italic; }
+
+.intervention-edit-row td {
+  padding: 1rem 1.25rem 1.25rem;
+  background: color-mix(in srgb, var(--c-blue) 4%, var(--surface));
+  border-bottom: 2px solid var(--c-line);
+}
+html.wa-dark .intervention-edit-row td {
+  background: rgba(255, 255, 255, .03);
+}
+.intervention-editor { display: flex; flex-direction: column; gap: 1rem; }
+.editor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: .75rem 1rem;
+  align-items: start;
+}
+.editor-full { grid-column: 1 / -1; }
+
+.editor-location {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: .35rem .75rem;
+  padding: .6rem .75rem; border: 1px dashed var(--c-line); border-radius: 8px;
+  font-size: .82rem;
+}
+.editor-location__label { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; color: var(--muted); }
+.editor-location__val { color: var(--text); }
+
+.editor-location__note { margin: -.35rem 0 0; font-size: .78rem; color: var(--muted); }
+.editor-location__note a { color: var(--c-blue); font-weight: 600; text-decoration: none; }
+.editor-location__note a:hover { text-decoration: underline; }
+
+.editor-error { margin: 0; color: var(--c-red, #ef4444); font-size: .85rem; }
+
+.editor-actions { display: flex; align-items: center; gap: .5rem; }
+.editor-actions__spacer { flex: 1 1 auto; }
+.editor-archive { color: #b45309; }
+.editor-archive:hover { background: #fef3c7; }
+.editor-restore { color: var(--c-blue); }
+.editor-restore:hover { background: #dbeafe; }
+.editor-cancel { color: var(--muted); }
+.editor-cancel:hover { background: var(--c-line); }
+html.wa-dark .editor-archive:hover { background: #451a03; }
+html.wa-dark .editor-restore:hover { background: #1e3a5f; }
+html.wa-dark .editor-cancel:hover { background: rgba(255, 255, 255, .08); }
 
 /* View closed toggle */
 .view-closed-toggle {
