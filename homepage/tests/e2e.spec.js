@@ -69,8 +69,10 @@ test('the Interventions table lists saved interventions per district', async ({ 
   await expect(page.locator('.intervention-empty')).toBeVisible();
 });
 
-test('closing a saved intervention moves it behind the "view closed" toggle', async ({ page }) => {
-  // The close endpoint returns the updated (closed) item; the row then leaves the open view.
+test('archiving a saved intervention (from the inline editor) moves it behind the "view closed" toggle', async ({ page }) => {
+  // Archiving reuses the close endpoint, which returns the updated (closed) item; the row then
+  // leaves the open view. Archive now lives inside the inline editor (Edit → Archive), not as a
+  // standalone row button.
   await page.route('**/interventions/*/close', route => route.fulfill({
     status: 200, contentType: 'application/json',
     headers: { 'Access-Control-Allow-Origin': '*' },
@@ -81,7 +83,10 @@ test('closing a saved intervention moves it behind the "view closed" toggle', as
   await page.goto('/index.html');
   await expect(page.locator('.intervention-table')).toContainText('Alpha report');  // Northern, open
 
-  await page.locator('.action-close').first().click();
+  // Open the inline editor for the row, then Archive from within it.
+  await page.locator('.action-edit').first().click();
+  await expect(page.locator('.intervention-editor')).toBeVisible();
+  await page.locator('.editor-archive').click();
 
   // closed → hidden from the default (open) view, revealed via the toggle
   await expect(page.locator('.view-closed-toggle')).toBeVisible();
