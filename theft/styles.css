@@ -42,7 +42,7 @@ body {
 .app-header__inner { max-width: var(--maxw); margin: 0 auto; padding: 1.75rem 1.25rem 1.5rem; }
 .app-header__eyebrow {
   font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--c-flat); font-weight: 600;
+  color: var(--c-flat); font-weight: 600; line-height: 1.5rem;
 }
 .app-header h1 { margin: .35rem 0 .5rem; font-size: 1.6rem; }
 .app-header__sub { margin: 0; max-width: 46rem; color: var(--wa-color-text-quiet, #4b4f58); }
@@ -221,6 +221,7 @@ body {
 .error { color: var(--c-bad); }
 
 /* Back-to-homepage link (top of header) */
-.back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: .85rem; opacity: .85; transition: opacity .15s ease, color .15s ease; }
+.breadcrumb-row { display: flex; align-items: center; gap: 1rem; margin-bottom: .85rem; }
+.back-home { display: inline-flex; align-items: center; gap: .4rem; color: #cbd5e1; text-decoration: none; font-size: .82rem; font-weight: 600; margin-bottom: 0; opacity: .85; transition: opacity .15s ease, color .15s ease; }
 .back-home:hover { opacity: 1; color: #fff; }
 .back-home:focus-visible { opacity: 1; color: #fff; outline: 2px solid var(--c-blue); outline-offset: 2px; border-radius: 4px; }

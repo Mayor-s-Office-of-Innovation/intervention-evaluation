@@ -1,5 +1,6 @@
 import { parseTSV, groupBy } from './tsv.js';
-import { listInterventions, closeIntervention, reopenIntervention } from './interventions-client.js';
+import { listInterventions, closeIntervention, reopenIntervention, updateIntervention } from './interventions-client.js';
+import { LEVERS } from '../hypothesis/js/datapoints.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 
@@ -103,6 +104,7 @@ const EMERGING_SIGNALS = {
 
 let currentDistrict = DISTRICTS[0];
 let showClosed = false;           // whether to show closed interventions
+let editingId = null;             // id of the row being edited inline (only one at a time)
 let interventionsByDistrict = {};
 let aggregatesData = {};
 let emergingSignalsCache = {};
@@ -285,10 +287,10 @@ const isStaleEval = i => i.last_evaluated && (Date.now() - new Date(i.last_evalu
 
 // Table columns in order. `always` columns always render; the rest render only when at least one row
 // has a value — so columns we don't have data for yet are hidden until data fills them.
-// Where a row links to see its live results. Prefer a stored shareable link when
-// present (curated/quick-saved rows reconstruct the exact analysis from it);
-// otherwise the view page for a saved record (reconstructs from its fields).
-const viewHref = i => i.eval_link || (i.id ? `./hypothesis/?view=${encodeURIComponent(i.id)}` : null);
+// Where a row links to see its live results. Prefer the record's own read-only
+// view page (reconstructs the analysis from its fields, no editable form); fall
+// back to a stored shareable link only for curated rows that have no id.
+const viewHref = i => (i.id ? `./hypothesis/?view=${encodeURIComponent(i.id)}` : i.eval_link || null);
 
 const INTERVENTION_COLUMNS = [
   { header: 'ID', cls: 'id', always: true, cell: i => `<span class="mono">${esc(i.intervention_id || i.id?.slice(0,8) || '—')}</span>` },
@@ -324,30 +326,79 @@ function renderStatusBadge(status) {
 }
 
 function renderActions(i) {
-  const parts = [];
-  // Edit link
+  // Saved records edit inline (Archive/Restore live inside the editor). Curated rows
+  // without an id just link out to their shared analysis.
   if (i.id) {
-    parts.push(`<a href="./hypothesis/?edit=${esc(i.id)}" class="action-link">Edit</a>`);
-  } else if (i.eval_link) {
-    parts.push(`<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>`);
+    return i.id === editingId
+      ? `<span class="action-editing">Editing…</span>`
+      : `<button class="action-edit" type="button" data-id="${esc(i.id)}">Edit</button>`;
   }
-  // Close/Reopen button
-  if (i.id) {
-    const isClosed = i.status === 'closed_completed';
-    if (isClosed) {
-      parts.push(`<button class="action-btn action-reopen" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}">Reopen</button>`);
-    } else {
-      parts.push(`<button class="action-btn action-close" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}">Close</button>`);
-    }
-  }
-  return parts.join(' ') || '—';
+  if (i.eval_link) return `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>`;
+  return '—';
 }
 
 function renderInterventionRow(i, cols) {
-  const h = viewHref(i);
-  return `<tr class="intervention-row${h ? ' is-clickable' : ''}"${h ? ` data-href="${esc(h)}"` : ''}>${cols.map(c =>
+  const isEditing = i.id && i.id === editingId;
+  const h = isEditing ? null : viewHref(i);   // no click-to-view while editing this row
+  const row = `<tr class="intervention-row${h ? ' is-clickable' : ''}${isEditing ? ' is-editing' : ''}"${h ? ` data-href="${esc(h)}"` : ''}>${cols.map(c =>
     `<td class="intervention-cell intervention-cell--${c.cls}${c.tdClass ? ' ' + c.tdClass(i) : ''}">${c.cell(i)}</td>`
   ).join('')}</tr>`;
+  if (!isEditing) return row;
+  return row + `<tr class="intervention-edit-row"><td colspan="${cols.length}">${renderEditor(i)}</td></tr>`;
+}
+
+// Inline editor for one saved record — all fields except location (pin/radius stay in the full
+// tool). Fields carry data-ed keys; values are populated after render (populateEditor) so web
+// components are upgraded first. Footer: Save · Cancel · Archive|Restore.
+function renderEditor(i) {
+  const isClosed = i.status === 'closed_completed';
+  const leverOpts = LEVERS.map(l => `<wa-option value="${esc(l.key)}">${esc(l.label)}</wa-option>`).join('');
+  const loc = (i.lat && i.lng)
+    ? `${(+i.lat).toFixed(5)}, ${(+i.lng).toFixed(5)}${i.radius ? ` · ${i.radius} m radius` : ''}`
+    : 'No pin set';
+
+  return `<div class="intervention-editor" data-id="${esc(i.id)}">
+    <div class="editor-grid">
+      <wa-input data-ed="intervention" label="Intervention (title)" class="editor-full"></wa-input>
+      <wa-input data-ed="owner" label="Owner"></wa-input>
+      <wa-input data-ed="agencies" label="Associated agencies"></wa-input>
+      <wa-select data-ed="status" label="Status"${isClosed ? ' disabled hint="Archived — use Restore to reopen"' : ''}>
+        <wa-option value="open_in_progress">Open · In progress</wa-option>
+        <wa-option value="at_risk_on_hold">At risk · On hold</wa-option>
+      </wa-select>
+      <wa-select data-ed="levers" label="Levers" multiple class="editor-full">${leverOpts}</wa-select>
+      <wa-input data-ed="start_date" type="date" label="Start date"></wa-input>
+      <wa-input data-ed="end_date" type="date" label="End date"></wa-input>
+      <wa-textarea data-ed="description" label="Description" rows="2" class="editor-full"></wa-textarea>
+      <wa-textarea data-ed="evidence" label="Evidence" rows="2" class="editor-full"></wa-textarea>
+      <wa-textarea data-ed="tactics" label="Tactics" rows="2" class="editor-full"></wa-textarea>
+      <wa-textarea data-ed="roadblock" label="Roadblock / flag" rows="2" class="editor-full"></wa-textarea>
+      <wa-textarea data-ed="outcomes" label="Outcomes" rows="2" class="editor-full"></wa-textarea>
+      <wa-textarea data-ed="notes" label="Notes" rows="2" class="editor-full"></wa-textarea>
+      <wa-textarea data-ed="links" label="Related documents" rows="2" class="editor-full"
+                   hint="One URL per line."></wa-textarea>
+      <wa-input data-ed="edited_by" label="Edited by" placeholder="Your name" required
+                hint="Recorded with your change."></wa-input>
+    </div>
+
+    <div class="editor-location">
+      <span class="editor-location__label">Location</span>
+      <span class="editor-location__val">${esc(loc)}</span>
+    </div>
+    <p class="editor-location__note">Location can't be changed here. To move it, archive this
+      intervention and <a href="./hypothesis/?district=${esc(currentDistrict)}">create a new one</a>
+      with the new location.</p>
+
+    <p class="editor-error" role="alert" hidden></p>
+    <div class="editor-actions">
+      ${isClosed
+        ? `<button class="action-btn editor-restore" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}">Restore</button>`
+        : `<button class="action-btn editor-archive" type="button" data-id="${esc(i.id)}" data-name="${esc(i.intervention)}">Archive</button>`}
+      <span class="editor-actions__spacer"></span>
+      <button class="action-btn editor-cancel" type="button">Cancel</button>
+      <wa-button class="editor-save" size="small" variant="brand" appearance="accent" data-id="${esc(i.id)}">Save changes</wa-button>
+    </div>
+  </div>`;
 }
 
 // Target KR label per hypothesis datapoint — mirrors the titles in hypothesis/js/datapoints.js.
@@ -378,6 +429,8 @@ function savedToRow(s) {
     notes: s.notes || '',
     person_submitted: s.person_submitted || '',
     last_edited: s.last_edited || s.created || '',
+    // Location — carried through so the inline editor can show the current pin (read-only).
+    lat: s.lat, lng: s.lng, radius: s.radius,
     eval_link: s.url,
   };
 }
@@ -396,10 +449,12 @@ function renderInterventions() {
 
   const openCount = openRows.length;
   const closedCount = closedRows.length;
-  const head = `<p class="interventions-head">
-    ${esc(currentDistrict)} — ${allRows.length} intervention${allRows.length === 1 ? '' : 's'}
-    <span class="interventions-counts">${openCount} open · ${closedCount} closed</span>
-  </p>`;
+  // Make it obvious the list is scoped to the district picked in the tabs at the top.
+  const head = `<div class="interventions-scope">
+    <span class="interventions-scope__dot" aria-hidden="true"></span>
+    <span class="interventions-scope__text">Showing <strong>${esc(currentDistrict)}</strong> district
+      <span class="interventions-scope__hint">· switch with the district tabs above</span></span>
+  </div>`;
 
   if (rows.length === 0 && closedCount === 0) {
     return head + '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
@@ -435,12 +490,12 @@ function render(container) {
   container.innerHTML = `
     ${renderDistrictTabs()}
     <section class="section-okrs">
-      <p class="section-label">OKRs</p>
+      <h2 class="section-label">OKRs</h2>
       ${renderOKRCards()}
     </section>
     <div class="section-divider"></div>
     <section class="section-interventions">
-      <p class="section-label">Interventions</p>
+      <h2 class="section-label">Interventions</h2>
       ${renderInterventions()}
     </section>
   `;
@@ -468,41 +523,14 @@ function wireEvents(container) {
   });
 
 
-  // Close an intervention
-  container.querySelectorAll('.action-close').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { id, name } = btn.dataset;
-      if (!confirm(`Close "${name}"?`)) return;
-      btn.disabled = true;
-      try {
-        const { item } = await closeIntervention(id);
-        // Update local cache
-        const idx = savedInterventions.findIndex(s => s.id === id);
-        if (idx >= 0) savedInterventions[idx] = item;
-        render(container);
-      } catch (e) {
-        btn.disabled = false;
-        alert('Could not close — please try again.');
-      }
-    });
+  // Enter inline edit mode for a row
+  container.querySelectorAll('.action-edit').forEach(btn => {
+    btn.addEventListener('click', () => { editingId = btn.dataset.id; render(container); });
   });
 
-  // Reopen an intervention
-  container.querySelectorAll('.action-reopen').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const { id, name } = btn.dataset;
-      btn.disabled = true;
-      try {
-        const { item } = await reopenIntervention(id);
-        const idx = savedInterventions.findIndex(s => s.id === id);
-        if (idx >= 0) savedInterventions[idx] = item;
-        render(container);
-      } catch (e) {
-        btn.disabled = false;
-        alert('Could not reopen — please try again.');
-      }
-    });
-  });
+  // If a row is expanded into its editor, populate + wire it
+  const editor = container.querySelector('.intervention-editor');
+  if (editor) wireEditor(container, editor);
 
   // Toggle showing closed interventions
   const toggleBtn = container.querySelector('.view-closed-toggle');
@@ -512,6 +540,127 @@ function wireEvents(container) {
       render(container);
     });
   }
+}
+
+// Populate + wire the inline editor for the currently-edited row.
+async function wireEditor(container, editor) {
+  const id = editor.dataset.id;
+  const rec = savedInterventions.find(s => s.id === id);
+  if (!rec) { editingId = null; return; }
+
+  await populateEditor(editor, rec);
+  editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  editor.querySelector('.editor-cancel')?.addEventListener('click', () => { editingId = null; render(container); });
+  editor.querySelector('.editor-save')?.addEventListener('click', () => saveEditor(container, editor, rec));
+
+  editor.querySelector('.editor-archive')?.addEventListener('click', () => {
+    if (!confirm(`Archive "${rec.intervention}"? You can restore it later via “View closed”.`)) return;
+    mutateAndRefresh(container, id, () => closeIntervention(id), 'Could not archive — please try again.');
+  });
+  editor.querySelector('.editor-restore')?.addEventListener('click', () => {
+    mutateAndRefresh(container, id, () => reopenIntervention(id), 'Could not restore — please try again.');
+  });
+}
+
+// Fill editor fields from a record. Awaits component upgrade so `.value` assignments stick.
+async function populateEditor(editor, rec) {
+  await Promise.all([
+    customElements.whenDefined('wa-input'),
+    customElements.whenDefined('wa-select'),
+    customElements.whenDefined('wa-textarea'),
+  ]);
+  const set = (key, val) => { const el = editor.querySelector(`[data-ed="${key}"]`); if (el) el.value = val; };
+  set('intervention', rec.intervention || '');
+  set('owner', rec.owner || '');
+  set('agencies', rec.agencies || '');
+  set('status', rec.status === 'at_risk_on_hold' ? 'at_risk_on_hold' : 'open_in_progress');
+  set('start_date', (rec.start_date || rec.date || '').slice(0, 10));
+  set('end_date', (rec.end_date || '').slice(0, 10));
+  set('description', rec.description || '');
+  set('evidence', rec.evidence || '');
+  set('tactics', rec.tactics || '');
+  set('roadblock', rec.roadblock || '');
+  set('outcomes', rec.outcomes || '');
+  set('notes', rec.notes || '');
+  set('links', (rec.links || []).join('\n'));
+  set('edited_by', '');
+  // levers is a multi-select: assign the array to the property (not an attribute).
+  const lev = editor.querySelector('[data-ed="levers"]');
+  if (lev) lev.value = Array.isArray(rec.levers) && rec.levers.length ? rec.levers : (rec.dp ? [rec.dp] : []);
+}
+
+// Gather editor fields → PATCH the record → update cache → collapse. Location is omitted, so the
+// Worker's partial merge preserves the stored pin/radius.
+async function saveEditor(container, editor, rec) {
+  const id = editor.dataset.id;
+  const g = key => { const el = editor.querySelector(`[data-ed="${key}"]`); return el ? el.value : undefined; };
+  const errEl = editor.querySelector('.editor-error');
+  const showErr = msg => { if (errEl) { errEl.textContent = msg; errEl.hidden = false; } };
+
+  const title = (g('intervention') || '').trim();
+  if (!title) { showErr('Intervention title is required.'); editor.querySelector('[data-ed="intervention"]')?.focus?.(); return; }
+
+  const editedBy = (g('edited_by') || '').trim();
+  if (!editedBy) { showErr('Please enter your name in “Edited by” to save a change.'); editor.querySelector('[data-ed="edited_by"]')?.focus?.(); return; }
+
+  const leversEl = editor.querySelector('[data-ed="levers"]');
+  const levers = leversEl ? (Array.isArray(leversEl.value) ? leversEl.value : [leversEl.value].filter(Boolean)) : [];
+
+  const data = {
+    intervention: title,
+    description: (g('description') || '').trim(),
+    evidence: (g('evidence') || '').trim(),
+    tactics: (g('tactics') || '').trim(),
+    owner: (g('owner') || '').trim(),
+    agencies: (g('agencies') || '').trim(),
+    levers,
+    start_date: g('start_date') || '',
+    end_date: g('end_date') || '',
+    roadblock: (g('roadblock') || '').trim(),
+    outcomes: (g('outcomes') || '').trim(),
+    notes: (g('notes') || '').trim(),
+    links: parseLinks(g('links')),
+    edited_by: editedBy,
+  };
+  // Status is managed by Archive/Restore for closed records — don't reopen one on save.
+  if (rec.status !== 'closed_completed') data.status = g('status') || 'open_in_progress';
+
+  const saveBtn = editor.querySelector('.editor-save');
+  saveBtn.loading = true; saveBtn.disabled = true;
+  try {
+    const { item } = await updateIntervention(id, data);
+    const idx = savedInterventions.findIndex(s => s.id === id);
+    if (idx >= 0) savedInterventions[idx] = item;
+    editingId = null;
+    render(container);
+  } catch (e) {
+    saveBtn.loading = false; saveBtn.disabled = false;
+    showErr('Could not save — ' + e.message);
+  }
+}
+
+// Shared close/restore flow: run the mutation, refresh the cached record, collapse the editor.
+async function mutateAndRefresh(container, id, fn, errMsg) {
+  try {
+    const { item } = await fn();
+    const idx = savedInterventions.findIndex(s => s.id === id);
+    if (idx >= 0) savedInterventions[idx] = item;
+    editingId = null;
+    render(container);
+  } catch (e) {
+    alert(errMsg);
+  }
+}
+
+// One URL per line (or comma-separated); bare hosts get https://; capped. Mirrors the form's parser.
+function parseLinks(text) {
+  return (text || '')
+    .split(/[\n,]+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(u => /^https?:\/\//i.test(u) ? u : `https://${u}`)
+    .slice(0, 20);
 }
 
 async function loadAggregates() {
@@ -615,6 +764,11 @@ async function init() {
     window.addEventListener('popstate', () => {
       initDistrict();
       render(container);
+    });
+
+    // Esc cancels inline edit mode, wherever focus is.
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && editingId) { editingId = null; render(container); }
     });
   } catch (err) {
     console.error('Failed to load data:', err);
