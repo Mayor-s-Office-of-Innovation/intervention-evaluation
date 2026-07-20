@@ -548,12 +548,9 @@ async function wireEditor(container, editor) {
   const rec = savedInterventions.find(s => s.id === id);
   if (!rec) { editingId = null; return; }
 
-  await populateEditor(editor, rec);
-  editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
+  // Wire actions first so Cancel/Archive/Restore work even before web components finish upgrading.
   editor.querySelector('.editor-cancel')?.addEventListener('click', () => { editingId = null; render(container); });
   editor.querySelector('.editor-save')?.addEventListener('click', () => saveEditor(container, editor, rec));
-
   editor.querySelector('.editor-archive')?.addEventListener('click', () => {
     if (!confirm(`Archive "${rec.intervention}"? You can restore it later via “View closed”.`)) return;
     mutateAndRefresh(container, id, () => closeIntervention(id), 'Could not archive — please try again.');
@@ -561,6 +558,9 @@ async function wireEditor(container, editor) {
   editor.querySelector('.editor-restore')?.addEventListener('click', () => {
     mutateAndRefresh(container, id, () => reopenIntervention(id), 'Could not restore — please try again.');
   });
+
+  await populateEditor(editor, rec);
+  editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // Fill editor fields from a record. Awaits component upgrade so `.value` assignments stick.
