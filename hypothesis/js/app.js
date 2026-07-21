@@ -60,16 +60,22 @@ let curEnd = null;
 let editId = null;
 let viewId = null;
 let editRecord = null;
+// Re-entrancy guard: a `<wa-button>` set to disabled can still deliver a second
+// click to a host-level listener, so a fast double-click (or a click during the
+// create round-trip, before editId is set) would fire two create POSTs and save
+// duplicates. This flag is the authoritative guard; the button state is cosmetic.
+let submitting = false;
 
 async function init() {
   await customElements.whenDefined('wa-input');
   await customElements.whenDefined('wa-select');
   await customElements.whenDefined('wa-textarea');
 
-  // Check for edit / view mode first
+  // Check for view mode first. The separate-page editing experience (?edit=ID) is
+  // retired — legacy ?edit= links now resolve to the read-only view. Editing happens
+  // inline on the homepage; the only editable form here is the create-new flow.
   const urlParams = new URLSearchParams(location.search);
-  editId = urlParams.get('edit');
-  viewId = urlParams.get('view');
+  viewId = urlParams.get('view') || urlParams.get('edit');
 
   const shared = readParams(); // a shared link overrides the defaults above
 
@@ -113,19 +119,17 @@ async function init() {
   // Keep the clickable links preview in sync as the user edits the field
   $('in-links')?.addEventListener('input', () => renderLinksPreview());
 
-  // Load existing record for edit or view; otherwise a shared analysis link auto-runs.
-  if (editId) {
-    await loadRecord(editId, 'edit');
-  } else if (viewId) {
+  // Load existing record read-only; otherwise a shared analysis link auto-runs.
+  if (viewId) {
     await loadRecord(viewId, 'view');
   } else if (shared) {
     run(true); // a shared link auto-runs AND scrolls to the results
   }
 }
 
-// Load a saved intervention and show its live analysis. mode 'edit' pre-fills
-// for updating; mode 'view' lands on the results and offers an Edit button.
-async function loadRecord(id, mode) {
+// Load a saved intervention and show its live impact as a read-only view. The
+// separate editable page is retired; editing lives inline on the homepage.
+async function loadRecord(id) {
   try {
     editRecord = await getIntervention(id);
     if (!editRecord) throw new Error('Not found');
@@ -171,33 +175,24 @@ async function loadRecord(id, mode) {
     updateReadout();
     dateISO = editRecord.start_date || editRecord.date || DEFAULT_DATE;
 
-    if (mode === 'edit') {
-      editId = id;
-      $('page-title').textContent = 'Edit intervention';
-      $('page-sub').textContent = 'Update this intervention and track its impact.';
-      $('form-title').textContent = 'Edit intervention';
-      $('submit-label').textContent = 'Update intervention';
-      run(false);
-    } else {
-      // View: a clean, read-only summary + the live impact analysis. Nothing editable.
-      viewId = id;
-      $('page-title').textContent = 'Intervention results';
-      $('page-sub').textContent = 'Live impact for this intervention.';
-      // Hide the editable form entirely; show a read-only details card in its place.
-      $('input-panel').hidden = true;
-      $('run-btn').hidden = true;
-      renderViewDetails(editRecord);
-      $('view-details').hidden = false;
-      // Read-only: nothing to save. Hide Save and lift the copy-link control up to
-      // the top-right, above the details card (the just-saved/create flow is untouched).
-      $('save-btn').hidden = true;
-      const shareBar = document.querySelector('.share-bar');
-      if (shareBar) {
-        shareBar.classList.add('share-bar--top');
-        $('view-details').insertAdjacentElement('beforebegin', shareBar);
-      }
-      run(true); // show + scroll straight to the results
+    // View: a clean, read-only summary + the live impact analysis. Nothing editable.
+    viewId = id;
+    $('page-title').textContent = 'Intervention results';
+    $('page-sub').textContent = 'Live impact for this intervention.';
+    // Hide the editable form entirely; show a read-only details card in its place.
+    $('input-panel').hidden = true;
+    $('run-btn').hidden = true;
+    renderViewDetails(editRecord);
+    $('view-details').hidden = false;
+    // Read-only: nothing to save. Hide Save and lift the copy-link control up to
+    // the top-right, above the details card (the just-saved/create flow is untouched).
+    $('save-btn').hidden = true;
+    const shareBar = document.querySelector('.share-bar');
+    if (shareBar) {
+      shareBar.classList.add('share-bar--top');
+      $('view-details').insertAdjacentElement('beforebegin', shareBar);
     }
+    run(true); // show + scroll straight to the results
   } catch (e) {
     console.error('Failed to load intervention:', e);
     alert('Could not load intervention.');
@@ -258,11 +253,8 @@ function renderViewDetails(rec) {
 }
 
 async function handleSubmit() {
-  // In view mode the primary button is an "Edit intervention" affordance.
-  if (viewId && !editId) {
-    window.location.search = `?edit=${encodeURIComponent(viewId)}`;
-    return;
-  }
+  // Drop overlapping submits so a double-click can't create two records.
+  if (submitting) return;
 
   // Validate required fields
   const title = ($('in-what').value || '').trim();
@@ -314,6 +306,7 @@ async function handleSubmit() {
     radius: radiusM,
   };
 
+  submitting = true;
   const btn = $('run-btn');
   btn.loading = true;
   btn.disabled = true;
@@ -325,7 +318,10 @@ async function handleSubmit() {
       flashSaved('✓ Intervention updated. Live impact shown below.');
       await run(true);
     } else {
-      const { id } = await createFullIntervention(data);
+      const created = await createFullIntervention(data);
+      // Accept the id whether the API returns it at the top level or nested in item —
+      // if it's ever missing, editId stays null and every save would duplicate.
+      const id = created?.id || created?.item?.id;
       // Stay on the page and show the analysis. Switch into the saved/edit state so a
       // second click updates the same record instead of creating a duplicate.
       if (id) {
@@ -340,6 +336,7 @@ async function handleSubmit() {
   } catch (e) {
     alert('Error: ' + e.message);
   } finally {
+    submitting = false;
     btn.loading = false;
     btn.disabled = false;
     $('submit-label').textContent = editId ? 'Update intervention' : 'Submit intervention';
@@ -415,7 +412,11 @@ function readParams() {
 
 function syncURL() {
   const p = new URLSearchParams();
-  if (editId) p.set('edit', editId);   // keep edit mode across reloads / the auto-run's syncURL
+  // Preserve the read-only view marker across reloads / the auto-run's syncURL. This
+  // covers both a ?view=ID load and a just-created record (editId set by create), so a
+  // copied URL always reopens read-only rather than falling into the shared-link form.
+  const pid = viewId || editId;
+  if (pid) p.set('view', pid);
   p.set('dp', dps.map(d => d.key).join(','));
   const when = $('in-when').value; if (when) p.set('date', when);
   p.set('lat', loc.lat.toFixed(5));
