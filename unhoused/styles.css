@@ -381,6 +381,7 @@ html.wa-dark .leaflet-popup-close-button:hover { color: var(--text); }
 
 /* Tool card — external-tool link (e.g. 311 photo browser); ported from the homepage. */
 .tool-section { margin-top: 1.25rem; }
+.tool-section .section-break { margin-bottom: 1rem; }
 .tool-card {
   display: flex; align-items: center; gap: 1rem;
   text-decoration: none; color: inherit;

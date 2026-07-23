@@ -95,3 +95,42 @@ test('archiving a saved intervention (from the inline editor) moves it behind th
   await page.locator('.view-closed-toggle').click();
   await expect(page.locator('.intervention-table')).toContainText('Alpha report');
 });
+
+// Regression guard for the layout-shift fix (see plan-layout-shift.md). The districts block is
+// JS-rendered above the static tool cards; without a reserved height it collapsed on first paint
+// and the async saved-interventions load shoved the tool cards down. We guard two things:
+//   1. the skeleton is server-delivered (reserves height before any JS runs), and
+//   2. the tool card doesn't move when the saved rows arrive after first render.
+test('the tool cards do not shift when saved interventions load in', async ({ page }) => {
+  // Skeleton must be in the shipped HTML, not injected by JS.
+  const html = await (await page.request.get('/index.html')).text();
+  expect(html).toContain('districts-skeleton');
+
+  // Delay the saved-list response so first render (OKR cards) happens BEFORE the rows arrive —
+  // this is exactly the sequence that used to jump.
+  await page.route('**/interventions', async route => {
+    await new Promise(r => setTimeout(r, 600));
+    route.fulfill({
+      status: 200, contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ items: SAVED }),
+    });
+  });
+
+  const cardTop = () => page.locator('.tool-section .tool-card').first()
+    .evaluate(el => Math.round(el.getBoundingClientRect().top + window.scrollY));
+
+  await page.goto('/index.html');
+  // Wait for the real render (skeleton replaced) — the empty-table state, before saved rows arrive.
+  // (`.okr-card` alone would also match the skeleton's placeholder card, so key off the skeleton.)
+  await page.waitForFunction(() => !document.querySelector('.districts-skeleton'));
+  await expect(page.locator('.section-interventions')).toBeVisible();
+  const before = await cardTop();
+
+  await expect(page.locator('.intervention-row')).toHaveCount(1);  // saved rows arrived (Northern)
+  const after = await cardTop();
+
+  // The reserved min-height on .section-interventions absorbs the row insertion — no shift.
+  // Allow a couple px for sub-pixel rounding / web-component upgrade jitter.
+  expect(Math.abs(after - before)).toBeLessThan(4);
+});

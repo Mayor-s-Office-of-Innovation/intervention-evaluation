@@ -63,8 +63,63 @@
 
   <main class="app-main">
     <h2 class="section-label">Districts</h2>
-    <div id="districts-container">
-      <!-- Populated by js/app.js -->
+    <div id="districts-container" aria-busy="true">
+      <!-- Skeleton placeholder: reserves the districts block's height so the tool
+           cards below don't get shoved down when js/app.js renders. Overwritten by
+           the first render() (container.innerHTML = …). aria-hidden — decorative. -->
+      <div class="districts-skeleton" aria-hidden="true">
+        <div class="district-tabs">
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+        </div>
+        <section class="section-okrs">
+          <h2 class="section-label">OKRs</h2>
+          <div class="okr-grid">
+            <div class="okr-card okr-card--skeleton">
+              <div class="okr-card__body">
+                <span class="skeleton skeleton--eyebrow"></span>
+                <span class="skeleton skeleton--title"></span>
+                <span class="skeleton skeleton--line"></span>
+                <span class="skeleton skeleton--line"></span>
+                <span class="skeleton skeleton--line"></span>
+              </div>
+              <span class="skeleton skeleton--arrow"></span>
+            </div>
+            <div class="okr-card okr-card--skeleton">
+              <div class="okr-card__body">
+                <span class="skeleton skeleton--eyebrow"></span>
+                <span class="skeleton skeleton--title"></span>
+                <span class="skeleton skeleton--line"></span>
+                <span class="skeleton skeleton--line"></span>
+                <span class="skeleton skeleton--line"></span>
+              </div>
+              <span class="skeleton skeleton--arrow"></span>
+            </div>
+            <div class="okr-card okr-card--skeleton">
+              <div class="okr-card__body">
+                <span class="skeleton skeleton--eyebrow"></span>
+                <span class="skeleton skeleton--title"></span>
+                <span class="skeleton skeleton--line"></span>
+                <span class="skeleton skeleton--line"></span>
+                <span class="skeleton skeleton--line"></span>
+              </div>
+              <span class="skeleton skeleton--arrow"></span>
+            </div>
+          </div>
+        </section>
+        <div class="section-divider"></div>
+        <section class="section-interventions">
+          <h2 class="section-label">Interventions</h2>
+          <div class="skeleton skeleton--scope"></div>
+          <div class="intervention-table-wrap">
+            <div class="skeleton skeleton--row"></div>
+            <div class="skeleton skeleton--row"></div>
+            <div class="skeleton skeleton--row"></div>
+          </div>
+        </section>
+      </div>
     </div>
 
     <!-- Add intervention tool -->
