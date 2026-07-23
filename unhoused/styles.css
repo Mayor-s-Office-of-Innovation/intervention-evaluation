@@ -379,6 +379,25 @@ html.wa-dark .leaflet-popup-close-button:hover { color: var(--text); }
 .section-break__title { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--text); }
 .section-break__sub { margin: .25rem 0 0; color: var(--muted); font-size: .9rem; max-width: 70ch; }
 
+/* Tool card — external-tool link (e.g. 311 photo browser); ported from the homepage. */
+.tool-section { margin-top: 1.25rem; }
+.tool-card {
+  display: flex; align-items: center; gap: 1rem;
+  text-decoration: none; color: inherit;
+  background: var(--surface); border: 1px solid var(--c-line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem;
+  transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.tool-card:hover { box-shadow: 0 4px 14px rgba(16,24,40,.14); transform: translateY(-2px); border-color: var(--c-blue); }
+.tool-card:focus-visible { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.tool-card__icon { flex: none; font-size: 1.5rem; color: var(--c-blue); }
+.tool-card__body { flex: 1 1 auto; min-width: 0; }
+.tool-card__title { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.tool-card__sub { margin: .15rem 0 0; color: var(--muted); font-size: .9rem; }
+.tool-card__arrow { flex: none; font-size: 1.2rem; color: var(--c-gray); transition: transform .15s ease, color .15s ease; }
+.tool-card:hover .tool-card__arrow { color: var(--c-blue); transform: translateX(3px); }
+
 .ra-lead { margin: 0 0 .9rem; font-size: .95rem; line-height: 1.5; color: var(--text); }
 #ra-signal { margin: 0 0 .9rem; }
 .ra-subhead { margin: 1rem 0 .5rem; font-size: .82rem; font-weight: 700; letter-spacing: .03em;
