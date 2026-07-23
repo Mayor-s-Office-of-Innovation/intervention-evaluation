@@ -499,6 +499,7 @@ function render(container) {
       ${renderInterventions()}
     </section>
   `;
+  container.removeAttribute('aria-busy');   // real content is in; drop the skeleton's busy flag
   wireEvents(container);
   updateAddLink();
 }
@@ -747,10 +748,12 @@ async function init() {
   if (!container) return;
 
   try {
+    // Gate first paint on LOCAL files only (TSV + baked aggregates.json). Live Socrata
+    // (emerging signals) and the Worker (saved) are slow/external — kept out of this
+    // barrier so the districts block paints fast and doesn't jump. See plan-layout-shift.md.
     const [interventionsRes] = await Promise.all([
       fetch('./data/interventions.tsv'),
       loadAggregates(),
-      loadEmergingSignals(),
     ]);
 
     const text = await interventionsRes.text();
@@ -759,6 +762,11 @@ async function init() {
 
     initDistrict();
     render(container);
+
+    // Fill fixed-size slots after first paint — no layout shift:
+    // - emerging signals update the theft KR3 badge (already rendered as a sized "—")
+    // - saved interventions append into the height-reserved table
+    loadEmergingSignals().then(() => render(container));
     loadSaved(container);   // fire-and-forget; re-renders the table when the saved items arrive
 
     window.addEventListener('popstate', () => {

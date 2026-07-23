@@ -70,6 +70,14 @@ a { color: var(--c-blue); }
 .section-interventions {
   margin-bottom: 0;
 }
+/* Reserve the interventions region's height so the async-loaded saved rows (Worker)
+   don't push the tool cards + footer down when they arrive. Sits on the section (always
+   present: skeleton, empty state, and populated table all use it) rather than the table
+   wrap, which doesn't exist in the empty state. Sized for a typical row count — far more
+   rows than this still grows the section. See plan-layout-shift.md. */
+.section-interventions {
+  min-height: 22rem;
+}
 
 /* ───────────── OKR dashboard cards ───────────── */
 .okr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1.1rem; }
@@ -163,6 +171,51 @@ html.wa-dark .kr-ticker--bad {
 .okr-kr { display: flex; align-items: baseline; gap: .55rem; color: var(--text); font-size: .92rem; }
 .okr-kr__dir { flex: none; width: 1.3rem; height: 1.3rem; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-size: .82rem; line-height: 1; color: #fff; background: var(--c-green); }
 .okr-kr__text strong { font-weight: 700; }
+
+/* ───────────── Loading skeletons ─────────────
+   Placeholder bars that reserve the districts block's height on first paint, so
+   content doesn't jump in above the static tool cards. Overwritten by render(). */
+.skeleton {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background: var(--c-line);
+  border-radius: 6px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .38), transparent);
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+html.wa-dark .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .08), transparent);
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
+}
+
+/* District tab pills */
+.skeleton--tab { width: 5.5rem; height: 2.15rem; border-radius: 999px; }
+
+/* OKR card skeletons — non-interactive; match the real card's height (tallest real card
+   has a ticker header + 3 KR rows) so the grid row doesn't grow when render() swaps in. */
+.okr-card--skeleton { pointer-events: none; min-height: 17.5rem; }
+.skeleton--eyebrow { width: 42%; height: .68rem; margin-bottom: .5rem; }
+.skeleton--title   { width: 78%; height: 1.2rem; margin: .3rem 0 .95rem; }
+.skeleton--line    { width: 100%; height: .82rem; margin-bottom: .55rem; }
+.skeleton--line:last-child { margin-bottom: 0; width: 85%; }
+.skeleton--arrow   { align-self: flex-end; width: 1.35rem; height: 1.35rem; margin-top: 1rem; }
+
+/* Interventions scope line + table rows */
+.skeleton--scope { width: 60%; height: 2.55rem; margin: 0 0 .75rem; border-radius: 8px; }
+.skeleton--row   { width: 100%; height: 2.6rem; margin-bottom: .55rem; }
+.skeleton--row:first-child { margin-top: .4rem; }
 
 /* ───────────── Hypothesis tool link ───────────── */
 .tool-section { margin-top: 2.5rem; }
