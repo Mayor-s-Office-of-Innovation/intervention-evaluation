@@ -103,7 +103,6 @@ const EMERGING_SIGNALS = {
 };
 
 let currentDistrict = DISTRICTS[0];
-let showClosed = false;           // whether to show closed interventions
 let editingId = null;             // id of the row being edited inline (only one at a time)
 let interventionsByDistrict = {};
 let aggregatesData = {};
@@ -442,13 +441,11 @@ function renderInterventions() {
     .map(savedToRow);
   const allRows = [...curated, ...saved];
 
-  // Split into open and closed
-  const openRows = allRows.filter(r => r.status !== 'closed_completed');
-  const closedRows = allRows.filter(r => r.status === 'closed_completed');
-  const rows = showClosed ? allRows : openRows;
-
-  const openCount = openRows.length;
-  const closedCount = closedRows.length;
+  // Archived (closed) interventions are NEVER shown here — there is no toggle to reveal them.
+  // Match defensively: anything whose status begins with "closed" (incl. legacy `closed`,
+  // current `closed_completed`) is treated as archived and dropped.
+  const isArchived = r => /^closed/.test(r.status || '');
+  const rows = allRows.filter(r => !isArchived(r));
   // Make it obvious the list is scoped to the district picked in the tabs at the top.
   const head = `<div class="interventions-scope">
     <span class="interventions-scope__dot" aria-hidden="true"></span>
@@ -456,16 +453,12 @@ function renderInterventions() {
       <span class="interventions-scope__hint">· switch with the district tabs above</span></span>
   </div>`;
 
-  if (rows.length === 0 && closedCount === 0) {
+  if (rows.length === 0) {
     return head + '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
   }
 
   // Only show columns that have data in at least one row (plus the always-on ones).
   const cols = INTERVENTION_COLUMNS.filter(c => c.always || rows.some(r => c.has(r)));
-
-  const toggleLink = closedCount > 0
-    ? `<button class="view-closed-toggle" type="button">${showClosed ? 'Hide' : 'View'} closed interventions (${closedCount})</button>`
-    : '';
 
   return head + `
     <div class="intervention-table-wrap">
@@ -474,7 +467,6 @@ function renderInterventions() {
         <tbody>${rows.map(r => renderInterventionRow(r, cols)).join('')}</tbody>
       </table>
     </div>
-    ${toggleLink}
   `;
 }
 
@@ -532,15 +524,6 @@ function wireEvents(container) {
   // If a row is expanded into its editor, populate + wire it
   const editor = container.querySelector('.intervention-editor');
   if (editor) wireEditor(container, editor);
-
-  // Toggle showing closed interventions
-  const toggleBtn = container.querySelector('.view-closed-toggle');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      showClosed = !showClosed;
-      render(container);
-    });
-  }
 }
 
 // Populate + wire the inline editor for the currently-edited row.
@@ -553,7 +536,7 @@ async function wireEditor(container, editor) {
   editor.querySelector('.editor-cancel')?.addEventListener('click', () => { editingId = null; render(container); });
   editor.querySelector('.editor-save')?.addEventListener('click', () => saveEditor(container, editor, rec));
   editor.querySelector('.editor-archive')?.addEventListener('click', () => {
-    if (!confirm(`Archive "${rec.intervention}"? You can restore it later via “View closed”.`)) return;
+    if (!confirm(`Archive "${rec.intervention}"? It will be removed from this list.`)) return;
     mutateAndRefresh(container, id, () => closeIntervention(id), 'Could not archive — please try again.');
   });
   editor.querySelector('.editor-restore')?.addEventListener('click', () => {
