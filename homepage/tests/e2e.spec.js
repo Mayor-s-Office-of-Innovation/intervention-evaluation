@@ -69,10 +69,10 @@ test('the Interventions table lists saved interventions per district', async ({ 
   await expect(page.locator('.intervention-empty')).toBeVisible();
 });
 
-test('archiving a saved intervention (from the inline editor) moves it behind the "view closed" toggle', async ({ page }) => {
+test('archiving a saved intervention (from the inline editor) removes it from the list for good', async ({ page }) => {
   // Archiving reuses the close endpoint, which returns the updated (closed) item; the row then
-  // leaves the open view. Archive now lives inside the inline editor (Edit → Archive), not as a
-  // standalone row button.
+  // leaves the view permanently. Archive lives inside the inline editor (Edit → Archive), not as a
+  // standalone row button. There is NO "view closed" toggle — archived rows can never be shown.
   await page.route('**/interventions/*/close', route => route.fulfill({
     status: 200, contentType: 'application/json',
     headers: { 'Access-Control-Allow-Origin': '*' },
@@ -88,12 +88,11 @@ test('archiving a saved intervention (from the inline editor) moves it behind th
   await expect(page.locator('.intervention-editor')).toBeVisible();
   await page.locator('.editor-archive').click();
 
-  // closed → hidden from the default (open) view, revealed via the toggle
-  await expect(page.locator('.view-closed-toggle')).toBeVisible();
-  await expect(page.locator('.intervention-table')).not.toContainText('Alpha report');
-
-  await page.locator('.view-closed-toggle').click();
-  await expect(page.locator('.intervention-table')).toContainText('Alpha report');
+  // archived → gone from the list, with no toggle anywhere to bring it back. Northern's only
+  // row was Alpha, so the table is replaced by the per-district empty state.
+  await expect(page.locator('#interventions')).not.toContainText('Alpha report');
+  await expect(page.locator('.view-closed-toggle')).toHaveCount(0);
+  await expect(page.locator('.intervention-empty')).toBeVisible();
 });
 
 // Regression guard for the layout-shift fix (see plan-layout-shift.md). The districts block is

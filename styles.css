@@ -429,10 +429,10 @@ html.wa-dark .intervention-row:hover td {
 
 .intervention-cell--actions {
   min-width: 70px;
-  display: flex;
-  gap: .5rem;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
+  /* Stay a table-cell (no display:flex) so the cell stretches to the row height and its
+     bottom border sits on the shared row divider instead of floating up at content height. */
+  white-space: nowrap;
 }
 
 /* Status badges */
@@ -631,24 +631,6 @@ html.wa-dark .intervention-edit-row td {
 html.wa-dark .editor-archive:hover { background: #451a03; }
 html.wa-dark .editor-restore:hover { background: #1e3a5f; }
 html.wa-dark .editor-cancel:hover { background: rgba(255, 255, 255, .08); }
-
-/* View closed toggle */
-.view-closed-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .5rem;
-  margin-top: .75rem;
-  font-size: .82rem;
-  font-weight: 600;
-  color: var(--c-blue);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-.view-closed-toggle:hover {
-  text-decoration: underline;
-}
 
 /* Impact badges */
 .impact-badge {

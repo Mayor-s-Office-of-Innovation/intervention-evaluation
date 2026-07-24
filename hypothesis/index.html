@@ -74,6 +74,11 @@
             </wa-select>
           </div>
 
+          <!-- Start date (required; defaults to today) -->
+          <div class="wa-grid" style="--min-column-size: 14rem;">
+            <wa-input id="in-when" type="date" label="Start date" class="req-field" required></wa-input>
+          </div>
+
           <!-- Levers (expected change) — drives the whole live analysis -->
           <div class="wa-stack wa-gap-2xs">
             <wa-select id="in-expect" label="Levers — what do you expect to change?" class="req-field" multiple required></wa-select>
@@ -123,9 +128,8 @@
             <wa-option value="at_risk_on_hold">At risk · On hold</wa-option>
           </wa-select>
 
-          <!-- Dates -->
+          <!-- End date (Start date is a required field above; set the end when closing) -->
           <div class="wa-grid" style="--min-column-size: 14rem;">
-            <wa-input id="in-when" type="date" label="Start date"></wa-input>
             <wa-input id="in-end-date" type="date" label="End date" disabled
                       hint="Set when closing the intervention"></wa-input>
           </div>
