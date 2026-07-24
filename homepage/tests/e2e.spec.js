@@ -90,7 +90,7 @@ test('archiving a saved intervention (from the inline editor) removes it from th
 
   // archived → gone from the list, with no toggle anywhere to bring it back. Northern's only
   // row was Alpha, so the table is replaced by the per-district empty state.
-  await expect(page.locator('#interventions')).not.toContainText('Alpha report');
+  await expect(page.locator('.section-interventions')).not.toContainText('Alpha report');
   await expect(page.locator('.view-closed-toggle')).toHaveCount(0);
   await expect(page.locator('.intervention-empty')).toBeVisible();
 });
