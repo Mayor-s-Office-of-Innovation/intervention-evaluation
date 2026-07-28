@@ -27,7 +27,7 @@ const RECENT_SIGNALS = [
     key: 'encampment', dataset: 'vw6y-z8j6', dateCol: 'requested_datetime',
     where: "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
     geo: { kind: 'latlong', latCol: 'lat', lngCol: 'long' }, nameCol: 'address',
-    label: '311 encampment and unhoused reports', chip: 'Encampment',
+    label: '311 encampment and unhoused reports', chip: '311 encampment & unhoused',
   },
   {
     key: 'cfs_presence', dataset: '2zdj-bwza', dateCol: 'received_datetime',
@@ -265,7 +265,7 @@ function onChartBrush(lo, hi, committed) {
 }
 
 function buildChartSelector() {
-  const opts = [['aggregate', 'Aggregate'], ['encampment', 'Encampment'], ['cfs_presence', '911 unhoused calls']];
+  const opts = [['aggregate', 'Aggregate'], ['encampment', '311 encampment & unhoused'], ['cfs_presence', '911 unhoused calls']];
   $('#chart-selector').innerHTML = opts.map(([k, lab]) =>
     `<button class="seg ${focus === k ? 'is-active' : ''}" data-f="${k}">${lab}</button>`).join('');
   $('#chart-selector').querySelectorAll('.seg').forEach(b => b.onclick = () => setFocus(b.dataset.f));
@@ -408,7 +408,7 @@ async function renderMap() {
 // ── map signal toggle (encampment / 911) ──
 function buildMapControls() {
   $('#map-controls').innerHTML = `
-    <button class="seg ${mapSignal === 'encampment' ? 'is-active' : ''}" data-s="encampment">Encampment</button>
+    <button class="seg ${mapSignal === 'encampment' ? 'is-active' : ''}" data-s="encampment">311 encampment &amp; unhoused</button>
     <button class="seg ${mapSignal === 'cfs_presence' ? 'is-active' : ''}" data-s="cfs_presence">911 unhoused calls</button>`;
   $('#map-controls').querySelectorAll('.seg').forEach(b =>
     b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
