@@ -133,7 +133,7 @@ SIGNALS = {
     "dealer_arrests": _incident_agg(
         f"{_ARREST_GATE} AND {_DEALER_LIKE}",
         "Dealer arrests (SFPD)",
-        tier=1, axis="enforcement", goal="up", group="arrest_mix",
+        tier=1, axis="enforcement", goal="up", group="arrest_mix", weekly=True,
         caveat="Drug arrests narrowed to DEALING/distribution charges (possession-for-sale, sale, "
                "transport, manufacture, trafficking) — not possession or use. Counted as distinct "
                "incidents (one arrest, not one row per charge). Normally enforcement is context not a "

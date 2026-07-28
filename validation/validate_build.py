@@ -35,6 +35,18 @@ def month_seq_ok(months):
     return True
 
 
+def week_seq_ok(weeks):
+    """Contiguous Monday-start YYYY-MM-DD axis: each entry a valid date, consecutive 7 days apart."""
+    import datetime
+    if not all(re.fullmatch(r"\d{4}-\d{2}-\d{2}", w) for w in weeks):
+        return False
+    try:
+        ds = [datetime.date.fromisoformat(w) for w in weeks]
+    except ValueError:
+        return False
+    return all((b - a).days == 7 for a, b in zip(ds, ds[1:]))
+
+
 def check_aggregates(dash, errs):
     agg = load(dash, "aggregates.json")
     months = agg["months"]
@@ -44,6 +56,16 @@ def check_aggregates(dash, errs):
     for key in ("latest_complete_month", "current_partial_month", "latest_settled_month"):
         if key in agg and agg[key] not in months:
             errs.append(f"{dash}: aggregates.{key}={agg[key]} not in months")
+
+    # Weekly axis (homepage 2wk YoY chip) — present only on dashboards that baked series_weekly.
+    weeks = agg.get("weeks")
+    nw = len(weeks) if weeks else 0
+    if weeks is not None:
+        if not week_seq_ok(weeks):
+            errs.append(f"{dash}: aggregates.weeks is not a contiguous Monday-start YYYY-MM-DD sequence")
+        for key in ("latest_complete_week", "current_partial_week", "latest_settled_week"):
+            if agg.get(key) is not None and agg[key] not in weeks:
+                errs.append(f"{dash}: aggregates.{key}={agg[key]} not in weeks")
 
     target = set(agg.get("districts", []))
     for sk, sig in agg.get("signals", {}).items():
@@ -72,6 +94,30 @@ def check_aggregates(dash, errs):
                 if cw[i] + 1e-9 < dsum:
                     errs.append(f"{dash}/{sk}: citywide {cw[i]} < sum(target districts) {dsum} at {months[i]}")
                     break
+
+        # Weekly series (homepage 2wk chip) — same shape guards as the monthly series, keyed on weeks[].
+        # Without this the sibling would be silently unvalidated (like series_tod).
+        sw = sig.get("series_weekly")
+        if sw:
+            for dist, val in sw.items():
+                if isinstance(val, dict):   # theft: {reported:[...]} (reported-only)
+                    warrays = [(k, v) for k, v in val.items() if isinstance(v, list)]
+                else:
+                    warrays = [(None, val)]
+                for subkey, arr in warrays:
+                    label = f"{dist}.{subkey}" if subkey else dist
+                    if len(arr) != nw:
+                        errs.append(f"{dash}/{sk}: series_weekly[{label}] length {len(arr)} != weeks {nw}")
+                    if any((v is None or not isinstance(v, (int, float)) or v < 0) for v in arr):
+                        errs.append(f"{dash}/{sk}: series_weekly[{label}] has a negative/None/non-numeric value")
+            # Citywide≥sum per week only when a flat Citywide exists (skips theft's reported-only district shape)
+            if "Citywide" in sw and isinstance(sw["Citywide"], list) and target and not sig.get("citywide_only"):
+                cw = sw["Citywide"]
+                for i in range(nw):
+                    dsum = sum(sw[d][i] for d in target if d in sw and isinstance(sw[d], list))
+                    if cw[i] + 1e-9 < dsum:
+                        errs.append(f"{dash}/{sk}: weekly citywide {cw[i]} < sum(target districts) {dsum} at {weeks[i]}")
+                        break
     return agg
 
 

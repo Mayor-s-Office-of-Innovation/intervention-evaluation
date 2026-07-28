@@ -95,6 +95,51 @@ def month_axis(start_ym, end_ym):
     return months
 
 
+# ── weekly axis (homepage 2wk YoY chip; plan-2wk-chip) — Monday-start ISO dates. Theft reports SETTLE
+# (report-approval lag), so the 2wk chip anchors to `latest_settled_week`, not the calendar-latest. ──
+def week_start(iso):
+    d = datetime.date.fromisoformat(iso[:10])
+    return (d - datetime.timedelta(days=d.weekday())).isoformat()
+
+
+def week_axis(start, end):
+    w = start - datetime.timedelta(days=start.weekday())
+    weeks = []
+    while w <= end:
+        weeks.append(w.isoformat())
+        w += datetime.timedelta(days=7)
+    return weeks
+
+
+def settled_week(weeks, latest_settled_month):
+    """Last week whose week-end (start+6d) falls strictly before the month AFTER latest_settled_month —
+    anchoring the fortnight settle horizon to the same month buffer the 1mo/3mo cards trust."""
+    y, m = int(latest_settled_month[:4]), int(latest_settled_month[5:7])
+    cutoff = datetime.date(y + 1, 1, 1) if m == 12 else datetime.date(y, m + 1, 1)
+    result = None
+    for w in weeks:
+        if datetime.date.fromisoformat(w) + datetime.timedelta(days=6) < cutoff:
+            result = w
+        else:
+            break
+    return result
+
+
+def weekly_reported(where, district):
+    """{week_start_iso: n} of REPORTED incidents, bucketed to Monday weeks from daily counts.
+    KR cards never show weekly arrests, so this fetches `reported` only (skips the arrests query)."""
+    full = (f"({where}) AND police_district='{district}' AND resolution='{RES_REPORTED}' "
+            f"AND {DATE_COL} >= '{HISTORY_START}'")
+    rows = soql(
+        select=f"date_trunc_ymd({DATE_COL}) AS d, count(*) AS n",
+        where=full, group="d", order="d",
+    )
+    out = {}
+    for r in rows:
+        out[week_start(r["d"])] = out.get(week_start(r["d"]), 0) + int(r["n"])
+    return out
+
+
 def monthly_by_resolution(where, district):
     """{ym: {resolution: n}} for incidents matching `where` in the target district."""
     full = f"({where}) AND police_district='{district}' AND {DATE_COL} >= '{HISTORY_START}'"
@@ -140,6 +185,11 @@ if __name__ == "__main__":
     latest_complete = months[-2]                     # current month is partial
     latest_settled = months[-2 - SETTLE_LAG_MONTHS]  # + recent months still under-reporting
 
+    weeks = week_axis(datetime.date.fromisoformat(HISTORY_START[:10]), TODAY)
+    latest_settled_week = settled_week(weeks, latest_settled)
+    settle_lag_weeks = (weeks.index(weeks[-2]) - weeks.index(latest_settled_week)
+                        if latest_settled_week else None)
+
     def signal_query(where, district):
         return (f"SELECT date_trunc_ym({DATE_COL}) AS month, resolution, count(*) AS n "
                 f"WHERE ({where}) AND police_district='{district}' AND {DATE_COL} >= '{HISTORY_START}' "
@@ -154,6 +204,11 @@ if __name__ == "__main__":
         "latest_settled_month": latest_settled,
         "settle_lag_months": SETTLE_LAG_MONTHS,
         "current_partial_month": cur_ym,
+        "weeks": weeks,
+        "latest_complete_week": weeks[-2],
+        "current_partial_week": weeks[-1],
+        "latest_settled_week": latest_settled_week,
+        "settle_lag_weeks": settle_lag_weeks,
         "settling": reporting_lag(),
         "signals": {},
         "excluded": [{"code": e["code"], "reason": e["reason"]} for e in EXCLUDED],
@@ -169,7 +224,8 @@ if __name__ == "__main__":
         "latest_settled_month": latest_settled,
         "settle_note": (f"Headline uses the latest settled month ({latest_settled}); the {SETTLE_LAG_MONTHS} "
                         "most recent complete months are still accruing late-approved reports and are "
-                        "shown shaded on the charts."),
+                        "shown shaded on the charts. The homepage 2-week figure likewise reflects the latest "
+                        f"settled fortnight ({latest_settled_week}), which sits ~{SETTLE_LAG_MONTHS} months back."),
         "axes": {
             "reported": {"where": f"resolution = '{RES_REPORTED}'",
                          "why": "Incidents resolved 'Open or Active' are reports filed by a victim/merchant "
@@ -191,6 +247,7 @@ if __name__ == "__main__":
         node = {
             "label": sig["label"], "desc": sig["desc"],
             "series": {},
+            "series_weekly": {},
             "citywide": {"reported": city_reported},
         }
 
@@ -200,6 +257,9 @@ if __name__ == "__main__":
             reported = series(months, {ym: d.get(RES_REPORTED, 0) for ym, d in by_res.items()})
             arrests = series(months, {ym: d.get(RES_ARREST, 0) for ym, d in by_res.items()})
             node["series"][district] = {"reported": reported, "arrests": arrests}
+            # Weekly reported-only series for the homepage 2wk chip (mirrors monthly `reported` shape).
+            wk_reported = weekly_reported(sig["where"], district)
+            node["series_weekly"][district] = {"reported": [wk_reported.get(w, 0) for w in weeks]}
             print(f"    reported={sum(reported):,}  arrests={sum(arrests):,}")
 
         agg["signals"][key] = node

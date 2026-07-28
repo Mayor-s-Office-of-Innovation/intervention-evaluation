@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-27",
+  "generated": "2026-07-28",
   "dataset": "wg3w-h783",
   "domain": "data.sfgov.org",
   "districts": [
@@ -11,7 +11,7 @@
   "dataset_url": "https://data.sfgov.org/d/wg3w-h783",
   "history_start": "2021-01-01",
   "latest_settled_month": "2026-04",
-  "settle_note": "Headline uses the latest settled month (2026-04); the 2 most recent complete months are still accruing late-approved reports and are shown shaded on the charts.",
+  "settle_note": "Headline uses the latest settled month (2026-04); the 2 most recent complete months are still accruing late-approved reports and are shown shaded on the charts. The homepage 2-week figure likewise reflects the latest settled fortnight (2026-04-20), which sits ~2 months back.",
   "axes": {
     "reported": {
       "where": "resolution = 'Open or Active'",

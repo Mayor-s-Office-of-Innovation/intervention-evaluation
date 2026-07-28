@@ -43,6 +43,22 @@ def month_axis(start_ym, end_ym):
     return months
 
 
+# ── weekly axis (homepage 2wk YoY chip; plan-2wk-chip) — Monday-start ISO dates. Unhoused calls are
+# creation-stamped (no settle lag), so the 2wk chip's settled week == the latest complete week. ──
+def week_start(iso):
+    d = datetime.date.fromisoformat(iso[:10])
+    return (d - datetime.timedelta(days=d.weekday())).isoformat()
+
+
+def week_axis(start, end):
+    w = start - datetime.timedelta(days=start.weekday())
+    weeks = []
+    while w <= end:
+        weeks.append(w.isoformat())
+        w += datetime.timedelta(days=7)
+    return weeks
+
+
 def fetch_provenance_series(sig, where):
     """Citywide monthly count for a sub-filter, straight from Socrata (cheap aggregate)."""
     full = f"{where} AND {sig['date_col']} >= '{HISTORY_START}'"
@@ -69,23 +85,30 @@ def rollup(signal_key, agg, points_out, provenance):
     by_dist = {d: defaultdict(int) for d in TARGET_DISTRICTS}
     city_tod = {b: defaultdict(int) for b in BUCKETS}
     by_dist_tod = {d: {b: defaultdict(int) for b in BUCKETS} for d in TARGET_DISTRICTS}
+    # Weekly totals (homepage 2wk chip) — re-bucket the same cached events by Monday week, no tod.
+    wk_city = defaultdict(int)
+    wk_by_dist = {d: defaultdict(int) for d in TARGET_DISTRICTS}
     dist_idx = {d: i for i, d in enumerate(TARGET_DISTRICTS)}
     tod_code = {"day": 0, "night": 1}
     pts = []
     for r in records:
         ym = r["ym"]
         b = tod_bucket(r.get("hour"))
+        wk = week_start(r["date"])
         city[ym] += 1
         city_tod[b][ym] += 1
+        wk_city[wk] += 1
         d = r["district"]
         if d in by_dist:
             by_dist[d][ym] += 1
             by_dist_tod[d][b][ym] += 1
+            wk_by_dist[d][wk] += 1
             if r["lat"] is not None:
                 day = (datetime.date.fromisoformat(r["date"]) - EPOCH).days
                 pts.append([r["lat"], r["lng"], day, dist_idx[d], tod_code[b]])
 
     months = agg["months"]
+    weeks = agg["weeks"]
 
     def _ser(bd, ct):
         s = {DISTRICT_LABEL[d]: [bd[d].get(mo, 0) for mo in months] for d in TARGET_DISTRICTS}
@@ -94,6 +117,8 @@ def rollup(signal_key, agg, points_out, provenance):
 
     series = _ser(by_dist, city)
     series_tod = {b: _ser({d: by_dist_tod[d][b] for d in TARGET_DISTRICTS}, city_tod[b]) for b in BUCKETS}
+    series_weekly = {DISTRICT_LABEL[d]: [wk_by_dist[d].get(w, 0) for w in weeks] for d in TARGET_DISTRICTS}
+    series_weekly["Citywide"] = [wk_city.get(w, 0) for w in weeks]
 
     agg["signals"][signal_key] = {
         "label": sig["label"],
@@ -104,6 +129,7 @@ def rollup(signal_key, agg, points_out, provenance):
         "breaks": sig.get("breaks", []),
         "series": series,
         "series_tod": series_tod,
+        "series_weekly": series_weekly,
     }
     points_out[signal_key] = pts
 
@@ -178,12 +204,19 @@ if __name__ == "__main__":
     months = month_axis(HISTORY_START[:7], cur_ym)
     latest_complete = months[-2]  # current month is partial → previous is latest complete
 
+    # Weekly axis (homepage 2wk YoY chip). Unhoused is creation-stamped (no settle lag), so the 2wk
+    # chip's settled week == the latest complete week — no latest_settled_week pointer needed.
+    weeks = week_axis(datetime.date.fromisoformat(HISTORY_START[:10]), TODAY)
+
     agg = {
         "generated": TODAY.isoformat(),
         "epoch": EPOCH.isoformat(),
         "months": months,
         "latest_complete_month": latest_complete,
         "current_partial_month": cur_ym,
+        "weeks": weeks,
+        "latest_complete_week": weeks[-2],
+        "current_partial_week": weeks[-1],
         "districts": [DISTRICT_LABEL[d] for d in TARGET_DISTRICTS],
         # Map classification windows (D11/D12) — no settling buffer needed (D13).
         "lurie_inauguration": LURIE_INAUGURATION,

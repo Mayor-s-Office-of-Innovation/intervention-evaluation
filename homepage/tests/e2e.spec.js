@@ -49,6 +49,30 @@ test('landing page renders links to every dashboard without errors', async ({ pa
   expect(errors).toEqual([]);
 });
 
+test('KR tickers show three YoY change chips (2wk / 1mo / 3mo) on baked cards', async ({ page }) => {
+  // Stub the live emerging-signal counts (wg3w-h783) so the district KR3 badges resolve hermetically
+  // and any console error left is a real baked-path fault (undefined series_weekly/weeks access).
+  await page.route('**/wg3w-h783.json*', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify([{ count: '7' }]),
+  }));
+
+  await page.goto('/index.html');
+  await expect(page.locator('.district-tab')).toHaveCount(4);
+
+  // The header row exposes exactly the three timeframe columns, in fresh→stale order.
+  const cols = await page.locator('.kr-ticker--header').first().locator('.kr-ticker__col').allTextContents();
+  expect(cols.map(c => c.trim())).toEqual(['2wk', '1mo', '3mo']);
+
+  // A baked KR row (drug "911 drug complaints" reads the local aggregates.json) renders three badges.
+  const row = page.locator('.kr-ticker', { hasText: '911 drug complaints' }).first();
+  await expect(row.locator('.kr-ticker__badge')).toHaveCount(3);
+
+  // No undefined series_weekly/weeks access anywhere during render.
+  expect(errors).toEqual([]);
+});
+
 test('the Interventions table lists saved interventions per district', async ({ page }) => {
   await page.goto('/index.html');
   await expect(page.locator('.district-tab')).toHaveCount(4);

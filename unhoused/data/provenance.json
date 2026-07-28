@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-27",
+  "generated": "2026-07-28",
   "districts_geojson": "qgnn-b9vv",
   "history_start": "2023-01-01",
   "note": "Each signal (and each component of a combined one) lists its dataset and a runnable Socrata query so every number on the page ties back to source data (plan D7).",
@@ -65,7 +65,7 @@
           "2026-04": 3042,
           "2026-05": 3489,
           "2026-06": 3370,
-          "2026-07": 2873
+          "2026-07": 2988
         },
         "rerouted": {
           "2024-06": 34,
@@ -93,7 +93,7 @@
           "2026-04": 2477,
           "2026-05": 2978,
           "2026-06": 2583,
-          "2026-07": 2150
+          "2026-07": 2235
         },
         "union": {
           "2023-01": 2386,

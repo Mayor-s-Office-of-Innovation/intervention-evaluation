@@ -96,7 +96,7 @@ a { color: var(--c-blue); }
 .okr-card__eyebrow { text-transform: uppercase; letter-spacing: .08em; font-size: .68rem; font-weight: 600; color: var(--c-blue); }
 .okr-card__title { margin: .3rem 0 .65rem; font-size: 1.2rem; font-weight: 700; color: var(--text); line-height: 1.25; }
 
-/* KR tickers - up/down badges per key result with 1mo/3mo timeframes */
+/* KR tickers - up/down badges per key result with 2wk/1mo/3mo YoY timeframes */
 .kr-tickers {
   display: flex;
   flex-direction: column;
@@ -111,6 +111,13 @@ a { color: var(--c-blue); }
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--c-gray);
+}
+/* the 2wk header links down to the settled-period explanation in the methodology */
+.kr-ticker__col--link {
+  color: var(--c-blue);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
 }
 .kr-ticker {
   display: flex;
