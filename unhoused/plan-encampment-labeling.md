@@ -89,4 +89,4 @@ Per user, all hypothesis-tool work is held for a later, separate effort. Capture
 1. unhoused relabel (#1) + breakdown (#2) — settles the colleague's objection.
 2. Footnote + ⓘ (#3), toggle reframe (#4).
 3. Rebuild for corrected break copy (#5) + aggregate caveat (#6).
-4. Cross-surface pass (homepage, hypothesis bug, districts) — pending scope decision.
+4. Cross-surface pass (homepage, districts) — pending scope decision. Hypothesis tool deferred (see ⏸ section).

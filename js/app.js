@@ -256,7 +256,7 @@ function renderKRTicker(okr, district) {
     <div class="kr-ticker kr-ticker--header" aria-hidden="true">
       <span class="kr-ticker__label"></span>
       <span class="kr-ticker__badges">
-        <a class="kr-ticker__col kr-ticker__col--link" href="#home-methodology" title="Why the 2-week figure uses the latest settled fortnight">2wk</a>
+        <span class="kr-ticker__col kr-ticker__col--link" title="Why the 2-week figure uses the latest settled fortnight — see methodology below">2wk</span>
         <span class="kr-ticker__col">1mo</span>
         <span class="kr-ticker__col">3mo</span>
       </span>
