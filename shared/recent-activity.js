@@ -2,7 +2,7 @@
 // "Where reports are appearing recently" — an EVERGREEN, district-scoped
 // operational view, separate from the baked hot/cold (difference-in-differences)
 // map. Shows WHERE reports are (clickable hexbin density map) and WHEN
-// (hour-of-day bar strip that also brushes the map). See plan-recent-activity-map.md.
+// (hour-of-day bar strip that also brushes the map). See docs/plan-recent-activity-map.md.
 //
 // Data: queried LIVE from DataSF (Socrata), no backend/key (same pattern as the
 // hypothesis tool). Per signal, two small queries: (1) max(dateCol) → anchor, then

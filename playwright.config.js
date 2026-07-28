@@ -8,7 +8,7 @@ import { defineConfig } from '@playwright/test';
 //
 // Serial (workers:1, fullyParallel:false): the suites share one server and hypothesis hits the live
 // Socrata API, so running them one at a time removes the port/API contention that made the old
-// per-config chained run flaky. See plan-test-harness-consolidation.md.
+// per-config chained run flaky. See docs/plan-test-harness-consolidation.md.
 const BASE = 'http://localhost:8090';
 
 export default defineConfig({

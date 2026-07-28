@@ -87,7 +87,7 @@ let markerKey = null, markerData = null, markerLoader = null, markerLoading = fa
 // queued to re-open on a shared-link load, and the callback that mirrors map state into the URL.
 let selectedCellId = null, pendingCellId = null, onState = null;
 // Cross-street search: cellId→marker registry (to open a rendered hotspot's popup), the temporary
-// result pin, and a cached intersection index (rebuilt when the signal/cells change). See plan-cross-street-search.md.
+// result pin, and a cached intersection index (rebuilt when the signal/cells change). See docs/plan-cross-street-search.md.
 const cellMarkers = new Map();
 let searchMarker = null, intersectionIndex = null, intersectionIndexKey = null;
 

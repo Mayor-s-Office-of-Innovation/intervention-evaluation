@@ -3,7 +3,7 @@
 // wiring lives in ONE place (the two app.js files only call in). Covers:
 //   • the Combined | Day-vs-night split-view toggle (Change #2)
 // The docked detail panel + panel-scoped hour slider (Changes #3/#1) are added here too.
-// See plan-hotspots-enhancements.md.
+// See docs/plan-hotspots-enhancements.md.
 // ──────────────────────────────────────────────────────────────────────
 import { setSplitView, getSplitView, searchIntersections, focusCellById, showSearchResult, clearSearchResult } from './transition-map.js';
 import { wireSearch as wireSearchBox } from './cross-street-search.js';

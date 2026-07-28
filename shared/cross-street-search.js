@@ -15,7 +15,7 @@
 //
 // This module is Leaflet-free — the map action (pan / drop pin / open popup) lives
 // in each caller's onSearch, so cross-street-search.js can be imported anywhere.
-// See plan-cross-street-search-expansion.md (Workstream E).
+// See docs/plan-cross-street-search-expansion.md (Workstream E).
 // ──────────────────────────────────────────────────────────────────────
 
 // Street-type words dropped when tokenizing an intersection, so "16th & Mission" ≡ "16TH ST / MISSION ST".
