@@ -24,7 +24,7 @@ const OKR_DEFS = {
     eyebrow: 'Unhoused presence',
     dataPath: './unhoused/data/aggregates.json',
     krs: [
-      { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+      { signal: 'encampment', label: '311 encampment & unhoused reports', goal: 'down' },
       { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
     ]
   },
@@ -80,7 +80,7 @@ const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Incon
 const KR_TO_OKR = {
   '911 drug complaints': 'drug',
   'Dealer arrests': 'drug',
-  'Encampment reports': 'unhoused',
+  '311 encampment & unhoused reports': 'unhoused',
   '911 unhoused calls': 'unhoused',
   'Shoplifting': 'theft',
   'Commercial burglary & robbery': 'theft',
@@ -256,7 +256,7 @@ function renderKRTicker(okr, district) {
     <div class="kr-ticker kr-ticker--header" aria-hidden="true">
       <span class="kr-ticker__label"></span>
       <span class="kr-ticker__badges">
-        <span class="kr-ticker__col kr-ticker__col--link" title="Why the 2-week figure uses the latest settled fortnight — see methodology below">2wk</span>
+        <span class="kr-ticker__col" title="2 weeks vs. the same fortnight last year (latest settled period — see methodology below)">2wk</span>
         <span class="kr-ticker__col">1mo</span>
         <span class="kr-ticker__col">3mo</span>
       </span>

@@ -69,7 +69,7 @@ def _311(where):
 
 
 SIGNALS = {
-    # ── TIER 1 · headline (standalone): the core union across the June-2025 reroute ──
+    # ── TIER 1 · headline (standalone): the core union across the mid-2025 encampment/unhoused split ──
     "encampment": {
         **_311(
             "(service_name IN ('Encampment','Encampments') "
@@ -84,11 +84,15 @@ SIGNALS = {
             ("agency_responsible", "Handled by"),
             ("source", "Reported via"),
         ],
-        "label": "Encampment & homelessness reports",
+        "label": "311 encampment and unhoused reports",
         "tier": 1,
-        "caveat": "The critical standalone presence metric. Unions the dedicated 311 'Encampment' "
-                  "category with the homelessness service-requests it was rerouted into in June 2025, so "
-                  "the trend stays continuous.",
+        "caveat": "Community 311 reports of unhoused presence. In mid-2025 SF's DEM+311 deliberately SPLIT "
+                  "the single 'Encampment' request into (a) encampments (tents/structures/many large items) "
+                  "and (b) unhoused-individual concerns (a person, or a person with a few small items). "
+                  "Before the split both were filed as 'Encampment' and can't be separated, so this headline "
+                  "unions both report types (deduped) to keep the trend continuous across the change. Read it "
+                  "as combined report volume, not confirmed encampments; use the 'Encampment only' sub-view "
+                  "for the tents/structures signal (cleaner from July 2025 on).",
         # D7: combined signal → expose each part's filter so the union is auditable.
         "provenance_parts": {
             "encampment_only": "service_name IN ('Encampment','Encampments')",
@@ -97,35 +101,40 @@ SIGNALS = {
         "dedup_note": "Deduped on service_request_id across both parts of the union.",
         "breaks": [{
             "month": "2025-06",
-            "label": "Encampment category folded into homelessness requests",
+            "label": "311 split encampment vs. unhoused-individual reports",
             "detail": (
-                "Around June 2025 SF retired the dedicated 311 'Encampment' service category and began "
-                "routing these reports to 'General Request' / homelessness_and_supportive_housing. This "
-                "series unions both so the trend stays continuous, but the pre/post categories are not "
-                "perfectly equivalent (pre = tent/structure sightings; post = broader homelessness service "
-                "requests). Read counts straddling this date with that in mind, not as a real-world change."
+                "In mid-2025 (live late June/July) SF's DEM+311 deliberately split the single 'Encampment' "
+                "request into encampments (tents/structures/many large items) and unhoused-individual "
+                "concerns (a person, or a person with a few small items), which now file under 'General "
+                "Request' / homelessness_and_supportive_housing. This series unions both so the trend stays "
+                "continuous, but pre-split everything was 'Encampment' — so counts straddling this date "
+                "reflect a reporting-quality change, not a real-world jump. The individual bucket's rise also "
+                "exceeds the encampment dip, so the union rose across the boundary."
             ),
         }],
     },
 
-    # ── TIER 1 · sub-view: the dedicated Encampment category on its own (exposes the reroute) ──
+    # ── TIER 1 · sub-view: the dedicated Encampment category on its own (tents/structures) ──
     "encampment_only": {
         **_311("service_name IN ('Encampment','Encampments')"),
-        "label": "Encampment category only (311)",
+        "label": "Encampment only (tents/structures)",
         "tier": 1,
         "subview_of": "encampment",
-        "caveat": "A sub-view of 'Encampment & homelessness reports' showing only the dedicated 311 "
-                  "'Encampment' category. SF largely retired this category in June 2025 and rerouted "
-                  "reports into a homelessness service-request category, so counts drop sharply after "
-                  "mid-2025 for reporting reasons, NOT because encampments fell. Use the headline union "
-                  "for a continuous trend; use this to see the original category alone.",
+        "caveat": "A sub-view of '311 encampment and unhoused reports' showing only the dedicated 311 "
+                  "'Encampment' category (tents, structures, tarps, mattresses, many large items). After the "
+                  "mid-2025 split, lone-individual concerns were separated out of this category, so from July "
+                  "2025 on this is a CLEANER count of actual encampments — but the step down at mid-2025 is "
+                  "that reporting refinement, not a real-world drop. Pre-split months still include "
+                  "individuals. Use the headline union for a continuous cross-2025 trend.",
         "breaks": [{
             "month": "2025-06",
-            "label": "category retired → reports rerouted out",
+            "label": "individuals split out → cleaner encampment count",
             "detail": (
-                "This view counts only the dedicated 'Encampment' category, which SF largely stopped using "
-                "around June 2025 — reports moved to 'General Request' / homelessness_and_supportive_housing. "
-                "The drop after this date is that reporting change, not fewer encampments."
+                "This view counts only the dedicated 'Encampment' category. In mid-2025 SF split lone "
+                "unhoused-individual concerns out of it (into 'General Request' / "
+                "homelessness_and_supportive_housing), so it steps down here for a reporting reason, not "
+                "because encampments fell. From July 2025 on it's a cleaner tents/structures count; earlier "
+                "months still bundle individuals in."
             ),
         }],
     },

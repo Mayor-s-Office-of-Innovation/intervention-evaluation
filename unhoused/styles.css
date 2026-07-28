@@ -93,6 +93,25 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .panel__title { margin: 0; font-size: 1.02rem; font-weight: 650; }
 .subview-toggle { display: inline-flex; align-items: center; gap: .45rem; font-size: .82rem; color: var(--muted); margin-bottom: .6rem; }
 
+/* Combined-headline decomposition + "why combined" footnote */
+.enc-breakdown { margin: .1rem 0 .25rem; }
+.enc-breakdown__line { margin: 0; font-size: .9rem; color: var(--text); display: flex; align-items: baseline; gap: .5rem; flex-wrap: wrap; }
+.enc-breakdown__sub { color: var(--muted); font-weight: 400; }
+.enc-why { border: 1px solid var(--c-line); background: var(--surface); color: var(--muted);
+  font: inherit; font-size: .78rem; padding: .12rem .5rem; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.enc-why:hover { color: var(--text); border-color: var(--muted); }
+.enc-why:focus-visible { outline: 2px solid var(--c-red); outline-offset: 2px; }
+.enc-footnote { margin: .55rem 0 0; padding: .85rem 1rem; background: var(--surface);
+  border: 1px solid var(--c-line); border-left: 4px solid var(--c-red); border-radius: var(--radius);
+  font-size: .85rem; color: var(--text); max-width: 82ch; }
+.enc-footnote h3 { margin: 0 0 .5rem; font-size: .9rem; }
+.enc-footnote p { margin: .4rem 0; }
+.enc-footnote ul { margin: .35rem 0; padding-left: 1.2rem; }
+.enc-footnote li { margin: .2rem 0; }
+.enc-footnote code { font-size: .82em; background: var(--bg); border: 1px solid var(--c-line);
+  border-radius: 4px; padding: .05rem .3rem; }
+.enc-footnote__foot { color: var(--muted); font-size: .8rem; }
+
 .verdict { font-weight: 700; font-size: .82rem; padding: .3rem .65rem; border-radius: 999px; white-space: nowrap; align-self: flex-start; }
 .verdict-bad   { color: #fff; background: var(--c-red); }
 .verdict-good  { color: #fff; background: var(--c-green); }

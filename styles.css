@@ -112,13 +112,6 @@ a { color: var(--c-blue); }
   letter-spacing: .05em;
   color: var(--c-gray);
 }
-/* the 2wk header links down to the settled-period explanation in the methodology */
-.kr-ticker__col--link {
-  color: var(--c-blue);
-  text-decoration: underline dotted;
-  text-underline-offset: 2px;
-  cursor: help;
-}
 .kr-ticker {
   display: flex;
   align-items: center;
