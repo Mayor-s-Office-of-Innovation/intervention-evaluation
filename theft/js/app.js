@@ -200,10 +200,28 @@ function renderReportingNote(agg) {
     follows the de-noised <strong>12-month trend</strong>, not any one month.</p>`;
 }
 
+// Build the runnable footnote query links CLIENT-SIDE from the build-generated `filter`, so the
+// "run the query" link reproduces the district actually on screen (the baked provenance.query_url is
+// hard-coded to one district). These mirror theft/build/build.py exactly:
+//   signal_query()          → per-district reported+arrests (split by resolution)
+//   monthly_count_citywide()→ citywide denominator behind the "share of SF" tile
+const SODA = 'https://data.sfgov.org/resource/wg3w-h783.json';
+const HISTORY_START = '2021-01-01';   // build.py HISTORY_START
+const RES_REPORTED = 'Open or Active'; // build.py RES_REPORTED
+const queryUrl = soql => `${SODA}?${new URLSearchParams({ '$query': soql })}`;
+const districtQueryUrl = (filter, district) => queryUrl(
+  `SELECT date_trunc_ym(incident_date) AS month, resolution, count(*) AS n `
+  + `WHERE (${filter}) AND police_district='${district}' AND incident_date >= '${HISTORY_START}' `
+  + `GROUP BY month, resolution ORDER BY month`);
+const citywideQueryUrl = filter => queryUrl(
+  `SELECT date_trunc_ym(incident_date) AS month, count(*) AS n `
+  + `WHERE (${filter}) AND resolution='${RES_REPORTED}' AND incident_date >= '${HISTORY_START}' `
+  + `GROUP BY month ORDER BY month`);
+
 function renderFootnotes(prov) {
   const host = document.getElementById('footnotes');
   if (!host || !prov) return;
-  const link = url => `<a href="${url}" target="_blank" rel="noopener">run the exact query ↗</a>`;
+  const link = (url, text = 'run the exact query ↗') => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
   const code = s => `<code class="fn-filter">${s}</code>`;
   const items = [];
 
@@ -211,8 +229,15 @@ function renderFootnotes(prov) {
     const s = prov.signals[key];
     if (!s) continue;
     items.push({ id: `fn-${key}`, title: s.label,
-      body: `${s.why} <span class="fn-meta">Filter: ${code(s.filter)} · ${link(s.query_url)}</span>` });
+      body: `${s.why} <span class="fn-meta">Filter: ${code(s.filter)} · `
+          + `${link(districtQueryUrl(s.filter, active), `run the ${active} query ↗`)} · `
+          + `${link(citywideQueryUrl(s.filter), 'citywide denominator ↗')}</span>` });
   }
+  items.push({ id: 'fn-sf-context', title: 'In SF context — citywide trend & share',
+    body: `The “Citywide 12-mo trend” and “${active} share of SF” compare this district against all of SF. `
+        + `The citywide denominator drops the district filter and counts reported incidents `
+        + `(<code class="fn-filter">resolution='${RES_REPORTED}'</code>) — the “citywide denominator ↗” link on each `
+        + `signal above runs it.` });
   for (const e of prov.excluded || []) {
     items.push({ id: 'fn-excluded', title: `Excluded — ${e.code}`,
       body: `${e.why} <span class="fn-meta">Filter: ${code(e.where)} · ${link(e.query_url)}</span>` });

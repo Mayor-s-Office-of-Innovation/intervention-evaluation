@@ -482,12 +482,13 @@ function renderMethodology() {
     <h3>Removed entirely — needle / syringe reports</h3>
     <ul class="meth-list meth-list--out">
       <li><strong>Needle / syringe 311 reports</strong> — deliberately <strong>not shown</strong>. They look
-        like a clean “drugs are down” story (citywide ${q(s.needles?.query_url || '#')} ≈ −18% year-over-year,
+        like a clean “drugs are down” story (citywide ${q(s.needles?.query_url || '#')} ≈ −19% year-over-year,
         and ~4× lower than 2018), but that fall is the shift from <em>injecting</em> to <em>smoking</em>
-        fentanyl, not less drug use — so trending it would mislead. We checked whether any single district
-        bucked the trend (which would have been worth showing): none do — Northern −26%, Central −15%,
-        Tenderloin −17%, Mission −2%, all flat-to-down. With no district-level signal and a high risk of
-        misreading, we leave needles out rather than caveat a misleading chart.
+        fentanyl, not less drug use — so trending it would mislead. We also checked whether the fall was
+        uniform or concentrated: it is broad and flat-to-down, with no district bucking it upward.
+        (311 needle reports carry no reliable police district, so this is a <strong>citywide</strong> read —
+        the linked query has no per-district breakdown.) With no trustworthy district-level signal and a high
+        risk of misreading, we leave needles out rather than caveat a misleading chart.
         <br><small>SF 311 Cases (<code>vw6y-z8j6</code>)${s.needles ? ` · ${q(s.needles.query_url)}` : ''}</small></li>
     </ul>
 
@@ -496,7 +497,8 @@ function renderMethodology() {
       reflexivity trap). It uses the same method as the
       <a href="../unhoused/" target="_blank" rel="noopener">unhoused dashboard</a> — a
       <strong>difference-in-differences</strong> on the fixed <strong>Lurie-inauguration split (Jan 2025)</strong>:
-      each ~block (≈110 m) is scored by its rate in the <strong>last 3 complete months</strong> versus its
+      each ~block (≈110 m) is scored by its rate over the <strong>time window selected on the chart above</strong>
+      (by default, since Lurie’s inauguration) versus its
       <strong>2023–24 (pre-Lurie) baseline</strong>, then <em>normalized against how its whole district moved</em>
       over the same span (the district “tide”). So a block is judged on whether it out- or under-ran its
       district, not on raw counts — which absorbs citywide growth, seasonality, and reporting changes.</p>

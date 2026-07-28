@@ -4,16 +4,50 @@ A bundled pass. The headline feature (Workstream E) extends the offline cross-st
 three more maps, but since the data is ~4+ weeks stale we're wedging in a full refresh-and-harden
 first so everything published is current and accurate.
 
+## ⏸ RESUME POINT (last updated end-of-Workstream-C-fixes, 2026-07-27)
+
+**Order being executed:** A ✅ → D ✅ → C ✅ (incl. C-validate) → **E → G → B → F**. User runs git himself; everything lands in ONE PR on branch `refresh-data-plus-search-intersections`.
+
+**Ordering change (2026-07-27):** B (dashboard-review pass) moved to **after E & G** — review everything once, after all the building is done, rather than re-auditing after each change.
+
+**All 5 C-fixes + Tier-2 links are now COMPLETE (uncommitted):**
+- drug #1/#2/#3 — `drug/js/app.js` (hotspot window wording, needle per-district removed, −18%→−19%).
+- theft #4 + citywide — `theft/js/app.js` `renderFootnotes` (per-district + citywide links, client-side; verified live).
+- homepage #5 — `js/app.js` `fetchEmergingSignal`/`getKRData` (real 1-mo change, no longer == 3-mo).
+- Tier-2 recent-activity link — `shared/recent-activity.js` `redraw()` (dataset id + runnable query; covers drug+unhoused).
+- Tier-2 homepage methodology — NEW `renderMethodology()` in `js/app.js` + `<div id="home-methodology">` in `index.html` footer; renders a `<details>` "Sources & method" listing the 3 emerging signals (fraud/dog_bites/street_robbery) per district with runnable monthly-series links, built from `EMERGING_SIGNALS`+`DISTRICT_KR3` so links always match what's fetched. No new CSS (inherits footer; centralize in Workstream E if desired).
+- Theft "for Northern" wording (`theft/index.html` ~L83) — reworded to "spot-checked in Northern: ~99% consistent with point-in-polygon" so it reads as a validation spot-check, not a Northern-only method. (was plan REMAINING item 1)
+
+**Done & verified:**
+- **A** — data refresh (drug/unhoused/theft through 2026-07); trace 0.00% drift; committed by user.
+- **D** — README rewritten (intro + "Built with" links to web-dev & dashboard-review skills; stale last line dropped). Uncommitted.
+- **C-verify** — all 5 Tier-1 footnote defects independently confirmed in code. NOTE: the drug audit agent's line numbers were wrong — drug methodology text is **JS-rendered in `drug/js/app.js`**, not `index.html`.
+- **C-fix drug #1/#2/#3** (`drug/js/app.js`): `#1` hotspot wording "last 3 complete months" → "time window selected on the chart above (by default, since Lurie's inauguration)" (~L499). `#2` removed unreproducible per-district needle %s → qualitative citywide statement + "311 has no reliable police district" note (~L485-491). `#3` "−18%" → "−19%" to match provenance/signals (~L485).
+- **C-fix theft #4 + Tier-2 citywide** (`theft/js/app.js` `renderFootnotes`): query links now built CLIENT-SIDE from build-generated `filter`, keyed to `active` district (`districtQueryUrl`/`citywideQueryUrl` mirror `build.py` exactly — no re-pull). Added "In SF context" footnote. **Verified live**: Mission + citywide links return data. `build.py` left as-is (its baked Northern-only `query_url` is now vestigial for signals).
+
+**C-validate — DONE ✅ (2026-07-27), all green except one pre-existing test deferred:**
+- `validate_build.py` ✓ (districts/drug/theft/unhoused invariants hold) · `parity.mjs drug|unhoused` ✓ (exact + fuzzed) · `trace.py drug|unhoused` ✓ (every signal 0.00% drift).
+- e2e per-dashboard (run ISOLATED — see gotcha below): homepage 3✓/1 skipped · drug 9✓ · unhoused 12✓ · theft 7✓ (incl. "runnable query links" — validates the C footnote work).
+
+**⏭ NEXT ACTION when resuming: Workstream E** (cross-street search expansion — the original ask). Then G (2wk chip — **decisions locked & revised 2026-07-27**: weekly build series for ALL baked signals, YoY basis, 2wk on EVERY card, and **all chips (2wk/1mo/3mo) switch to each dashboard's latest _settled_ endpoint** — fixes a latent complete-vs-settled mismatch, shifts theft ~2mo / drug ~1mo; see Workstream G §DECISIONS LOCKED), then B (dashboard-review pass over everything), then F (docs move).
+
+**Two findings parked for a debug follow-up (NOT caused by C — verified):**
+1. **Pre-existing CLS regression** — `homepage/tests/e2e.spec.js` "tool cards do not shift…" fails a deterministic **21px** (reserved `.section-interventions` min-height no longer absorbs the first saved row). **Confirmed pre-existing**: fails identically with ALL branch work `git stash`ed, so it predates the Workstream C pass. Marked `test.fixme(...)` with a FIXME comment (not deleted) to unblock the branch. Debug: recheck reservation vs actual row height; compare to `main`.
+2. **`npm run test:all` server contention** — the chained `&&` run spins a fresh http-server (port 8090) per config without tearing down the previous one; back-to-back configs then hit `page.goto` timeouts (unhoused showed 7 spurious fails in the chain, **all 12 pass in isolation**). Workaround: `pkill -f http-server` between configs, or run per-dashboard (`test:drug`/`test:unhoused`/etc.). Real fix (later): teardown/port handling in the configs or the `test:all` script.
+
+*(Prior REMAINING items 1–4 — theft "for Northern" wording, homepage #5 1-mo badge, recent-activity link, homepage methodology — all DONE; see the "All 5 C-fixes + Tier-2 links are now COMPLETE" list above.)*
+
 ## Bundled workstreams (recommended order)
 
 | # | Workstream | Why | Depends on |
 |---|---|---|---|
 | A | **Refresh pre-computed data** from latest Socrata pulls | ~4+ wks stale; do first so reviews run against current numbers | — |
-| B | **Dashboard-review skill pass** on each dashboard | Re-audit accuracy/sources/tone after refresh | A |
+| B | **Dashboard-review skill pass** on each dashboard | Accuracy/sources/tone audit — **run last, after E & G** so it reviews the final built state in one pass | A, E, G |
 | C | **Footnote audit** — every major chart has an accurate source footnote | Provenance is a core project promise | A (numbers), overlaps B |
 | D | **README review** — good intro + link the skills used | Front door of the repo; currently ends on a stale plan ref | — (independent) |
 | E | **Expand cross-street search** to picker + both hexbin maps | The original ask | — (independent) |
 | F | **Move root-level plan docs into `docs/`** | Tidy the repo root; a `docs/` convention already exists | — (independent) |
+| G | **Add a "2-week" interval chip** to homepage OKR KR tickers (beside 1mo/3mo) | New ask (2026-07-27); shorter-horizon read | E; **decisions locked/revised** (weekly build series for all baked signals · YoY · 2wk on every card · all chips → latest _settled_ endpoint, labeled + footnoted) |
 
 A → B/C run in sequence (refresh, then audit the refreshed output). D and E are independent and
 can happen anytime. Per the house rule, **stop-and-report on any validation mismatch** during A
@@ -222,3 +256,94 @@ stylesheet (or a shared `<style>` the modules already rely on) rather than a thi
 3. **Centralize the search CSS.** Move `.map-search-*` / `.search-marker*` into one shared
    stylesheet as part of Step 0, before adding the two new consumers (removes the existing
    drug/unhoused duplication too).
+
+---
+
+## Workstream G — add a "2-week" interval chip to the homepage OKR KR tickers
+
+**Ask (2026-07-27):** the homepage district OKR cards show each KR as a ticker row with **two**
+change chips — **1mo** and **3mo**. Add a **2-week** chip alongside them.
+
+### Where it lives
+- Ticker render: `renderKRTicker()` — `js/app.js:196`. Header row labels the columns `1mo` / `3mo`
+  (`js/app.js:218-219`); each KR row emits two `renderChangeBadge(...)` calls (`:207-208`).
+- Badge: `renderChangeBadge(change, goal, label)` — `js/app.js:184` (null → sized `—` slot).
+- Data, **two paths**:
+  - **Baked signals** (`cfs_drug`, `dealer_arrests`, `encampment`, `cfs_homeless`, `shoplifting`,
+    `commercial`): `getKRData()` reads a **MONTHLY** series from each dashboard's `aggregates.json`
+    and derives 1mo/3mo by month index (`js/app.js:167-179`). **No sub-monthly granularity exists.**
+  - **Live emerging signals** (`fraud`, `dog_bites`, `street_robbery`): `fetchEmergingSignal()`
+    computes windows live from Socrata `wg3w-h783` over arbitrary date ranges (`js/app.js:667-709`).
+
+### The core problem — 2wk is not derivable from the baked monthly data
+A 2-week change is one extra window pair for the **live** emerging signals, but **cannot** be computed
+from the baked **monthly** series. Uniformly adding a 2wk chip forces a data-source choice:
+
+| Opt | Approach | Cost / risk |
+|---|---|---|
+| **A** | Live-fetch 2wk for **all** homepage KRs (baked + emerging) straight from each signal's Socrata source in-browser | Uniform, no build change — but the homepage must know every baked signal's raw filter (today only the dashboards do → duplicate or share them), adds live fetches, and makes a headline chip depend on live Socrata. Fill async like emerging already does. |
+| **B** | Add a **weekly** series (or a small trailing-weeks block) to each build so `getKRData` computes 2wk offline like 1mo/3mo | Keeps homepage offline-first + consistent — but touches all 3 build pipelines + `provenance.json` + `trace.py`, and weekly settling/lag is messier than monthly. |
+| **C** | 2wk chip **only** on the live emerging signals; baked rows show 1mo/3mo (2wk = `—`) | Cheapest — but ragged columns across rows; reads as missing data. |
+
+### Two decisions that are independent of A/B/C
+1. **Comparison basis.** Existing chips are **YoY** (vs the same period last year) to control seasonality.
+   A 2-week YoY delta is **very noisy** (small n, day-of-week + holiday effects). Choose: (i) keep YoY
+   (2wk vs same 2wk last year) for consistency + add a volatility caveat; (ii) 2wk vs **prior** 2wk
+   (responsive momentum, but seasonal); (iii) reconsider whether 2wk is meaningful at these volumes.
+2. **Reporting-lag caveat (strongest objection).** The dashboards deliberately evaluate the latest
+   **settled** month because police/CFS reports fill in for weeks. A 2-week window sits **inside the
+   unsettled zone**, so a 2wk "drop" is likely a reporting artifact, not a real move — especially for
+   theft/CFS. If we ship 2wk we must surface this, or exclude the lag-heavy signals.
+
+### ✅ DECISIONS LOCKED (2026-07-27, revised same day)
+1. **Data source → Weekly build series (B), for ALL baked signals.** Compute 2wk offline from a new
+   weekly (or daily→weekly) array baked into **all three** pipelines (drug: `cfs_drug`, `dealer_arrests`;
+   unhoused: `encampment`, `cfs_homeless`; theft: `shoplifting`, `commercial`), with enough history to
+   reach the same-2-weeks window a year back. Emerging live signals (`fraud`/`dog_bites`/`street_robbery`)
+   compute their 2wk window live in `fetchEmergingSignal`.
+2. **Comparison basis → YoY for all chips, incl. the new 2wk** (2wk = last 2 weeks vs the same 2 weeks
+   last year). Keeps seasonality control + consistency. **Also fix the discoverability gap** the user hit
+   (they didn't know the chips were YoY): explicit "vs same period last year" label — header/tooltip on
+   each column **and** a line in the homepage "Sources & method" block (`renderMethodology()`).
+3. **Reporting lag → 2wk EVERYWHERE, on the last _settled_ window, clearly labeled** (revises the earlier
+   "exclude lag-heavy" call). Instead of dropping the `wg3w-h783` signals, shift the 2wk window back to the
+   last *settled* period so it isn't built on still-filling data. No signals excluded.
+4. **NEW — endpoint consistency: ALL chips (2wk/1mo/3mo) use each dashboard's latest _settled_ endpoint,
+   clearly labeled.** This fixes a latent mismatch found 2026-07-27: the homepage chips today use latest
+   **complete** month (`getKRData` `endIdx = hasPartial ? len-1 : len`, `js/app.js:168-169`), NOT settled —
+   so the theft 1mo chip shows Jun-2026 while the theft dashboard headlines settled Apr-2026 (lag 2).
+   Switching to settled aligns the homepage with each dashboard's own headline.
+   **⚠️ Visible change:** existing 1mo/3mo numbers shift back by each dashboard's settle lag — theft ~2
+   months, drug ~1 month, unhoused unchanged (no lag; 311/CFS is real-time). Reviewers will notice; call
+   it out in the PR.
+
+### Implementation (decisions locked — ready when its turn comes, after E)
+- **Builds (all 3):** bake a weekly/daily count series for every baked signal, **plus a settled-cutoff
+  date** (derive from the existing settle stats — theft already computes `median_days`/`within_30_pct`/
+  `p90_days`; drug/theft have `settle_lag_months`, unhoused has none → cutoff = latest complete). The
+  "last settled 2-week window" = the trailing 14 days ending at that cutoff. Update `provenance.json` +
+  `trace.py` for the new series (0.00% drift bar still applies).
+- **`getKRData`:** switch `endIdx` from latest-complete to the **latest-settled** index
+  (`data.latest_settled_month` when present, else `latest_complete_month`) — this alone shifts 1mo/3mo.
+  Add `change2wk` from the new weekly series against the settled cutoff.
+- **`fetchEmergingSignal`:** shift its window endpoints back by the `wg3w-h783` settle lag (so emerging
+  1mo/3mo match the new settled basis) and add the settled 2wk window.
+- **`renderKRTicker`:** add a `2wk` column for **all** cards (`:218` header + a third `renderChangeBadge`
+  at `:207`). Every row now has 2wk, so no ragged/omitted columns.
+- **Labels + footnote (user spec, 2026-07-27):** each OKR card carries a short visible label along the
+  lines of *"YoY comparison (controls for seasonality), through the last settled period"* with a `[n]`
+  ref that links to a **new footnote at the bottom of the homepage** explaining (a) what "settled" means
+  (data older than each dataset's reporting/approval lag, so counts won't keep filling in), (b) where it
+  comes into play (the chip endpoints are pinned to the settled cutoff, not "today"), and (c) why YoY
+  (seasonality control). Per-column headers/tooltips still state the specific window ("last 2 weeks vs
+  same 2 weeks last year, through <settled date>"); 2wk tooltip also notes the shorter, noisier horizon.
+  Fold the same explanation into `renderMethodology()` so JS-off degrades gracefully. (Homepage has no
+  footnote list today — this adds the first one; keep it consistent with the dashboards' footnote style.)
+- **CLS check:** a third badge widens the ticker; badges sit in fixed-size slots — verify no layout jump
+  (the homepage 21px CLS test is already `test.fixme`'d and unrelated).
+- **Tests:** extend `homepage/tests/e2e.spec.js` (2wk present on every card; label assertions). Re-validate
+  after the endpoint shift — the dashboards' own `data↔UI` e2e keys off settled already, so those are
+  unaffected; the shift is homepage-side.
+
+**Sequencing:** after **E** (per the 2026-07-27 reorder), then B reviews it. Touches `js/app.js` homepage
+render + **all three** builds (`provenance.json`/`trace.py` follow). Decisions locked; not started.

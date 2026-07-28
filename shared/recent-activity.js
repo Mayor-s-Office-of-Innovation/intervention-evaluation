@@ -171,6 +171,18 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     const start = isoMinusWeeks(anchor, weeks);
     return allRows.filter(r => r.iso >= start);
   };
+  // A runnable Socrata link that reproduces the data shown: the signal filter + this district's
+  // bounding box + the current recency window (the map then clips to the district polygon and any
+  // hour brush client-side, as the note explains). Mirrors the load() fetch at the current `weeks`.
+  const soqlLink = () => {
+    if (!anchor) return null;
+    const where = `(${sig.where}) AND ${bboxClause(sig, bbox)} AND ${sig.dateCol} >= '${isoMinusWeeks(anchor, weeks)}'`;
+    const qs = new URLSearchParams({
+      '$select': selectClause(sig), '$where': where,
+      '$order': `${sig.dateCol} DESC`, '$limit': String(MAX_ROWS),
+    });
+    return `${sodaUrl(sig)}?${qs}`;
+  };
   const rampColor = (frac) => {
     const ramp = isDark() ? [...RAMP].reverse() : RAMP;
     return ramp[Math.max(0, Math.min(5, Math.floor(frac * 5.999)))];
@@ -214,11 +226,15 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
       const hrs = [...brushed].sort((a, b) => a - b);
       return hrs.length ? ` · filtered to ${hrs.map(hourLabel).join(', ')}` : '';
     };
+    const q = soqlLink();
     el.note.innerHTML =
-      `Live from DataSF · ${sig.label} in ${titleCase(districtName)} · ` +
+      `Live from DataSF (<a href="https://data.sfgov.org/d/${sig.dataset}" target="_blank" rel="noopener">${sig.dataset}</a>) · ` +
+      `${sig.label} in ${titleCase(districtName)} · ` +
       `last ${weeks} week${weeks > 1 ? 's' : ''} through ${anchor.slice(0, 10)} · ${rows.length} reports` +
       brushLabel() +
-      `. Live data may be newer than the rest of this page. <button type="button" class="ra-clear"${brushed.size ? '' : ' hidden'}>Show all hours</button>`;
+      `. Live data may be newer than the rest of this page` +
+      (q ? ` · <a href="${q}" target="_blank" rel="noopener">run this query ↗</a>` : '') +
+      `. <button type="button" class="ra-clear"${brushed.size ? '' : ' hidden'}>Show all hours</button>`;
     const clr = el.note.querySelector('.ra-clear');
     if (clr) clr.onclick = () => { brushed.clear(); redraw(); };
 

@@ -141,7 +141,7 @@ function getKRData(okrId, kr, district) {
   if (EMERGING_SIGNALS[kr.signal]) {
     const cached = emergingSignalsCache[`${kr.signal}_${district}`];
     if (!cached) return null;
-    return { change1mo: cached.change, change3mo: cached.change, goal: kr.goal };
+    return { change1mo: cached.change1mo, change3mo: cached.change3mo, goal: kr.goal };
   }
 
   const data = aggregatesData[okrId];
@@ -669,10 +669,14 @@ async function fetchEmergingSignal(signalKey, district) {
   if (!sig) return null;
 
   const now = new Date();
-  const last3End = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last3Start = new Date(last3End.getFullYear(), last3End.getMonth() - 3, 1);
-  const prior3End = new Date(last3End.getFullYear() - 1, last3End.getMonth(), 1);
-  const prior3Start = new Date(prior3End.getFullYear(), prior3End.getMonth() - 3, 1);
+  // The last COMPLETE calendar month (current month is still filling in) — matches how the baked
+  // KR tickers pick their endpoint (endIdx = latest complete month). All windows are month-aligned.
+  const lastEnd = new Date(now.getFullYear(), now.getMonth(), 1);            // exclusive: first of this month
+  const last1Start = new Date(lastEnd.getFullYear(), lastEnd.getMonth() - 1, 1);
+  const last3Start = new Date(lastEnd.getFullYear(), lastEnd.getMonth() - 3, 1);
+  const priorEnd = new Date(lastEnd.getFullYear() - 1, lastEnd.getMonth(), 1); // same point, one year back
+  const prior1Start = new Date(priorEnd.getFullYear(), priorEnd.getMonth() - 1, 1);
+  const prior3Start = new Date(priorEnd.getFullYear(), priorEnd.getMonth() - 3, 1);
 
   const fmt = d => d.toISOString().slice(0, 10);
   const base = `https://data.sfgov.org/resource/wg3w-h783.json`;
@@ -681,18 +685,23 @@ async function fetchEmergingSignal(signalKey, district) {
     const where = `${sig.where} AND police_district='${district}' AND incident_date>='${fmt(start)}' AND incident_date<'${fmt(end)}'`;
     return `${base}?$select=count(*)&$where=${encodeURIComponent(where)}`;
   };
+  const count = res => parseInt(res[0]?.count || 0, 10);
 
   try {
-    const [last3Res, prior3Res] = await Promise.all([
-      fetch(countQuery(last3Start, last3End)).then(r => r.json()),
-      fetch(countQuery(prior3Start, prior3End)).then(r => r.json()),
+    const [last1Res, prior1Res, last3Res, prior3Res] = await Promise.all([
+      fetch(countQuery(last1Start, lastEnd)).then(r => r.json()),
+      fetch(countQuery(prior1Start, priorEnd)).then(r => r.json()),
+      fetch(countQuery(last3Start, lastEnd)).then(r => r.json()),
+      fetch(countQuery(prior3Start, priorEnd)).then(r => r.json()),
     ]);
 
-    const last3 = parseInt(last3Res[0]?.count || 0, 10);
-    const prior3 = parseInt(prior3Res[0]?.count || 0, 10);
-    const change = pctChange(last3, prior3);
-
-    return { last3, prior3, change };
+    const last1 = count(last1Res), prior1 = count(prior1Res);
+    const last3 = count(last3Res), prior3 = count(prior3Res);
+    // 1-mo = last complete month vs the same month a year ago; 3-mo = last 3 vs same 3 a year ago.
+    return {
+      last1, prior1, change1mo: pctChange(last1, prior1),
+      last3, prior3, change3mo: pctChange(last3, prior3),
+    };
   } catch (e) {
     console.error(`Failed to fetch ${signalKey} for ${district}:`, e);
     return null;
@@ -726,6 +735,40 @@ async function loadSaved(container) {
   render(container);
 }
 
+// Homepage methodology — the three district KR#3 "emerging signals" are the ONLY numbers computed
+// here (live, in-browser) rather than on a dashboard with its own footnotes. Expose each one's dataset,
+// filter, and a runnable monthly-series query so the district-card badges are traceable too. The baked
+// KR tickers (drug/unhoused/theft) defer to their dashboards, which carry the full provenance.
+function renderMethodology() {
+  const host = document.getElementById('home-methodology');
+  if (!host) return;
+  const DS = 'wg3w-h783';
+  const q = soql => `https://data.sfgov.org/resource/${DS}.json?${new URLSearchParams({ '$query': soql })}`;
+  // Monthly counts for the signal in one district — the series both the 1-mo and 3-mo YoY badges derive from.
+  const monthly = (where, district) => q(
+    `SELECT date_trunc_ym(incident_date) AS month, count(*) AS n `
+    + `WHERE (${where}) AND police_district='${district}' `
+    + `GROUP BY month ORDER BY month`);
+  const rows = DISTRICTS
+    .map(d => ({ d, kr3: DISTRICT_KR3[d] }))
+    .filter(x => x.kr3 && EMERGING_SIGNALS[x.kr3.signal])
+    .map(({ d, kr3 }) => {
+      const where = EMERGING_SIGNALS[kr3.signal].where;
+      return `<li><strong>${kr3.label} — ${d}.</strong> `
+        + `Change vs. the same period a year ago (last complete month, and last 3 months). `
+        + `Filter <code>${esc(where)}</code>, scoped to <code>police_district='${d}'</code>. `
+        + `<a href="${monthly(where, d)}" target="_blank" rel="noopener">run the monthly series ↗</a></li>`;
+    }).join('');
+  host.innerHTML =
+    `<details class="home-methodology__d">`
+    + `<summary>Sources &amp; method</summary>`
+    + `<p>Each objective's Key Results are computed on its own dashboard — open a dashboard to see the `
+    + `dataset and the exact query behind every number. The one exception is the third KR on each `
+    + `district's property-&amp;-crime card (an emerging local issue), computed live here from the SFPD `
+    + `incident dataset (<a href="https://data.sfgov.org/d/${DS}" target="_blank" rel="noopener">${DS}</a>):</p>`
+    + `<ul class="home-methodology__list">${rows}</ul>`;
+}
+
 async function init() {
   const container = document.getElementById('districts-container');
   if (!container) return;
@@ -745,6 +788,7 @@ async function init() {
 
     initDistrict();
     render(container);
+    renderMethodology();   // static; no data dependency
 
     // Fill fixed-size slots after first paint — no layout shift:
     // - emerging signals update the theft KR3 badge (already rendered as a sized "—")
