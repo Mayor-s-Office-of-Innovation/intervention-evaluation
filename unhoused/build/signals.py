@@ -96,7 +96,7 @@ SIGNALS = {
         # D7: combined signal → expose each part's filter so the union is auditable.
         "provenance_parts": {
             "encampment_only": "service_name IN ('Encampment','Encampments')",
-            "rerouted": "service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'",
+            "unhoused_individual": "service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'",
         },
         "dedup_note": "Deduped on service_request_id across both parts of the union.",
         "breaks": [{

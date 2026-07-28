@@ -16,7 +16,7 @@
           "filter": "service_name IN ('Encampment','Encampments')",
           "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month"
         },
-        "rerouted": {
+        "unhoused_individual": {
           "filter": "service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'",
           "query_url": "https://data.sfgov.org/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month"
         }
@@ -67,7 +67,7 @@
           "2026-06": 3370,
           "2026-07": 2988
         },
-        "rerouted": {
+        "unhoused_individual": {
           "2024-06": 34,
           "2024-07": 70,
           "2024-08": 72,
