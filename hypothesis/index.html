@@ -29,6 +29,7 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="../shared/map-search.css" />
 </head>
 <body>
   <header class="app-header">
@@ -87,7 +88,8 @@
 
           <!-- Location — the pin + radius the analysis searches -->
           <div class="wa-stack wa-gap-2xs">
-            <label class="field-label req-label">Where did you do it? <span class="field-hint">Click the map to drop a pin.</span></label>
+            <label class="field-label req-label">Where did you do it? <span class="field-hint">Click the map to drop a pin, or search cross streets.</span></label>
+            <div id="picker-search" class="map-search"></div>
             <div id="picker-map" class="picker-map"></div>
             <small id="coords-readout" class="coords-readout"></small>
           </div>

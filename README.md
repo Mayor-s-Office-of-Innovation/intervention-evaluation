@@ -78,7 +78,8 @@ rebuild-and-commit Action is a noted later option.
 python3 validation/validate_build.py        # data invariants + transitions↔aggregates axis alignment
 node validation/parity.mjs drug             # client classifier == baked Python oracle (also: unhoused)
 python3 validation/trace.py drug            # re-derive headline numbers from the declared Socrata query
-npx playwright test -c drug/playwright.config.js   # e2e (also: unhoused, theft)
+npx playwright test --project=drug          # e2e for one dashboard (also: unhoused, theft, homepage, districts, hypothesis)
+npm test                                     # everything: all e2e projects + build invariants + parity
 ```
 
 On push to `main`, the [deploy workflow](.github/workflows/deploy.yml) runs these (build invariants +

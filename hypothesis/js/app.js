@@ -11,6 +11,7 @@ import { fetchEvents, datasetLabel, ROW_CAP } from './soda.js';
 import { bucketSeries, chooseGranularity, analyzeWindow, detectWindowStart, addDays, daysBetween } from './analyze.js';
 import { renderChart } from './chart.js';
 import { initPicker, renderEvents } from './map.js';
+import { wireSearch as wireCrossStreetSearch, resolveIntersection } from '../../shared/cross-street-search.js';
 import { createFullIntervention, updateIntervention, getIntervention } from '../../js/interventions-client.js';
 
 // Page & Buchanan — NE corner of Koshland Park (exact intersection point).
@@ -103,6 +104,28 @@ async function init() {
     syncURL();
     if (hasRun) run();
   }, radiusM);
+
+  // Cross-street search → move the pin. Citywide (no district scope), city-index only — a picker
+  // has no activity data of its own. setLocation reuses initPicker's commit path (pin + circle +
+  // onChange), so a searched corner behaves exactly like a click.
+  wireCrossStreetSearch({
+    containerSel: '#picker-search',
+    placeholder: 'e.g. Haight & Ashbury',
+    onSearch: async (query, { setStatus }) => {
+      const r = await resolveIntersection(query);
+      switch (r.status) {
+        case 'need-two':
+          setStatus('Enter two cross streets (e.g. Haight & Ashbury)', true); break;
+        case 'local':
+        case 'city':
+          picker.setLocation({ lat: r.lat, lng: r.lng }); setStatus(`Pin moved to ${r.name}`); break;
+        case 'none':
+          setStatus('No matching corner in SF', true); break;
+        default:
+          setStatus('Search failed', true);
+      }
+    },
+  });
 
   // radius slider: live-update the circle + readout while dragging; refetch on release
   await customElements.whenDefined('wa-slider');

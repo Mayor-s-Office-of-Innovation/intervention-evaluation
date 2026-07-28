@@ -5,7 +5,8 @@
 // The docked detail panel + panel-scoped hour slider (Changes #3/#1) are added here too.
 // See plan-hotspots-enhancements.md.
 // ──────────────────────────────────────────────────────────────────────
-import { setSplitView, getSplitView, searchIntersections, ensureCityIntersections, focusCellById, showSearchResult, clearSearchResult } from './transition-map.js';
+import { setSplitView, getSplitView, searchIntersections, focusCellById, showSearchResult, clearSearchResult } from './transition-map.js';
+import { wireSearch as wireSearchBox } from './cross-street-search.js';
 
 let _refresh = null;                 // re-renders the toggle buttons from current split state
 let _legendSel = '#split-legend';
@@ -52,78 +53,45 @@ export function refreshSplitToggle() {
 }
 
 /**
- * Wire the cross-street search box (Change: hybrid local + Nominatim). Renders an input + button +
- * status line into the container, and routes each search to the most specific honest result:
- * tracked hotspot → select it; reported corner → locate + "not a tracked hotspot"; anywhere else in
- * SF → Nominatim locate + "no tracked activity"; otherwise a clear status. Escape clears everything.
+ * Wire the hotspots map's cross-street search box. Fully offline (baked SF corner index — NO external
+ * geocoder). The generic box (shared/cross-street-search.js) owns the input/button/status UI, focus
+ * prefetch, and Escape-to-clear; here we only supply the hotspot-aware behavior: each result routes to
+ * the most specific honest outcome — tracked hotspot → select it; reported corner → locate + "not a
+ * tracked hotspot"; any other real SF corner → locate + a nearby-aware "no tracked activity" note.
  */
 export function wireSearch({ containerSel = '#map-search' } = {}) {
-  const container = document.querySelector(containerSel);
-  if (!container) return;
-  container.innerHTML =
-    `<form class="map-search-wrap" role="search">` +
-    `<label class="map-search-label" for="map-search-input">Find cross streets</label>` +
-    `<span class="map-search-controls">` +
-    `<input type="text" class="map-search-input" id="map-search-input" ` +
-    `placeholder="e.g. 16th &amp; Mission" autocomplete="off">` +
-    `<button type="submit" class="map-search-btn" id="map-search-btn">` +
-    `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">` +
-    `<circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>` +
-    `<span>Search</span></button>` +
-    `</span>` +
-    `<span class="map-search-status" id="map-search-status" role="status" aria-live="polite"></span>` +
-    `</form>`;
-
-  const form = container.querySelector('.map-search-wrap');
-  const input = container.querySelector('#map-search-input');
-  const statusEl = container.querySelector('#map-search-status');
-  const setStatus = (msg, isError = false) => {
-    statusEl.textContent = msg || '';
-    statusEl.classList.toggle('is-error', !!isError);
-  };
-
-  async function doSearch() {
-    const query = input.value.trim();
-    if (!query) return;
-    setStatus('Searching…');
-    let r;
-    try { r = await searchIntersections(query); }
-    catch { setStatus('Search failed', true); return; }
-
-    switch (r.status) {
-      case 'need-two':
-        setStatus('Enter two cross streets (e.g. 16th & Mission)', true); break;
-      case 'local':
-        if (r.isHotspot) {
-          if (focusCellById(r.cellId)) setStatus('');                       // selected the hotspot
-          else { showSearchResult(r.lat, r.lng, r.name); setStatus('Tracked hotspot (currently filtered out)'); }
-        } else {
+  wireSearchBox({
+    containerSel,
+    label: 'Find cross streets',
+    placeholder: 'e.g. 16th & Mission',
+    onClear: () => clearSearchResult(),
+    onSearch: async (query, { setStatus }) => {
+      const r = await searchIntersections(query);   // hotspot-cell-aware tiering lives in transition-map.js
+      switch (r.status) {
+        case 'need-two':
+          setStatus('Enter two cross streets (e.g. 16th & Mission)', true); break;
+        case 'local':
+          if (r.isHotspot) {
+            if (focusCellById(r.cellId)) setStatus('');                       // selected the hotspot
+            else { showSearchResult(r.lat, r.lng, r.name); setStatus('Tracked hotspot (currently filtered out)'); }
+          } else {
+            showSearchResult(r.lat, r.lng, r.name);
+            setStatus('Reported location · not a tracked hotspot');
+          }
+          break;
+        case 'city':
+          // A real SF corner located via the authoritative baked index. If tracked activity sits just
+          // off it (block-level attribution — see NEARBY_M), soften the note instead of implying the
+          // area is clean; otherwise say plainly there's nothing logged here.
           showSearchResult(r.lat, r.lng, r.name);
-          setStatus('Reported location · not a tracked hotspot');
-        }
-        break;
-      case 'city':
-        // A real SF corner located via the authoritative baked index. If tracked activity sits just
-        // off it (block-level attribution — see NEARBY_M), soften the note instead of implying the
-        // area is clean; otherwise say plainly there's nothing logged here.
-        showSearchResult(r.lat, r.lng, r.name);
-        setStatus(r.nearby ? 'None logged at this exact corner — see nearby markers'
-                           : 'No tracked activity at this corner');
-        break;
-      case 'none':
-        setStatus('No results in SF', true); break;
-      default:
-        setStatus('Search failed', true);
-    }
-  }
-
-  // Deferred cost: the ~113 KB authoritative corner index is fetched only once the user actually
-  // engages the box (focus), so it's warm by the time they submit — with zero page-load impact.
-  // Fire-and-forget; a failure here is retried (and surfaced) by the search itself.
-  input.addEventListener('focus', () => { ensureCityIntersections().catch(() => {}); }, { once: true });
-  // The submit button (click) and Enter both fire the form's submit — one path, natively accessible.
-  form.addEventListener('submit', (e) => { e.preventDefault(); doSearch(); });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { input.value = ''; clearSearchResult(); setStatus(''); }
+          setStatus(r.nearby ? 'None logged at this exact corner — see nearby markers'
+                             : 'No tracked activity at this corner');
+          break;
+        case 'none':
+          setStatus('No results in SF', true); break;
+        default:
+          setStatus('Search failed', true);
+      }
+    },
   });
 }

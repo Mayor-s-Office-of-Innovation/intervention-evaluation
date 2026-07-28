@@ -5,7 +5,13 @@
 // popup carries a monthly sparkline plus a "See details" breakdown of report
 // types for that block (which lazy-loads the per-report markers dataset).
 // Built on presence signals only (D8). CARTO light/dark tiles follow the OS.
+//
+// The cross-street search primitives (tokenizer, matcher, baked SF corner index)
+// now live in shared/cross-street-search.js so the recent-activity hexbins and
+// the hypothesis picker can reuse them; this module keeps only the hotspot-cell-
+// aware tiering (searchIntersections) + the Leaflet actions on its own map.
 // ──────────────────────────────────────────────────────────────────────
+import { streetTokens, matchIndex, distMeters, NEARBY_M, ensureCityIntersections } from './cross-street-search.js';
 
 // Light uses CARTO Voyager for noticeably clearer street labels than Positron; dark stays Dark Matter
 // (Voyager has no dark variant). Street names are part of the basemap, drawn under the data dots.
@@ -84,7 +90,6 @@ let selectedCellId = null, pendingCellId = null, onState = null;
 // result pin, and a cached intersection index (rebuilt when the signal/cells change). See plan-cross-street-search.md.
 const cellMarkers = new Map();
 let searchMarker = null, intersectionIndex = null, intersectionIndexKey = null;
-let cityIndex = null, cityIndexPromise = null;   // baked authoritative SF corner list (lazy-loaded)
 
 // ── Map-level time-of-day filter (granular: morning/afternoon/evening/night) ──
 // Drives the cell classification in app.js (which sums the baked `monthly_tod` arrays); this setter is
@@ -358,22 +363,8 @@ async function showCellDetails(lat, lng, popupEl, cm) {
 }
 
 // ── Cross-street search (local activity data first, then the baked authoritative SF corner index) ──
-// Street-type words dropped when tokenizing an intersection, so "16th & Mission" ≡ "16TH ST / MISSION ST".
-const STREET_SUFFIX = new Set(['st', 'street', 'ave', 'avenue', 'blvd', 'boulevard', 'dr', 'drive',
-  'ct', 'court', 'ln', 'lane', 'pl', 'place', 'ter', 'terrace', 'way', 'hwy', 'highway', 'rd', 'road',
-  'plz', 'plaza', 'row', 'aly', 'alley', 'cir', 'circle']);
-
-/** Reduce an intersection string to its set of significant street tokens (order-independent match). */
-function streetTokens(str) {
-  const t = new Set();
-  String(str || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(w => {
-    if (!w || w === 'and') return;
-    w = w.replace(/^(\d+)(st|nd|rd|th)$/, '$1');   // 16th → 16
-    if (STREET_SUFFIX.has(w)) return;
-    t.add(w);
-  });
-  return t;
-}
+// Tokenizer / matcher / baked-index loader now live in shared/cross-street-search.js (imported above);
+// this file keeps only the hotspot-cell-aware index + tiering + the Leaflet actions on its own map.
 
 async function ensureMarkerData() {
   if (!markerData && markerLoader && !markerLoading) {
@@ -411,55 +402,6 @@ async function buildIntersectionIndex() {
   intersectionIndex = [...seen.values()];
   intersectionIndexKey = key;
   return intersectionIndex;
-}
-
-/** Lazy-load the baked authoritative SF cross-street index (shared/data/sf-intersections.json).
- *  Module-relative URL so it resolves from any dashboard. Cached; safe to call repeatedly (e.g. to
- *  prefetch on search-box focus). Parses the compact dictionary format into match-ready entries.
- *  Rejects on network/parse failure and clears the cache so a later attempt can retry. */
-export function ensureCityIntersections() {
-  if (cityIndex) return Promise.resolve(cityIndex);
-  if (cityIndexPromise) return cityIndexPromise;
-  const url = new URL('./data/sf-intersections.json', import.meta.url);
-  cityIndexPromise = fetch(url)
-    .then(res => { if (!res.ok) throw new Error('city index fetch failed'); return res.json(); })
-    .then(data => {
-      const { coordScale, streets, pts } = data;
-      const streetTok = streets.map(streetTokens);                // tokenize each unique street once
-      cityIndex = pts.map(([latE5, lngE5, a, b]) => {
-        const tokens = new Set([...streetTok[a], ...streetTok[b]]);
-        return { key: [...tokens].sort().join(' '), tokens,
-          name: `${streets[a]} / ${streets[b]}`, lat: latE5 / coordScale, lng: lngE5 / coordScale };
-      });
-      return cityIndex;
-    })
-    .catch(err => { cityIndexPromise = null; throw err; });        // allow retry on next call
-  return cityIndexPromise;
-}
-
-// A city-index corner this close to tracked activity isn't really "empty" — block-level attribution
-// (CFS snaps calls to the nearest named node) means a busy corner's activity can be logged one node
-// over, e.g. the 16th & Mission plaza's calls land on the adjacent 16TH/WIESE + 16TH/HOFF alleys.
-const NEARBY_M = 80;
-
-/** Approximate metres between two lat/lng points (equirectangular — accurate enough under ~100 m). */
-function distMeters(aLat, aLng, bLat, bLng) {
-  const R = 6371000, rad = Math.PI / 180;
-  const x = (bLng - aLng) * rad * Math.cos((aLat + bLat) / 2 * rad);
-  const y = (bLat - aLat) * rad;
-  return Math.hypot(x, y) * R;
-}
-
-/** Best token-subset match of a query against an index (exact set-equality outranks subset). */
-function matchIndex(idx, qkey, qTokens, hotspotAware) {
-  let best = null, bestScore = -1;
-  for (const e of idx) {
-    let s = -1;
-    if (e.key === qkey) s = hotspotAware && e.isHotspot ? 4 : (hotspotAware ? 3 : 2);
-    else if (qTokens.every(t => e.tokens.has(t))) s = hotspotAware && e.isHotspot ? 2 : 1;
-    if (s > bestScore) { bestScore = s; best = e; }
-  }
-  return bestScore >= 1 ? best : null;
 }
 
 /**

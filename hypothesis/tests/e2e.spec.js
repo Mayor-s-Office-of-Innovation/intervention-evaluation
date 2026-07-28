@@ -10,7 +10,7 @@ async function gotoApp(page) {
   const errors = [];
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto('/', { waitUntil: 'networkidle' });
+  await page.goto('./', { waitUntil: 'networkidle' });
   await page.waitForFunction(
     () => customElements.get('wa-select') && document.querySelectorAll('#in-expect wa-option').length > 0
   );

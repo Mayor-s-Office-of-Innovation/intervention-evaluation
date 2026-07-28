@@ -47,11 +47,10 @@ jobs:
           node validation/parity.mjs drug
           node validation/parity.mjs unhoused
       - name: e2e suites (V5 + V7 included)
-        run: |
-          npx playwright test -c homepage/playwright.config.js
-          npx playwright test -c drug/playwright.config.js
-          npx playwright test -c unhoused/playwright.config.js
-          npx playwright test -c theft/playwright.config.js
+        # One root playwright.config.js with a project per dashboard (plan-test-harness-consolidation.md).
+        # Baked suites only here — hypothesis hits the live Socrata API, a poor deploy gate; districts
+        # stays out too, matching the prior scope.
+        run: npx playwright test --project=homepage --project=drug --project=unhoused --project=theft
 
   deploy:
     needs: test
@@ -82,6 +81,9 @@ jobs:
           if [ -d shared ]; then
             mkdir -p _site/shared
             cp shared/*.js _site/shared/
+            # Shared CSS (e.g. map-search.css — the cross-street search box styling, centralized
+            # here and linked by the dashboards + hypothesis tool as ../../shared/map-search.css).
+            cp shared/*.css _site/shared/ 2>/dev/null || true
             # Baked shared data (e.g. the authoritative SF cross-street index the map search
             # lazy-loads via ./data/sf-intersections.json relative to shared/transition-map.js).
             if [ -d shared/data ]; then
