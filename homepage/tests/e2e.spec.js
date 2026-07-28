@@ -119,7 +119,7 @@ test('archiving a saved intervention (from the inline editor) removes it from th
   await expect(page.locator('.intervention-empty')).toBeVisible();
 });
 
-// Regression guard for the layout-shift fix (see plan-layout-shift.md). The districts block is
+// Regression guard for the layout-shift fix (see docs/plan-layout-shift.md). The districts block is
 // JS-rendered above the static tool cards; without a reserved height it collapsed on first paint
 // and the async saved-interventions load shoved the tool cards down. We guard two things:
 //   1. the skeleton is server-delivered (reserves height before any JS runs), and
@@ -129,7 +129,7 @@ test('archiving a saved intervention (from the inline editor) removes it from th
 // with all refresh-data-plus-search-intersections uncommitted work stashed, so it predates the
 // Workstream C footnote pass (likely introduced by an earlier commit / the data-refresh height change).
 // Skipped to unblock the branch; needs its own debug pass — recheck the reservation vs actual row height,
-// and compare against `main`. See plan-cross-street-search-expansion.md resume note.
+// and compare against `main`. See docs/plan-cross-street-search-expansion.md resume note.
 test.fixme('the tool cards do not shift when saved interventions load in', async ({ page }) => {
   // Skeleton must be in the shipped HTML, not injected by JS.
   const html = await (await page.request.get('/index.html')).text();

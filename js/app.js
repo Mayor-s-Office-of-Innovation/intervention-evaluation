@@ -841,7 +841,7 @@ async function init() {
   try {
     // Gate first paint on LOCAL files only (TSV + baked aggregates.json). Live Socrata
     // (emerging signals) and the Worker (saved) are slow/external — kept out of this
-    // barrier so the districts block paints fast and doesn't jump. See plan-layout-shift.md.
+    // barrier so the districts block paints fast and doesn't jump. See docs/plan-layout-shift.md.
     const [interventionsRes] = await Promise.all([
       fetch('./data/interventions.tsv'),
       loadAggregates(),
