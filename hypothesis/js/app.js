@@ -11,7 +11,8 @@ import { fetchEvents, datasetLabel, ROW_CAP } from './soda.js';
 import { bucketSeries, chooseGranularity, analyzeWindow, detectWindowStart, addDays, daysBetween } from './analyze.js';
 import { renderChart } from './chart.js';
 import { initPicker, renderEvents } from './map.js';
-import { createFullIntervention, updateIntervention, getIntervention } from '../../js/interventions-client.js';
+import { wireSearch as wireCrossStreetSearch, resolveIntersection } from '../../shared/cross-street-search.js';
+import { createFullIntervention, updateIntervention, getIntervention, photoSrc, openPhotoWidget, onPhotosUpdated } from '../../js/interventions-client.js';
 
 // Page & Buchanan — NE corner of Koshland Park (exact intersection point).
 const KOSHLAND = { lat: 37.77346, lng: -122.42736 };
@@ -104,6 +105,28 @@ async function init() {
     if (hasRun) run();
   }, radiusM);
 
+  // Cross-street search → move the pin. Citywide (no district scope), city-index only — a picker
+  // has no activity data of its own. setLocation reuses initPicker's commit path (pin + circle +
+  // onChange), so a searched corner behaves exactly like a click.
+  wireCrossStreetSearch({
+    containerSel: '#picker-search',
+    placeholder: 'e.g. Haight & Ashbury',
+    onSearch: async (query, { setStatus }) => {
+      const r = await resolveIntersection(query);
+      switch (r.status) {
+        case 'need-two':
+          setStatus('Enter two cross streets (e.g. Haight & Ashbury)', true); break;
+        case 'local':
+        case 'city':
+          picker.setLocation({ lat: r.lat, lng: r.lng }); setStatus(`Pin moved to ${r.name}`); break;
+        case 'none':
+          setStatus('No matching corner in SF', true); break;
+        default:
+          setStatus('Search failed', true);
+      }
+    },
+  });
+
   // radius slider: live-update the circle + readout while dragging; refetch on release
   await customElements.whenDefined('wa-slider');
   const radiusSlider = $('radius-slider');
@@ -118,6 +141,11 @@ async function init() {
 
   // Keep the clickable links preview in sync as the user edits the field
   $('in-links')?.addEventListener('input', () => renderLinksPreview());
+
+  // Photos: once this intervention is saved (editId set), the button opens the Access-gated widget in
+  // a new tab. The widget posts back on every upload/delete → refresh the inline strip without reload.
+  $('photos-btn')?.addEventListener('click', () => { if (editId) openPhotoWidget(editId); });
+  onPhotosUpdated(id => { if (id && id === (editId || viewId)) refreshPhotoStrip(id); });
 
   // Load existing record read-only; otherwise a shared analysis link auto-runs.
   if (viewId) {
@@ -224,6 +252,14 @@ function renderViewDetails(rec) {
   const locHtml = (rec.lat && rec.lng)
     ? `${(+rec.lat).toFixed(5)}, ${(+rec.lng).toFixed(5)}${rec.radius ? ` · ${rec.radius} m radius` : ''}`
     : '';
+  // Photo gallery: thumbnails that open the full-size image in a new tab (no lightbox dep).
+  const photosHtml = (rec.photos || []).length
+    ? `<div class="view-photos">${rec.photos.map(p => {
+        const cap = p.caption ? `<figcaption>${escHtml(p.caption)}</figcaption>` : '';
+        return `<figure class="view-photo"><a href="${escHtml(photoSrc(p.full))}" target="_blank" rel="noopener">` +
+          `<img src="${escHtml(photoSrc(p.thumb))}" alt="${escHtml(p.caption || 'Intervention photo')}" loading="lazy"></a>${cap}</figure>`;
+      }).join('')}</div>`
+    : '';
 
   // [label, valueHtml, isBlock]. Blank valueHtml rows are dropped.
   const rows = [
@@ -241,6 +277,7 @@ function renderViewDetails(rec) {
     ['Outcomes', escHtml(rec.outcomes || ''), true],
     ['Notes', escHtml(rec.notes || ''), true],
     ['Related documents', linksHtml],
+    ['Photos', photosHtml, true],
     ['Location', escHtml(locHtml)],
     ['Submitted by', escHtml(rec.person_submitted || '')],
     ['Last edited', escHtml(fmtDate(rec.last_edited))],
@@ -317,6 +354,7 @@ async function handleSubmit() {
       await updateIntervention(editId, data);
       flashSaved('✓ Intervention updated. Live impact shown below.');
       await run(true);
+      showPhotoControls();
     } else {
       const created = await createFullIntervention(data);
       // Accept the id whether the API returns it at the top level or nested in item —
@@ -332,6 +370,7 @@ async function handleSubmit() {
       }
       await run(true); // render the per-lever analysis and scroll to it
       flashSaved('✓ Intervention saved. It now appears on the homepage. Live impact shown below.');
+      showPhotoControls();
     }
   } catch (e) {
     alert('Error: ' + e.message);
@@ -349,6 +388,37 @@ function flashSaved(msg) {
   if (!status) return;
   status.textContent = msg;
   status.classList.remove('copy-status--error');
+}
+
+// ── Photos (managed in the Access-gated widget; displayed here as a read-only strip) ──
+// Thumbnails link to the full-size image in a new tab (no lightbox dep), mirroring renderViewDetails.
+function renderPhotoStripHtml(photos) {
+  if (!photos.length) return `<p class="photos-strip__empty">No photos yet — use “Add / manage photos”.</p>`;
+  return photos.map(p =>
+    `<a class="photos-strip__item" href="${escHtml(photoSrc(p.full))}" target="_blank" rel="noopener">` +
+    `<img src="${escHtml(photoSrc(p.thumb))}" alt="${escHtml(p.caption || 'Intervention photo')}" loading="lazy"></a>`
+  ).join('');
+}
+
+// Re-fetch the record and repaint the strip. Called on save (initial, usually empty) and whenever the
+// widget posts that photos changed. getIntervention returns the public projection, so photos carry
+// relative thumb/full serve URLs.
+async function refreshPhotoStrip(id) {
+  const strip = $('photos-strip');
+  if (!strip || !id) return;
+  try {
+    const rec = await getIntervention(id);
+    strip.innerHTML = renderPhotoStripHtml(rec.photos || []);
+    strip.hidden = false;
+  } catch { /* leave the strip as-is on a transient fetch error */ }
+}
+
+// Reveal the photo controls for a just-saved intervention.
+function showPhotoControls() {
+  if (!editId) return;
+  const btn = $('photos-btn');
+  if (btn) btn.hidden = false;
+  refreshPhotoStrip(editId);
 }
 
 function getSelectedLevers() {

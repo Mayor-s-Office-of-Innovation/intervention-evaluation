@@ -29,6 +29,7 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="../shared/map-search.css" />
 </head>
 <body>
   <header class="app-header">
@@ -87,7 +88,8 @@
 
           <!-- Location — the pin + radius the analysis searches -->
           <div class="wa-stack wa-gap-2xs">
-            <label class="field-label req-label">Where did you do it? <span class="field-hint">Click the map to drop a pin.</span></label>
+            <label class="field-label req-label">Where did you do it? <span class="field-hint">Click the map to drop a pin, or search cross streets.</span></label>
+            <div id="picker-search" class="map-search"></div>
             <div id="picker-map" class="picker-map"></div>
             <small id="coords-readout" class="coords-readout"></small>
           </div>
@@ -180,8 +182,17 @@
           <wa-icon slot="start" name="bookmark"></wa-icon>
           Save this intervention
         </wa-button>
+        <!-- Revealed once this intervention is saved (we have its id). Opens the Access-gated photo
+             widget in a new tab; uploaded photos flow back via postMessage into #photos-strip. -->
+        <wa-button id="photos-btn" size="small" appearance="outlined" variant="brand" hidden>
+          <wa-icon slot="start" name="image"></wa-icon>
+          Add / manage photos
+        </wa-button>
         <small id="copy-status" class="copy-status" role="status" aria-live="polite"></small>
       </div>
+
+      <!-- Thumbnail strip for photos on this saved intervention (managed in the widget). -->
+      <div id="photos-strip" class="photos-strip" hidden></div>
 
       <!-- Save dialog — native <dialog> (accessible: focus trap, Esc, backdrop). POSTs {url,email}. -->
       <dialog id="save-dialog" class="save-dialog" aria-labelledby="save-dialog-title">

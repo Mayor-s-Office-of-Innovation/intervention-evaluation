@@ -37,6 +37,15 @@ DISTRICT_LABEL = {
     "CENTRAL": "Central", "TENDERLOIN": "Tenderloin",
 }
 
+# Socrata `:@computed_region_qgnn_b9vv` codes for the "Current Police Districts" (qgnn-b9vv) boundary.
+# Used only to build the reader-facing district-verify link for the point signal (cfs_drug), whose baked
+# district counts come from a hand-rolled point-in-polygon against the SAME boundary — the spatial-join
+# link reproduces that count to within ~0.5% (DR2; verified 2026-07-28, TL region 5 = 201 = baked 201).
+# The arrest signals don't use this: they're grouped on the native `police_district` field, so their
+# verify link filters that field directly for an EXACT round-trip. Code map re-verified 2026-07-28
+# (identical to the unhoused U1 map).
+DISTRICT_REGION = {"NORTHERN": "4", "MISSION": "3", "CENTRAL": "6", "TENDERLOIN": "5"}
+
 # Fixed Lurie-inauguration split the transition map (D11/D12) is built on.
 LURIE_INAUGURATION = "2025-01-08"
 
@@ -133,7 +142,7 @@ SIGNALS = {
     "dealer_arrests": _incident_agg(
         f"{_ARREST_GATE} AND {_DEALER_LIKE}",
         "Dealer arrests (SFPD)",
-        tier=1, axis="enforcement", goal="up", group="arrest_mix",
+        tier=1, axis="enforcement", goal="up", group="arrest_mix", weekly=True,
         caveat="Drug arrests narrowed to DEALING/distribution charges (possession-for-sale, sale, "
                "transport, manufacture, trafficking) — not possession or use. Counted as distinct "
                "incidents (one arrest, not one row per charge). Normally enforcement is context not a "
@@ -204,8 +213,17 @@ MAP_SIGNALS = {
 }
 
 
-def query_url(sig_or_where, where=None):
-    """Runnable Socrata REST query link for a signal dict (D7 provenance)."""
+def query_url(sig_or_where, where=None, region=None, district=None):
+    """Runnable Socrata REST query link for a signal dict (D7 provenance).
+
+    District scoping (DR2 — the reader-facing "click the number → get the number" link):
+      • `region` — a `:@computed_region_qgnn_b9vv` code (see DISTRICT_REGION). Appends the boundary
+        spatial join; used for the point signal (cfs_drug) whose count is a point-in-polygon (~0.5%).
+      • `district` — a (field, value) pair, e.g. ("police_district", "Tenderloin"). Appends a native
+        field equality; used for the arrest signals grouped on that field (EXACT round-trip).
+    Every signal's `where` is a chain of top-level ANDs, so appending one more ` AND …` is
+    precedence-safe. Pass at most one of region/district.
+    """
     import urllib.parse
     if not isinstance(sig_or_where, dict):
         raise ValueError("pass the signal dict")
@@ -213,7 +231,29 @@ def query_url(sig_or_where, where=None):
     date_col = sig_or_where["date_col"]
     w = where or sig_or_where["where"]
     full = f"{w} AND {date_col} >= '{HISTORY_START}'"
+    if region is not None:
+        full += f" AND :@computed_region_qgnn_b9vv = '{region}'"
+    elif district is not None:
+        field, value = district
+        full += f" AND {field} = '{value}'"
     cnt = f"count(distinct {sig_or_where['id_col']})" if sig_or_where.get("distinct") else "count(*)"
     q = (f"SELECT date_trunc_ym({date_col}) AS month, {cnt} AS reports "
          f"WHERE {full} GROUP BY month ORDER BY month")
     return f"https://{domain}/resource/{dataset}.json?" + urllib.parse.urlencode({"$query": q})
+
+
+def query_url_by_district(sig, where=None):
+    """Reader-facing per-district verify links (DR2), keyed by the Title-case district label the page
+    shows. Two link kinds, chosen by how the signal's baked district count was produced:
+      • agg_only with a native `district_field` (the arrest signals) → filter that field → EXACT.
+      • point signal (cfs_drug, point-in-polygon) → `:@computed_region_qgnn_b9vv` spatial join → ~0.5%.
+      • citywide-only (needles) → None (no district breakdown exists).
+    """
+    dfield = sig.get("district_field")
+    if dfield and not sig.get("citywide_only"):
+        return {DISTRICT_LABEL[u]: query_url(sig, where=where, district=(dfield, DISTRICT_LABEL[u]))
+                for u in TARGET_DISTRICTS}
+    if sig.get("kind") == "point":
+        return {DISTRICT_LABEL[u]: query_url(sig, where=where, region=code)
+                for u, code in DISTRICT_REGION.items()}
+    return None

@@ -6,8 +6,8 @@ existing hot/cold map: not *"what changed since Lurie"* but *"where are communit
 framed observationally — **not** as a directive.
 
 Prototype on `drug`, extract the shared mechanics into `shared/`, adopt on `unhoused`. Same
-build-first-extract-later path the [scrubber](drug/plan-scrubber.md) and
-[time-of-day](drug/plan-time-of-day.md) work took. `theft` excluded (no map).
+build-first-extract-later path the [scrubber](../drug/plan-scrubber.md) and
+[time-of-day](../drug/plan-time-of-day.md) work took. `theft` excluded (no map).
 
 Supersedes the deferred [`plan-hotspots-hourly-map.md`](plan-hotspots-hourly-map.md) **for the
 operational use-case** — that doc shelved arbitrary-hour filtering on the *difference-in-differences*
@@ -53,7 +53,7 @@ Tenderloin 225), which sharpens the encoding + sparsity decisions below.
 **Out:** the arrest/enforcement signals (`dealer_arrests`, `paraphernalia`, `other_drug_arrests`).
 They're `agg_only` (no raw points to place/time) **and** reading enforcement by time-of-day is
 circular — it reflects shift staffing, not need ([[crime-effectiveness-enforcement-reflexivity]],
-[time-of-day plan §6](drug/plan-time-of-day.md)). The cheap scope and the honest scope coincide.
+[time-of-day plan §6](../drug/plan-time-of-day.md)). The cheap scope and the honest scope coincide.
 
 ## 3. Data source — **live DataSF (Socrata) query, evergreen** (DECIDED 2026-07-15, user call)
 

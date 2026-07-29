@@ -19,9 +19,11 @@
 //   POST   /interventions/:id/close → 200 { item } (sets status=closed, end_date=now)
 //   POST   /interventions/:id/reopen→ 200 { item } (sets status=open)
 //   DELETE /interventions/:id       → soft delete → 200 { ok:true }  (idempotent)
+//   GET    /photos/:id/:photoId?v=thumb|full → image bytes from R2 (immutable cache)
 //
-// Supporting documents are stored elsewhere (Drive, SharePoint, …) and referenced by URL in the
-// record's `links` array — no file storage in this service.
+// Supporting documents (Drive, SharePoint, …) are referenced by URL in the record's `links` array.
+// Photos ARE stored here, in the R2 `PHOTOS` bucket: this Worker only reads/serves them; a separate
+// Access-gated upload Worker is the sole writer (../docs/plan-photo-uploads.md).
 // ──────────────────────────────────────────────────────────────────────────
 
 import DISTRICTS from "./districts.js";   // [{district, rings:[[[lng,lat],…]]}] — 4 target SF districts
@@ -82,6 +84,13 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
 
     try {
+      // GET /photos/:interventionId/:photoId?v=thumb|full — serve image bytes from R2
+      const photoMatch = url.pathname.match(/^\/photos\/([A-Za-z0-9-]+)\/([A-Za-z0-9-]+)$/);
+      if (photoMatch) {
+        if (request.method === "GET") return await servePhoto(photoMatch[1], photoMatch[2], url.searchParams.get("v"), env, cors);
+        return json({ error: "method not allowed" }, 405, cors);
+      }
+
       // GET/POST /interventions
       if (url.pathname === "/interventions") {
         if (request.method === "GET") return json(await listActive(env), 200, cors);
@@ -191,6 +200,17 @@ function publicItem(id, rec) {
     lat: rec.lat || lat || null,
     lng: rec.lng || lng || null,
     radius: rec.radius || null,
+    // Photos: derived, ORIGIN-RELATIVE serve URLs (the client joins them with its API base, which keeps
+    // local dev correct). `uploaded_by` is a verified @sfgov.org email → PII, NEVER projected publicly.
+    photos: (rec.photos || []).map(p => ({
+      id: p.id,
+      w: p.w || null,
+      h: p.h || null,
+      caption: p.caption || null,
+      uploaded_at: p.uploaded_at || null,
+      thumb: `/photos/${id}/${p.id}?v=thumb`,
+      full: `/photos/${id}/${p.id}?v=full`,
+    })),
   };
 }
 
@@ -271,6 +291,23 @@ async function getOne(id, env, cors) {
   return json({ item: publicItem(id, rec) }, 200, cors);
 }
 
+/** GET /photos/:interventionId/:photoId?v=thumb|full — stream image bytes from R2.
+ * Photo ids are unique + content is immutable, so cache hard. The R2 key is reconstructed from
+ * the path params, so we don't need to read KV here. Defaults to the full-size variant. */
+async function servePhoto(interventionId, photoId, variant, env, cors) {
+  const v = variant === "thumb" ? "thumb" : "full";
+  const key = `photos/${interventionId}/${photoId}-${v}.jpg`;
+  const obj = await env.PHOTOS.get(key);
+  if (!obj) return json({ error: "not found" }, 404, cors);
+
+  const headers = new Headers(cors);
+  obj.writeHttpMetadata(headers);                 // content-type from stored metadata
+  headers.set("Content-Type", obj.httpMetadata?.contentType || "image/jpeg");
+  headers.set("ETag", obj.httpEtag);
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  return new Response(obj.body, { headers });
+}
+
 /** POST /interventions/full — create with all tracker fields */
 async function createFull(request, env, cors) {
   let body;
@@ -335,6 +372,7 @@ async function createFull(request, env, cors) {
     person_submitted,
     last_edited: now,
     last_edited_by: person_submitted,
+    photos: [],   // managed by the Access-gated upload Worker, not via this create/PATCH path
   };
 
   await env.INTERVENTIONS.put(ACTIVE + id, JSON.stringify(rec));

@@ -7,11 +7,15 @@
   "scripts": {
     "dev": "http-server . -p 8090 -c-1",
     "serve": "http-server . -p 8090 -c-1 -o /index.html",
-    "test": "playwright test -c hypothesis/playwright.config.js",
-    "test:drug": "playwright test -c drug/playwright.config.js",
-    "test:unhoused": "playwright test -c unhoused/playwright.config.js",
-    "test:districts": "playwright test -c districts/playwright.config.js",
-    "test:all": "playwright test -c homepage/playwright.config.js && playwright test -c drug/playwright.config.js && playwright test -c unhoused/playwright.config.js && playwright test -c theft/playwright.config.js && python3 validation/validate_build.py && node validation/parity.mjs"
+    "test": "playwright test && python3 validation/validate_build.py && node validation/parity.mjs",
+    "test:e2e": "playwright test",
+    "test:homepage": "playwright test --project=homepage",
+    "test:districts": "playwright test --project=districts",
+    "test:theft": "playwright test --project=theft",
+    "test:drug": "playwright test --project=drug",
+    "test:unhoused": "playwright test --project=unhoused",
+    "test:hypothesis": "playwright test --project=hypothesis",
+    "test:all": "npm test"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

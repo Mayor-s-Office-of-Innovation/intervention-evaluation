@@ -1,0 +1,37 @@
+# Intervention photo UPLOAD Worker — the only writer of photos (../docs/plan-photo-uploads.md).
+# Sits behind Cloudflare Access (One-Time PIN, @sfgov.org) on photos.sfinterventionassets.org.
+# The public interventions-api Worker only READS/serves the bytes it writes.
+#
+# Deploy:  cd photo-upload-worker && npx wrangler deploy
+# Local:   npx wrangler dev --var DEV:1 --var PUBLIC_PHOTO_BASE:http://localhost:8787 \
+#                           --persist-to ../.wrangler-shared
+#          (share --persist-to with a `wrangler dev` of interventions-api so both see the
+#           same local KV + R2; DEV:1 bypasses Access locally — NEVER set DEV in prod.)
+name = "intervention-photos-upload"
+main = "src/index.js"
+compatibility_date = "2026-06-01"
+
+# Shared KV — SAME namespace id as interventions-api (both bind the one store).
+[[kv_namespaces]]
+binding = "INTERVENTIONS"
+id = "f5d4e1a36d594b448e2179f85c32f8d2"
+
+# Shared R2 bucket — this Worker WRITES; interventions-api only reads.
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "intervention-storage"
+
+[vars]
+# Public Worker base that SERVES photo bytes — used to build absolute image URLs for the widget.
+PUBLIC_PHOTO_BASE = "https://interventions-api.safestreetssf.workers.dev"
+# Origin allowed to receive the widget's postMessage refresh (the public site that opened it).
+OPENER_ORIGIN = "https://mayor-s-office-of-innovation.github.io"
+# City email domain asserted on the verified Access JWT (defense in depth atop the Access policy).
+CITY_EMAIL_DOMAIN = "sfgov.org"
+
+# ── Cloudflare Access — FILL IN after creating the Access app over photos.sfinterventionassets.org ──
+# Zero Trust team domain, e.g. https://YOURTEAM.cloudflareaccess.com  (no trailing slash)
+ACCESS_TEAM_DOMAIN = "https://bitter-recipe-ab41.cloudflareaccess.com"
+# Access application AUD tag (Access app → Overview → Application Audience (AUD) Tag)
+ACCESS_AUD = "f76642a757e75ac228dff328e88d480ec03cf549c8d8eb1576ee1f7457a604e4"
+# NOTE: do NOT add DEV here. Enable the dev bypass only at the CLI:  wrangler dev --var DEV:1

@@ -1,5 +1,5 @@
 {
-  "generated": "2026-07-14",
+  "generated": "2026-07-27",
   "lurie_inauguration": "2025-01-08",
   "pre_window": [
     "2023-01",
@@ -1329,10 +1329,10 @@
       },
       "counts": {
         "emerged": 211,
-        "cooled": 90,
-        "persistent": 51
+        "cooled": 91,
+        "persistent": 50
       },
-      "cells": 1500,
+      "cells": 1513,
       "classified_fixed_preset": 352
     },
     "cfs_presence": {
@@ -2601,7 +2601,7 @@
         "cooled": 50,
         "emerged": 111
       },
-      "cells": 763,
+      "cells": 765,
       "classified_fixed_preset": 201
     }
   }

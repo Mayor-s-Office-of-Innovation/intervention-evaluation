@@ -13,6 +13,13 @@ compatibility_date = "2026-06-01"
 binding = "INTERVENTIONS"
 id = "f5d4e1a36d594b448e2179f85c32f8d2"
 
+# R2 bucket for intervention photos (../docs/plan-photo-uploads.md).
+# This (public) Worker only READS/serves bytes; the separate Access-gated upload Worker writes them.
+# `wrangler dev` simulates R2 locally — no account needed for local work.
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "intervention-storage"
+
 [vars]
 # Comma-separated origins allowed for CORS AND that a saved URL must come from (the main spam defense).
 ALLOWED_ORIGINS = "https://mayor-s-office-of-innovation.github.io,http://localhost:8090,http://127.0.0.1:8090"

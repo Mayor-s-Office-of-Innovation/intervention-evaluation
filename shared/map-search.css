@@ -1,0 +1,24 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Cross-street search box + search-result pin — shared by every map that
+   offers "find cross streets" (hotspots map, recent-activity hexbins, and
+   the hypothesis location picker). Centralized here so it isn't copy-pasted
+   per dashboard; the JS lives in shared/cross-street-search.js.
+
+   Colors read each page's theme tokens (--c-blue / --text / --muted / …)
+   with hard fallbacks, so the box looks right even on a page that hasn't
+   defined the full token set. Linked as ../../shared/map-search.css.
+   ───────────────────────────────────────────────────────────────────── */
+.map-search-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; }
+.map-search-label { font-size: .74rem; font-weight: 600; color: var(--text, #1e293b); }
+.map-search-controls { display: inline-flex; align-items: center; gap: .35rem; }
+.map-search-input { font: inherit; font-size: .82rem; width: 190px; max-width: 46vw; padding: .3rem .7rem; border: 1px solid var(--c-line, #e2e8f0); border-radius: 999px; background: var(--surface, #fff); color: var(--text, #1e293b); transition: border-color .12s; }
+.map-search-input:focus { outline: none; border-color: var(--c-blue, #3b82f6); }
+.map-search-input::placeholder { color: var(--muted, #64748b); }
+.map-search-btn { display: inline-flex; align-items: center; gap: .3rem; height: 28px; padding: 0 .75rem; flex: none; font: inherit; font-size: .76rem; font-weight: 600; border: 1px solid var(--c-blue, #3b82f6); border-radius: 999px; background: var(--c-blue, #3b82f6); color: #fff; cursor: pointer; }
+.map-search-btn:hover { filter: brightness(1.08); }
+.map-search-btn:focus-visible { outline: 2px solid var(--c-blue, #3b82f6); outline-offset: 2px; }
+.map-search-status { font-size: .72rem; color: var(--muted, #64748b); }
+.map-search-status.is-error { color: var(--c-red, #dc2626); }
+.search-marker { background: none; border: none; }
+.search-marker__pin { display: block; width: 14px; height: 14px; border-radius: 50%; background: var(--c-blue, #3b82f6); box-shadow: 0 0 0 3px rgba(59,130,246,.3); animation: search-pulse 1.5s ease-out infinite; }
+@keyframes search-pulse { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,.45); } 70% { box-shadow: 0 0 0 12px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }

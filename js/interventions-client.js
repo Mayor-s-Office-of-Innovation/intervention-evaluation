@@ -13,6 +13,43 @@ export const API = (() => {
   try { return localStorage.getItem('interventionsApi') || PROD_API; } catch { return PROD_API; }
 })();
 
+// Photo serve URLs from the API are ORIGIN-RELATIVE (e.g. `/photos/:id/:pid?v=thumb`); join them
+// with the API base so images resolve against whatever Worker this client points at (prod or local).
+export const photoSrc = rel => (rel ? `${API}${rel}` : '');
+
+// ──────────────────────────────────────────────────────────────────────────
+// Photo UPLOAD widget — a SEPARATE, Cloudflare-Access-gated Worker on its own domain. Viewing photos
+// is public (served by the API above); uploading/managing them happens in this widget, which we open
+// in a new tab. Local dev: set  localStorage.photoWidget = 'http://localhost:8788'  (and clear it to
+// go back to prod). See docs/plan-photo-uploads.md.
+const PROD_PHOTO_WIDGET = 'https://photos.sfinterventionassets.org';
+export const PHOTO_WIDGET = (() => {
+  try { return localStorage.getItem('photoWidget') || PROD_PHOTO_WIDGET; } catch { return PROD_PHOTO_WIDGET; }
+})();
+
+// Open the Access-gated widget for one intervention in a new tab. Named so repeat clicks reuse the
+// tab. Deliberately NO `noopener` — the widget needs its `window.opener` reference to post back when
+// photos change (see onPhotosUpdated).
+export function openPhotoWidget(id) {
+  return window.open(`${PHOTO_WIDGET}/?intervention=${encodeURIComponent(id)}`, 'intervention-photos');
+}
+
+// Subscribe to the widget's "photos changed" pings. The widget posts
+//   { type: 'photos-updated', intervention: <id> }
+// to window.opener after every upload/delete. We verify the message ORIGIN (=== the widget's origin)
+// and shape before invoking handler(interventionId). Returns an unsubscribe fn.
+export function onPhotosUpdated(handler) {
+  let origin = null;
+  try { origin = new URL(PHOTO_WIDGET).origin; } catch { /* leave null → accept any origin */ }
+  const listener = e => {
+    if (origin && e.origin !== origin) return;
+    const d = e.data;
+    if (d && d.type === 'photos-updated' && d.intervention) handler(d.intervention);
+  };
+  window.addEventListener('message', listener);
+  return () => window.removeEventListener('message', listener);
+}
+
 export async function listInterventions() {
   const res = await fetch(`${API}/interventions`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

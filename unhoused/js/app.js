@@ -27,7 +27,7 @@ const RECENT_SIGNALS = [
     key: 'encampment', dataset: 'vw6y-z8j6', dateCol: 'requested_datetime',
     where: "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
     geo: { kind: 'latlong', latCol: 'lat', lngCol: 'long' }, nameCol: 'address',
-    label: 'encampment & homelessness reports (311)', chip: 'Encampment',
+    label: '311 encampment and unhoused reports', chip: '311 encampment & unhoused',
   },
   {
     key: 'cfs_presence', dataset: '2zdj-bwza', dateCol: 'received_datetime',
@@ -127,8 +127,8 @@ const dirClass = x => (x == null ? 'delta-flat' : x < -0.005 ? 'delta-good' : x 
 // What the focused chart shows.
 function focusInfo() {
   if (focus === 'aggregate') return {
-    series: aggSeries, label: 'All unhoused-presence reports', breaks: [],
-    note: 'Sum of encampment & homelessness reports (311) and 911 unhoused-presence calls (SFPD) — distinct reporting channels with no overlap. Encampment dominates the magnitude.',
+    series: aggSeries, label: 'All reports — 311 + 911 combined', breaks: [],
+    note: 'Total community reports of unhoused presence across two different channels: 311 encampment and unhoused reports plus 911 unhoused-presence calls (SFPD). These are different units — a 311 service request is not the same as a dispatched 911 call, and there is no cross-dataset dedup — so read this as combined report volume, not a count of distinct situations. 311 dominates the magnitude.',
   };
   if (focus === 'cfs_presence') return {
     series: d => groupSeries('cfs_presence', d), label: '911 unhoused calls', breaks: [],
@@ -160,10 +160,27 @@ function summaryCard(focusKey, label, series, accent) {
 }
 function renderSummary() {
   $('#summary-cards').innerHTML =
-    summaryCard('encampment', 'Encampments', seriesFor('encampment', active), 'var(--c-red)') +
+    summaryCard('encampment', '311 encampment and unhoused reports', seriesFor('encampment', active), 'var(--c-red)') +
     summaryCard('cfs_presence', '911 unhoused calls', groupSeries('cfs_presence', active), 'var(--c-orange)');
   $('#summary-cards').querySelectorAll('.scard').forEach(b =>
     b.onclick = () => setFocus(b.dataset.focus));
+  updateEncBreakdown();
+}
+
+// D7 — decompose the combined headline in place so viewers see it's a union of two 311 report
+// types (the mid-2025 encampment/unhoused split), not just "encampments". Individuals = union −
+// encampment-only (the two filters are mutually exclusive, so no overlap to subtract).
+function updateEncBreakdown() {
+  const el = $('#enc-breakdown-text');
+  if (!el) return;
+  const idx = lastIdx();
+  const union = seriesFor('encampment', active)[idx];
+  const only = seriesFor('encampment_only', active)[idx];
+  const indiv = Math.max(0, union - only);
+  el.innerHTML =
+    `<strong>${union.toLocaleString()}</strong> = ${only.toLocaleString()} encampment ` +
+    `<span class="enc-breakdown__sub">(tents/structures)</span> + ${indiv.toLocaleString()} unhoused individual ` +
+    `<span class="enc-breakdown__sub">· ${prettyMonth(AGG.latest_complete_month)}, ${active}</span>`;
 }
 
 // ── citywide context card (above the chart) ──
@@ -248,7 +265,7 @@ function onChartBrush(lo, hi, committed) {
 }
 
 function buildChartSelector() {
-  const opts = [['aggregate', 'Aggregate'], ['encampment', 'Encampment'], ['cfs_presence', '911 unhoused calls']];
+  const opts = [['aggregate', 'Aggregate'], ['encampment', '311 encampment & unhoused'], ['cfs_presence', '911 unhoused calls']];
   $('#chart-selector').innerHTML = opts.map(([k, lab]) =>
     `<button class="seg ${focus === k ? 'is-active' : ''}" data-f="${k}">${lab}</button>`).join('');
   $('#chart-selector').querySelectorAll('.seg').forEach(b => b.onclick = () => setFocus(b.dataset.f));
@@ -372,12 +389,12 @@ async function renderMap() {
   $('#map-note').innerHTML =
     `Each dot is a ~block (≈110 m) that reaches at least <strong>${hot} ${mapSignal === 'encampment' ? 'reports' : 'calls'}/month</strong>, ` +
     `classified by how its rate over <strong>${span}</strong> compares to its <strong>pre-Lurie (2023–24) baseline</strong>, ` +
-    `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so the June-2025 ` +
-    `encampment reporting reroute and citywide growth don’t read as local change. ` +
+    `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so the mid-2025 ` +
+    `311 encampment/unhoused category split and citywide growth don’t read as local change. ` +
     `Built on presence reports only (not HSOC). ` +
     (mapSignal === 'encampment'
-      ? 'Encampment spans the June-2025 reroute — the reroute-free “911 calls” view corroborates the pattern. '
-      : 'The 911 calls signal has no reporting reroute (a clean pre/post comparison), and uses a lower hotspot threshold because it is lower-volume. ') +
+      ? 'This 311 signal spans the mid-2025 category split — the split-free “911 calls” view corroborates the pattern. '
+      : 'The 911 calls signal has no reporting change (a clean pre/post comparison), and uses a lower hotspot threshold because it is lower-volume. ') +
     '<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> for its monthly trend, a breakdown of report types, and a shareable link.';
 
   // Deep-link restore (once): scroll to the map, then re-center/zoom (the queued cell opens as cells draw).
@@ -391,7 +408,7 @@ async function renderMap() {
 // ── map signal toggle (encampment / 911) ──
 function buildMapControls() {
   $('#map-controls').innerHTML = `
-    <button class="seg ${mapSignal === 'encampment' ? 'is-active' : ''}" data-s="encampment">Encampment</button>
+    <button class="seg ${mapSignal === 'encampment' ? 'is-active' : ''}" data-s="encampment">311 encampment &amp; unhoused</button>
     <button class="seg ${mapSignal === 'cfs_presence' ? 'is-active' : ''}" data-s="cfs_presence">911 unhoused calls</button>`;
   $('#map-controls').querySelectorAll('.seg').forEach(b =>
     b.onclick = async () => { mapSignal = b.dataset.s; buildMapControls(); await renderMap(); notifyState(); });
@@ -493,34 +510,43 @@ function initDistrict() {
 function renderMethodology() {
   const s = PROV.signals, g = PROV.groups;
   const q = url => `<a href="${url}" target="_blank" rel="noopener">query ↗</a>`;
+  // On a district page, prefer the district-scoped verify link (computed-region spatial join) so the
+  // query reproduces the district figure shown; fall back to citywide. (U1/U3, "Option A".)
+  const scoped = p => (active !== 'Citywide' && p.query_url_by_district && p.query_url_by_district[active]) || p.query_url;
+  const districtLink = active !== 'Citywide';
   const sigRow = (key, why) => {
     const p = s[key];
     let parts = '';
     if (p.components) {
       parts = '<ul class="meth-parts">' + Object.entries(p.components).map(([n, c]) =>
-        `<li><code>${n}</code>: ${q(c.query_url)}</li>`).join('') + '</ul>';
+        `<li><code>${n}</code>: ${q(scoped(c))}</li>`).join('') + '</ul>';
     }
     return `<li><strong>${AGG.signals[key].label}</strong> — ${why}
-      <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(p.query_url)}${p.dedup_note ? ' · ' + p.dedup_note : ''}</small>${parts}</li>`;
+      <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(scoped(p))}${p.dedup_note ? ' · ' + p.dedup_note : ''}</small>${parts}</li>`;
   };
   const grp = g.cfs_presence;
   const grpRow = `<li><strong>${grp.label}</strong> — two distinct, non-overlapping SFPD call types, summed.
     <br><small>${grp.note}</small>
     <ul class="meth-parts">${Object.values(grp.members).map(m =>
-      `<li>${m.label}: ${m.dataset_name} (<code>${m.dataset_id}</code>) · ${q(m.query_url)}</li>`).join('')}</ul></li>`;
+      `<li>${m.label}: ${m.dataset_name} (<code>${m.dataset_id}</code>) · ${q(scoped(m))}</li>`).join('')}</ul></li>`;
 
   document.getElementById('methodology-body').innerHTML = `
     <p class="meth-lead">Every signal — and every component of a combined one — names its dataset and links a
-      runnable Socrata query, so each number ties back to source data.</p>
+      runnable Socrata query, so each number ties back to source data.${districtLink ? ` On this
+      <strong>${active}</strong> page each query is scoped to the district using the police-district
+      boundary’s spatial join (<code>:@computed_region_qgnn_b9vv</code>) — the same boundary this
+      dashboard draws — so it returns within <strong>~0.5%</strong> of the figure shown here (our count
+      uses a point-in-polygon against that boundary; the two differ by a few reports). Switch to Citywide
+      for the unscoped query.` : ''}</p>
     <h3>Success metrics — what we want to go down, and why each is homeless-related</h3>
     <ul class="meth-list">
-      ${sigRow('encampment', 'the critical presence metric; unions the dedicated 311 Encampment category with the homelessness requests it was rerouted into in June 2025 so the trend stays continuous')}
+      ${sigRow('encampment', 'community 311 reports of unhoused presence. In mid-2025 SF split the single “Encampment” request into encampments (tents/structures) and unhoused-individual concerns; this unions both so the trend stays continuous across that change — read it as presence, not confirmed encampments')}
       ${grpRow}
     </ul>
     <h3>Response signal — shown below, not a success target</h3>
     <ul class="meth-list">
       <li><strong>${AGG.signals.hsoc.label}</strong> — the city’s outreach <em>effort</em>, the analog of arrests in a crime dashboard: appropriate to rise while presence is high, but ultimately should fall as the problem improves. It overlaps the 911 calls and is never summed with them.
-        <br><small>${s.hsoc.dataset_name} (<code>${s.hsoc.dataset_id}</code>) · ${q(s.hsoc.query_url)}</small></li>
+        <br><small>${s.hsoc.dataset_name} (<code>${s.hsoc.dataset_id}</code>) · ${q(scoped(s.hsoc))}</small></li>
     </ul>
     <h3>Left out — and why (deferred to sibling projects)</h3>
     <ul class="meth-list meth-list--out">
@@ -532,7 +558,7 @@ function renderMethodology() {
       <em>where and when are reports showing up right now</em>, for resource planning. It is
       <strong>queried live from DataSF</strong> each time you open it, so it is <strong>evergreen</strong>
       and can be a day or two newer than the rest of this page (a fixed snapshot). Two report types,
-      switchable: <strong>Encampment &amp; homelessness reports</strong> (SF 311, <code>vw6y-z8j6</code>) and
+      switchable: <strong>311 encampment and unhoused reports</strong> (SF 311, <code>vw6y-z8j6</code>) and
       <strong>911 presence calls</strong> (SFPD CFS sit/lie + homeless complaint, <code>2zdj-bwza</code>) —
       the same filters as the metrics above.</p>
     <ul class="meth-list">
@@ -579,6 +605,11 @@ async function main() {
     renderScrubber();
     renderMethodology();
     $('#enc-only-toggle').addEventListener('change', (e) => { encOnly = e.target.checked; renderFocusChart(); });
+    $('#enc-why').addEventListener('click', () => {
+      const fn = $('#enc-footnote'), btn = $('#enc-why'), open = fn.hidden;
+      fn.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+    });
     renderDistrict();
   } catch (e) {
     const s = $('#status'); s.hidden = false; s.textContent = 'Failed to load data: ' + e.message;

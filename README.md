@@ -1,8 +1,10 @@
 # Intervention Evaluation — SF Neighborhood Safety Pod
 
 A set of static, data-backed **OKR dashboards** for San Francisco neighborhood-safety interventions,
-plus a self-serve hypothesis-checking tool. Every number ties back to a runnable [Socrata](https://data.sfgov.org)
-query; the dashboards are pre-baked JSON (no live calls at view time), built offline from Python.
+plus a self-serve hypothesis-checking tool. The goal: track whether the city's neighborhood
+interventions are actually moving the numbers that matter, using public SF OpenData. Every number ties
+back to a runnable [Socrata](https://data.sfgov.org) query; the dashboards are pre-baked JSON (no live
+calls at view time), built offline from Python.
 
 ## Run it locally
 
@@ -76,10 +78,22 @@ rebuild-and-commit Action is a noted later option.
 python3 validation/validate_build.py        # data invariants + transitions↔aggregates axis alignment
 node validation/parity.mjs drug             # client classifier == baked Python oracle (also: unhoused)
 python3 validation/trace.py drug            # re-derive headline numbers from the declared Socrata query
-npx playwright test -c drug/playwright.config.js   # e2e (also: unhoused, theft)
+npx playwright test --project=drug          # e2e for one dashboard (also: unhoused, theft, homepage, districts, hypothesis)
+npm test                                     # everything: all e2e projects + build invariants + parity
 ```
 
 On push to `main`, the [deploy workflow](.github/workflows/deploy.yml) runs these (build invariants +
 parity + e2e suites) and **gates the GitHub Pages deploy**; the source↔data
-[trace](.github/workflows/trace.yml) runs nightly. The cross-cutting time-scrubber + validation work is
-documented in **[drug/plan-scrubber.md](drug/plan-scrubber.md)**.
+[trace](.github/workflows/trace.yml) runs nightly.
+
+## Built with
+
+This project was built and maintained with the Mayor's Office of Innovation
+[**skills**](https://github.com/Mayor-s-Office-of-Innovation/skills) (public, MIT):
+
+- [**web-dev**](https://github.com/Mayor-s-Office-of-Innovation/skills/tree/main/web-dev) — the
+  frontend stack and standards behind the site: lightweight, Core-Web-Vitals-first, accessible
+  (WCAG AA), web components + Web Awesome, modern CSS, GitHub Pages via Actions.
+- [**dashboard-review**](https://github.com/Mayor-s-Office-of-Innovation/skills/tree/main/dashboard-review)
+  — the data-quality bar every dashboard is held to: accuracy, source integrity, honest
+  denominators, and the source↔data provenance each chart footnote must satisfy (see [Checks](#checks)).

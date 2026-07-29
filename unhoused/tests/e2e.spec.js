@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../tests/e2e-base.js';
 
 const DISTRICTS = ['northern', 'mission', 'tenderloin', 'central'];
 const url = (d) => `/unhoused/index.html#${d}`;
@@ -29,12 +29,12 @@ test('four district pages: two success cards, one chart, HSOC response block, ma
 test('chart selector switches focus; clicking a success card focuses it', async ({ page }) => {
   trackErrors(page);
   await page.goto(url('northern'), { waitUntil: 'networkidle' });
-  // default focus = aggregate
-  await expect(page.locator('#chart-selector .seg.is-active')).toHaveText('Aggregate');
+  // default focus = aggregate (assert on the stable data-f hook, not the display label)
+  await expect(page.locator('#chart-selector .seg.is-active')).toHaveAttribute('data-f', 'aggregate');
   // click the Encampments card → focuses encampment + reveals the dedicated-only toggle
   await page.locator('.scard[data-focus="encampment"]').click();
   await page.waitForTimeout(200);
-  await expect(page.locator('#chart-selector .seg.is-active')).toHaveText('Encampment');
+  await expect(page.locator('#chart-selector .seg.is-active')).toHaveAttribute('data-f', 'encampment');
   await expect(page.locator('#enc-only-wrap')).toBeVisible();
   // selector → 911 hides the encampment-only toggle
   await page.locator('#chart-selector .seg[data-f="cfs_presence"]').click();
@@ -245,12 +245,13 @@ test('recent-activity: renders (stubbed); signal picker switches encampment ↔ 
   await expect(page.locator('#ra-hours .ra-bar')).toHaveCount(24);
   await expect(page.locator('#ra-map path.leaflet-interactive').first()).toBeVisible();
   await expect(page.locator('#ra-signal .seg')).toHaveCount(2);
-  await expect(page.locator('#ra-signal .seg.is-active')).toHaveText('Encampment');
+  // assert on the stable test-sig-<key> hook, not the display chip (which gets reworded)
+  await expect(page.locator('#ra-signal .seg.is-active')).toHaveClass(/test-sig-encampment/);
   await expect(page.locator('#ra-note')).toContainText('encampment');
 
   // switch to the 911-presence signal (different dataset)
-  await page.locator('#ra-signal .seg', { hasText: '911 presence' }).click();
-  await expect(page.locator('#ra-signal .seg.is-active')).toHaveText('911 presence');
+  await page.locator('#ra-signal .seg.test-sig-cfs_presence').click();
+  await expect(page.locator('#ra-signal .seg.is-active')).toHaveClass(/test-sig-cfs_presence/);
   await expect(page.locator('#ra-note')).toContainText('911 presence');
   await expect(page.locator('#ra-hours .ra-bar')).toHaveCount(24);
 

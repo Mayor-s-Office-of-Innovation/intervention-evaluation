@@ -1,5 +1,5 @@
 import { parseTSV, groupBy } from './tsv.js';
-import { listInterventions, closeIntervention, reopenIntervention, updateIntervention } from './interventions-client.js';
+import { listInterventions, closeIntervention, reopenIntervention, updateIntervention, getIntervention, photoSrc, openPhotoWidget, onPhotosUpdated } from './interventions-client.js';
 import { LEVERS } from '../hypothesis/js/datapoints.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
@@ -24,7 +24,7 @@ const OKR_DEFS = {
     eyebrow: 'Unhoused presence',
     dataPath: './unhoused/data/aggregates.json',
     krs: [
-      { signal: 'encampment', label: 'Encampment reports', goal: 'down' },
+      { signal: 'encampment', label: '311 encampment & unhoused reports', goal: 'down' },
       { signal: 'cfs_homeless', label: '911 unhoused calls', goal: 'down' },
     ]
   },
@@ -80,7 +80,7 @@ const WORKING_LABELS = { yes: 'Working', no: 'Not working', inconclusive: 'Incon
 const KR_TO_OKR = {
   '911 drug complaints': 'drug',
   'Dealer arrests': 'drug',
-  'Encampment reports': 'unhoused',
+  '311 encampment & unhoused reports': 'unhoused',
   '911 unhoused calls': 'unhoused',
   'Shoplifting': 'theft',
   'Commercial burglary & robbery': 'theft',
@@ -126,6 +126,9 @@ function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// A 2-week YoY off a tiny year-ago base is noise; we still show it (freshness) but MARK it below this floor.
+const TWO_WK_MIN_BASE = 20;
+
 function sumLast(arr, n) {
   if (!arr || arr.length < n) return null;
   return arr.slice(-n).reduce((a, b) => a + b, 0);
@@ -136,12 +139,31 @@ function pctChange(current, previous) {
   return Math.round(((current - previous) / previous) * 100);
 }
 
+// Find the week index whose Monday-start date is closest to (isoWeek + dayOffset days). Used to pair a
+// week with its ~52-week-prior partner via a −364-day lookup — date-based so it survives 53-week ISO
+// years where a fixed idx−52 would mis-pair. −364 is a multiple of 7, so on a contiguous axis it lands
+// exactly on a prior Monday.
+function nearestWeekIndex(weeks, isoWeek, dayOffset) {
+  if (!weeks || !weeks.length) return -1;
+  const target = new Date(isoWeek + 'T00:00:00Z');
+  target.setUTCDate(target.getUTCDate() + dayOffset);
+  const t = target.getTime();
+  let best = -1, bestDiff = Infinity;
+  for (let i = 0; i < weeks.length; i++) {
+    const diff = Math.abs(new Date(weeks[i] + 'T00:00:00Z').getTime() - t);
+    if (diff < bestDiff) { bestDiff = diff; best = i; }
+  }
+  return best;
+}
+
 function getKRData(okrId, kr, district) {
   // Check if this is an emerging signal (fetched from Socrata)
   if (EMERGING_SIGNALS[kr.signal]) {
     const cached = emergingSignalsCache[`${kr.signal}_${district}`];
     if (!cached) return null;
-    return { change1mo: cached.change, change3mo: cached.change, goal: kr.goal };
+    const base2wk = cached.prior2 ?? null;   // year-ago fortnight base, carried through the cache
+    return { change1mo: cached.change1mo, change3mo: cached.change3mo, change2wk: cached.change2wk ?? null,
+             lowBase2wk: base2wk != null && base2wk < TWO_WK_MIN_BASE, base2wk, goal: kr.goal, settles: true };
   }
 
   const data = aggregatesData[okrId];
@@ -164,9 +186,16 @@ function getKRData(okrId, kr, district) {
 
   if (!series || series.length < 13) return null;
 
-  const len = series.length;
-  const hasPartial = data.current_partial_month != null;
-  const endIdx = hasPartial ? len - 1 : len;
+  // Per-signal settle: drug bakes an explicit `settles` per signal (community-911 is creation-stamped
+  // even though the dashboard also carries laggy arrest signals); theft/unhoused don't, so fall back to
+  // whether the dashboard has a settled-month pointer at all (theft yes, unhoused no).
+  const settles = signal.settles ?? (data.latest_settled_month != null);
+
+  // Anchor every chip to the latest SETTLED month for laggy signals (theft ~2mo, drug arrests ~1mo),
+  // else the latest complete month. endIdx is the count up to & including the anchor month.
+  const anchorMonth = (settles && data.latest_settled_month) || data.latest_complete_month || data.current_partial_month;
+  const mi = data.months ? data.months.indexOf(anchorMonth) : -1;
+  const endIdx = mi >= 0 ? mi + 1 : (data.current_partial_month != null ? series.length - 1 : series.length);
 
   // 1-month change: compare last settled month vs same month last year
   const last1 = series[endIdx - 1];
@@ -178,10 +207,28 @@ function getKRData(okrId, kr, district) {
   const prior3 = sumLast(series.slice(0, endIdx - 12), 3);
   const change3mo = pctChange(last3, prior3);
 
-  return { change1mo, change3mo, goal: kr.goal };
+  // 2-week change: latest settled fortnight vs the same fortnight ~52 weeks prior (YoY, from series_weekly).
+  let change2wk = null, base2wk = null;
+  let weekly = signal.series_weekly?.[district];
+  if (weekly && typeof weekly === 'object' && !Array.isArray(weekly)) weekly = weekly.reported;   // theft shape
+  const weeks = data.weeks;
+  const anchorWeek = (settles && data.latest_settled_week) || data.latest_complete_week;
+  if (weekly && weeks && anchorWeek) {
+    const wEnd = weeks.indexOf(anchorWeek);
+    const pIdx = nearestWeekIndex(weeks, anchorWeek, -364);
+    if (wEnd >= 1 && pIdx >= 1) {
+      const last2 = sumLast(weekly.slice(0, wEnd + 1), 2);
+      const prior2 = sumLast(weekly.slice(0, pIdx + 1), 2);
+      change2wk = pctChange(last2, prior2);
+      base2wk = prior2;   // year-ago fortnight base — used to flag (not hide) small-N chips
+    }
+  }
+  const lowBase2wk = base2wk != null && base2wk < TWO_WK_MIN_BASE;
+
+  return { change1mo, change3mo, change2wk, lowBase2wk, base2wk, goal: kr.goal, settles };
 }
 
-function renderChangeBadge(change, goal, label) {
+function renderChangeBadge(change, goal, label, opts = {}) {
   if (change === null) {
     return `<span class="kr-ticker__badge kr-ticker--nodata" title="${label}">—</span>`;
   }
@@ -190,7 +237,13 @@ function renderChangeBadge(change, goal, label) {
   const isGood = (goal === 'down' && isDown) || (goal === 'up' && isUp);
   const arrow = isUp ? '↑' : (isDown ? '↓' : '→');
   const cls = isGood ? 'kr-ticker--good' : 'kr-ticker--bad';
-  return `<span class="kr-ticker__badge ${cls}" title="${label}">${arrow}${Math.abs(change)}%</span>`;
+  // Low-base 2wk chips are still shown (freshness) but marked ~ + dotted, with a caveat tooltip —
+  // we intentionally discard the usual reliability floor here; a small fortnight base is noisy.
+  const low = opts.lowBase;
+  const title = low
+    ? `${label} — small window: only ${opts.base} reports in the year-ago fortnight (below our ${TWO_WK_MIN_BASE} floor), so read as directional`
+    : label;
+  return `<span class="kr-ticker__badge ${cls}${low ? ' kr-ticker--lowbase' : ''}" title="${title}">${low ? '~' : ''}${arrow}${Math.abs(change)}%</span>`;
 }
 
 function renderKRTicker(okr, district) {
@@ -204,6 +257,9 @@ function renderKRTicker(okr, district) {
       <div class="kr-ticker">
         <span class="kr-ticker__label">${esc(kr.label)}</span>
         <span class="kr-ticker__badges">
+          ${renderChangeBadge(data.change2wk, data.goal, data.settles
+            ? '2 weeks vs. a year ago — latest settled fortnight (lags ~weeks after approval)'
+            : '2 weeks vs. a year ago — the latest two weeks', { lowBase: data.lowBase2wk, base: data.base2wk })}
           ${renderChangeBadge(data.change1mo, data.goal, '1 month vs last year')}
           ${renderChangeBadge(data.change3mo, data.goal, '3 months vs last year')}
         </span>
@@ -215,6 +271,7 @@ function renderKRTicker(okr, district) {
     <div class="kr-ticker kr-ticker--header" aria-hidden="true">
       <span class="kr-ticker__label"></span>
       <span class="kr-ticker__badges">
+        <span class="kr-ticker__col" title="Two weeks vs. the same fortnight a year ago — see methodology for how 'settled' is defined">2wk</span>
         <span class="kr-ticker__col">1mo</span>
         <span class="kr-ticker__col">3mo</span>
       </span>
@@ -293,6 +350,7 @@ const viewHref = i => (i.id ? `./hypothesis/?view=${encodeURIComponent(i.id)}` :
 
 const INTERVENTION_COLUMNS = [
   { header: 'ID', cls: 'id', always: true, cell: i => `<span class="mono">${esc(i.intervention_id || i.id?.slice(0,8) || '—')}</span>` },
+  { header: 'Photo', cls: 'photo', has: i => i.photos?.length, cell: renderPhotoThumb },
   { header: 'Intervention', cls: 'name', always: true, cell: i => {
       const h = viewHref(i), name = esc(i.intervention || '');
       return h ? `<a class="intervention-link" href="${esc(h)}">${name}</a>` : `<strong>${name}</strong>`;
@@ -334,6 +392,31 @@ function renderActions(i) {
   }
   if (i.eval_link) return `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>`;
   return '—';
+}
+
+// First photo as a fixed-size square thumbnail (fixed dims → no layout shift regardless of the
+// image's intrinsic w/h), with a +N badge when a record has more than one. Clicking the row still
+// navigates to the read-only view, where the full gallery lives.
+function renderPhotoThumb(i) {
+  const photos = i.photos || [];
+  if (!photos.length) return '';
+  const p = photos[0];
+  const more = photos.length > 1 ? `<span class="intervention-thumb__more">+${photos.length - 1}</span>` : '';
+  return `<span class="intervention-thumb">
+    <img src="${esc(photoSrc(p.thumb))}" alt="${esc(p.caption || 'Intervention photo')}" width="44" height="44" loading="lazy">
+    ${more}
+  </span>`;
+}
+
+// Photo strip inside the inline editor: thumbnails link to the full-size image in a new tab. Photos
+// are added/removed in the Access-gated widget, so this is display-only (empty-state prompts the button).
+function renderEditorPhotoStrip(photos) {
+  const list = photos || [];
+  if (!list.length) return `<span class="editor-photos__empty">No photos yet.</span>`;
+  return list.map(p =>
+    `<a class="photos-strip__item" href="${esc(photoSrc(p.full))}" target="_blank" rel="noopener">` +
+    `<img src="${esc(photoSrc(p.thumb))}" alt="${esc(p.caption || 'Intervention photo')}" loading="lazy"></a>`
+  ).join('');
 }
 
 function renderInterventionRow(i, cols) {
@@ -388,6 +471,14 @@ function renderEditor(i) {
       intervention and <a href="./hypothesis/?district=${esc(currentDistrict)}">create a new one</a>
       with the new location.</p>
 
+    <div class="editor-photos">
+      <span class="editor-photos__label">Photos</span>
+      <div class="editor-photos__strip" data-id="${esc(i.id)}">${renderEditorPhotoStrip(i.photos)}</div>
+      <button class="action-btn editor-photos-btn" type="button" data-id="${esc(i.id)}">Add / manage photos</button>
+      <p class="editor-photos__note">Photos open in a separate, sign-in-protected tab and save immediately —
+        you don't need to click “Save changes” for them.</p>
+    </div>
+
     <p class="editor-error" role="alert" hidden></p>
     <div class="editor-actions">
       ${isClosed
@@ -430,6 +521,7 @@ function savedToRow(s) {
     last_edited: s.last_edited || s.created || '',
     // Location — carried through so the inline editor can show the current pin (read-only).
     lat: s.lat, lng: s.lng, radius: s.radius,
+    photos: s.photos || [],
     eval_link: s.url,
   };
 }
@@ -542,6 +634,9 @@ async function wireEditor(container, editor) {
   editor.querySelector('.editor-restore')?.addEventListener('click', () => {
     mutateAndRefresh(container, id, () => reopenIntervention(id), 'Could not restore — please try again.');
   });
+  // Photos live in the Access-gated widget (opens in a new tab). The module-level onPhotosUpdated
+  // listener (init) repaints this editor's strip in place when the widget posts back.
+  editor.querySelector('.editor-photos-btn')?.addEventListener('click', () => openPhotoWidget(id));
 
   await populateEditor(editor, rec);
   editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -669,10 +764,23 @@ async function fetchEmergingSignal(signalKey, district) {
   if (!sig) return null;
 
   const now = new Date();
-  const last3End = new Date(now.getFullYear(), now.getMonth(), 1);
-  const last3Start = new Date(last3End.getFullYear(), last3End.getMonth() - 3, 1);
-  const prior3End = new Date(last3End.getFullYear() - 1, last3End.getMonth(), 1);
-  const prior3Start = new Date(prior3End.getFullYear(), prior3End.getMonth() - 3, 1);
+  // wg3w-h783 incident reports settle on a ~2-month approval lag, so — like the baked laggy signals —
+  // anchor to the latest SETTLED month, not the calendar-latest complete one. lastEnd is the exclusive
+  // end of the latest settled month; every window below is measured back from there (month-aligned).
+  const lastEnd = new Date(now.getFullYear(), now.getMonth() - 2, 1);        // exclusive: settled-month boundary
+  const last1Start = new Date(lastEnd.getFullYear(), lastEnd.getMonth() - 1, 1);
+  const last3Start = new Date(lastEnd.getFullYear(), lastEnd.getMonth() - 3, 1);
+  const priorEnd = new Date(lastEnd.getFullYear() - 1, lastEnd.getMonth(), 1); // same point, one year back
+  const prior1Start = new Date(priorEnd.getFullYear(), priorEnd.getMonth() - 1, 1);
+  const prior3Start = new Date(priorEnd.getFullYear(), priorEnd.getMonth() - 3, 1);
+
+  // 2-week settled fortnight: the 14 days ending at the settled-month boundary, vs the same 14 days
+  // ~52 weeks (364 days) earlier. Mirrors the baked series_weekly 2wk chip in spirit (approximate,
+  // day-aligned rather than Monday-aligned — the emerging signals are a live approximation).
+  const daysBack = (d, n) => { const x = new Date(d); x.setDate(x.getDate() - n); return x; };
+  const last2Start = daysBack(lastEnd, 14);
+  const prior2End = daysBack(lastEnd, 364);
+  const prior2Start = daysBack(prior2End, 14);
 
   const fmt = d => d.toISOString().slice(0, 10);
   const base = `https://data.sfgov.org/resource/wg3w-h783.json`;
@@ -681,18 +789,27 @@ async function fetchEmergingSignal(signalKey, district) {
     const where = `${sig.where} AND police_district='${district}' AND incident_date>='${fmt(start)}' AND incident_date<'${fmt(end)}'`;
     return `${base}?$select=count(*)&$where=${encodeURIComponent(where)}`;
   };
+  const count = res => parseInt(res[0]?.count || 0, 10);
 
   try {
-    const [last3Res, prior3Res] = await Promise.all([
-      fetch(countQuery(last3Start, last3End)).then(r => r.json()),
-      fetch(countQuery(prior3Start, prior3End)).then(r => r.json()),
+    const [last1Res, prior1Res, last3Res, prior3Res, last2Res, prior2Res] = await Promise.all([
+      fetch(countQuery(last1Start, lastEnd)).then(r => r.json()),
+      fetch(countQuery(prior1Start, priorEnd)).then(r => r.json()),
+      fetch(countQuery(last3Start, lastEnd)).then(r => r.json()),
+      fetch(countQuery(prior3Start, priorEnd)).then(r => r.json()),
+      fetch(countQuery(last2Start, lastEnd)).then(r => r.json()),
+      fetch(countQuery(prior2Start, prior2End)).then(r => r.json()),
     ]);
 
-    const last3 = parseInt(last3Res[0]?.count || 0, 10);
-    const prior3 = parseInt(prior3Res[0]?.count || 0, 10);
-    const change = pctChange(last3, prior3);
-
-    return { last3, prior3, change };
+    const last1 = count(last1Res), prior1 = count(prior1Res);
+    const last3 = count(last3Res), prior3 = count(prior3Res);
+    const last2 = count(last2Res), prior2 = count(prior2Res);
+    // All windows end at the latest settled month; 1-mo/3-mo YoY month-aligned, 2wk YoY 14-day-aligned.
+    return {
+      last1, prior1, change1mo: pctChange(last1, prior1),
+      last3, prior3, change3mo: pctChange(last3, prior3),
+      last2, prior2, change2wk: pctChange(last2, prior2),
+    };
   } catch (e) {
     console.error(`Failed to fetch ${signalKey} for ${district}:`, e);
     return null;
@@ -726,6 +843,58 @@ async function loadSaved(container) {
   render(container);
 }
 
+// Homepage methodology — the three district KR#3 "emerging signals" are the ONLY numbers computed
+// here (live, in-browser) rather than on a dashboard with its own footnotes. Expose each one's dataset,
+// filter, and a runnable monthly-series query so the district-card badges are traceable too. The baked
+// KR tickers (drug/unhoused/theft) defer to their dashboards, which carry the full provenance.
+function renderMethodology() {
+  const host = document.getElementById('home-methodology');
+  if (!host) return;
+  const DS = 'wg3w-h783';
+  const q = soql => `https://data.sfgov.org/resource/${DS}.json?${new URLSearchParams({ '$query': soql })}`;
+  // Monthly counts for the signal in one district — the series both the 1-mo and 3-mo YoY badges derive from.
+  const monthly = (where, district) => q(
+    `SELECT date_trunc_ym(incident_date) AS month, count(*) AS n `
+    + `WHERE (${where}) AND police_district='${district}' `
+    + `GROUP BY month ORDER BY month`);
+  const rows = DISTRICTS
+    .map(d => ({ d, kr3: DISTRICT_KR3[d] }))
+    .filter(x => x.kr3 && EMERGING_SIGNALS[x.kr3.signal])
+    .map(({ d, kr3 }) => {
+      const where = EMERGING_SIGNALS[kr3.signal].where;
+      return `<li><strong>${kr3.label} — ${d}.</strong> `
+        + `Change vs. the same period a year ago (last complete month, and last 3 months). `
+        + `Filter <code>${esc(where)}</code>, scoped to <code>police_district='${d}'</code>. `
+        + `<a href="${monthly(where, d)}" target="_blank" rel="noopener">run the monthly series ↗</a></li>`;
+    }).join('');
+  host.innerHTML =
+    `<details class="home-methodology__d">`
+    + `<summary>Sources &amp; method</summary>`
+    + `<p>Each KR card shows three year-over-year change chips — <strong>2wk</strong>, <strong>1mo</strong>, `
+    + `and <strong>3mo</strong> — each comparing the most recent period against the same period a year `
+    + `earlier. Year-over-year comparison controls for seasonality (theft and street activity swing with `
+    + `the calendar), so a chip isolates the real change rather than the time of year.</p>`
+    + `<p>The chips read the latest <strong>settled</strong> period — the most recent fully-approved window, `
+    + `not the calendar-latest. Some sources lag: SFPD incident reports (theft, and the emerging signals `
+    + `below) appear only after supervisor approval (~2 months), and drug-dealer arrests settle ~1 month. `
+    + `For those signals the <strong>2wk</strong> chip reflects the latest settled fortnight, which sits `
+    + `several weeks in the past; creation-stamped signals (community 911 calls, homelessness reports) `
+    + `have no lag, so their 2-week chip is genuinely the last two weeks.</p>`
+    + `<p>Two-week windows are small. A 2wk chip marked <strong>~</strong> is built on a year-ago `
+    + `fortnight below our usual reliability floor (${TWO_WK_MIN_BASE} reports) — we still show it for `
+    + `freshness, but read it as directional, not precise. And where a KR is an emerging signal fetched `
+    + `live, its 2wk chip uses a trailing-14-day window aligned to the day, so it can differ slightly from `
+    + `the baked chips' Monday-aligned fortnights.</p>`
+    + `<p>Each objective's monthly figures (the <strong>1mo</strong> and <strong>3mo</strong> chips) are `
+    + `computed on its own dashboard — open a dashboard to see the dataset and the exact query behind them. `
+    + `The <strong>2wk</strong> chip uses that same dataset and filter rolled up into weekly (Monday-start) `
+    + `buckets; the dashboards show the monthly view, so the fortnight isn't displayed there directly. `
+    + `The one exception is the third KR on each `
+    + `district's property-&amp;-crime card (an emerging local issue), computed live here from the SFPD `
+    + `incident dataset (<a href="https://data.sfgov.org/d/${DS}" target="_blank" rel="noopener">${DS}</a>):</p>`
+    + `<ul class="home-methodology__list">${rows}</ul>`;
+}
+
 async function init() {
   const container = document.getElementById('districts-container');
   if (!container) return;
@@ -733,7 +902,7 @@ async function init() {
   try {
     // Gate first paint on LOCAL files only (TSV + baked aggregates.json). Live Socrata
     // (emerging signals) and the Worker (saved) are slow/external — kept out of this
-    // barrier so the districts block paints fast and doesn't jump. See plan-layout-shift.md.
+    // barrier so the districts block paints fast and doesn't jump. See docs/plan-layout-shift.md.
     const [interventionsRes] = await Promise.all([
       fetch('./data/interventions.tsv'),
       loadAggregates(),
@@ -745,6 +914,7 @@ async function init() {
 
     initDistrict();
     render(container);
+    renderMethodology();   // static; no data dependency
 
     // Fill fixed-size slots after first paint — no layout shift:
     // - emerging signals update the theft KR3 badge (already rendered as a sized "—")
@@ -760,6 +930,23 @@ async function init() {
     // Esc cancels inline edit mode, wherever focus is.
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && editingId) { editingId = null; render(container); }
+    });
+
+    // Photo widget pings back after every upload/delete. Refresh the cached record, and — if that
+    // record's editor is open — repaint ONLY its photo strip in place. We deliberately avoid a full
+    // render() here: repopulating the editor would wipe the user's un-saved text edits. The row's
+    // Photo column (auto-hidden when no row has photos) picks up the change on the next natural
+    // render (Save / Cancel / Archive).
+    onPhotosUpdated(async id => {
+      try {
+        const item = await getIntervention(id);
+        const idx = savedInterventions.findIndex(s => s.id === id);
+        if (idx >= 0) savedInterventions[idx] = item;
+        if (editingId === id) {
+          const strip = container.querySelector(`.editor-photos__strip[data-id="${CSS.escape(id)}"]`);
+          if (strip) strip.innerHTML = renderEditorPhotoStrip(item.photos);
+        }
+      } catch { /* transient fetch error — leave the strip as-is */ }
     });
   } catch (err) {
     console.error('Failed to load data:', err);

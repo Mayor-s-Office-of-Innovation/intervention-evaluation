@@ -2,7 +2,7 @@
 // "Where reports are appearing recently" — an EVERGREEN, district-scoped
 // operational view, separate from the baked hot/cold (difference-in-differences)
 // map. Shows WHERE reports are (clickable hexbin density map) and WHEN
-// (hour-of-day bar strip that also brushes the map). See plan-recent-activity-map.md.
+// (hour-of-day bar strip that also brushes the map). See docs/plan-recent-activity-map.md.
 //
 // Data: queried LIVE from DataSF (Socrata), no backend/key (same pattern as the
 // hypothesis tool). Per signal, two small queries: (1) max(dateCol) → anchor, then
@@ -15,7 +15,12 @@
 //   { key, dataset, dateCol, where, nameCol, label,
 //     geo: {kind:'point', col} | {kind:'latlong', latCol, lngCol} }
 // Pass one or more; with ≥2 a signal picker renders into #ra-signal.
+//
+// A cross-street search box (#ra-search) reuses the shared, fully-offline
+// intersection resolver (shared/cross-street-search.js) — scoped to THIS
+// district (a corner outside it is rejected, never a silent pan away).
 // ──────────────────────────────────────────────────────────────────────
+import { wireSearch as wireSearchBox, resolveIntersection, buildLocalIndex } from './cross-street-search.js';
 
 const MAX_WEEKS = 8;                       // widest window we ever fetch
 const MAX_ROWS = 10000;                    // generous cap (a district's 8wk stays well under)
@@ -116,6 +121,7 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     hours: document.getElementById('ra-hours'),
     map: document.getElementById('ra-map'),
     note: document.getElementById('ra-note'),
+    search: document.getElementById('ra-search'),
   };
   if (!el.map || !signals || !signals.length) return;
 
@@ -125,7 +131,7 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
   let anchor = null;         // latest dateCol value (data-anchored)
   let weeks = DEFAULT_WEEKS;
   let brushed = new Set();   // selected hours (0–23); empty = all hours
-  let map, hexLayer;
+  let map, hexLayer, searchMarker = null;
 
   const status = (msg, kind = 'info') => {
     el.status.hidden = false;
@@ -137,6 +143,7 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
   // ── fetch: anchor (max) then the trailing MAX_WEEKS window in the district bbox ──
   async function load() {
     status('Loading recent reports from DataSF…');
+    clearSearchPin();   // a pin from the previous signal no longer applies
     try {
       const where = `${sig.where} AND ${bboxClause(sig, bbox)}`;
       const maxRow = await sodaJson(sig, { '$select': `max(${sig.dateCol}) as mx`, '$where': where });
@@ -171,6 +178,18 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     const start = isoMinusWeeks(anchor, weeks);
     return allRows.filter(r => r.iso >= start);
   };
+  // A runnable Socrata link that reproduces the data shown: the signal filter + this district's
+  // bounding box + the current recency window (the map then clips to the district polygon and any
+  // hour brush client-side, as the note explains). Mirrors the load() fetch at the current `weeks`.
+  const soqlLink = () => {
+    if (!anchor) return null;
+    const where = `(${sig.where}) AND ${bboxClause(sig, bbox)} AND ${sig.dateCol} >= '${isoMinusWeeks(anchor, weeks)}'`;
+    const qs = new URLSearchParams({
+      '$select': selectClause(sig), '$where': where,
+      '$order': `${sig.dateCol} DESC`, '$limit': String(MAX_ROWS),
+    });
+    return `${sodaUrl(sig)}?${qs}`;
+  };
   const rampColor = (frac) => {
     const ramp = isDark() ? [...RAMP].reverse() : RAMP;
     return ramp[Math.max(0, Math.min(5, Math.floor(frac * 5.999)))];
@@ -182,7 +201,9 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     el.signal.innerHTML = '';
     signals.forEach(s => {
       const b = document.createElement('button');
-      b.className = 'seg' + (s === sig ? ' is-active' : '');
+      // `test-sig-<key>` is a stable hook for e2e assertions so tests don't break when the chip/label
+      // copy is reworded (the visible text is display-only).
+      b.className = 'seg' + (s === sig ? ' is-active' : '') + (s.key ? ` test-sig-${s.key}` : '');
       b.textContent = s.chip || s.label;
       b.setAttribute('aria-pressed', String(s === sig));
       b.onclick = () => { if (s === sig) return; sig = s; buildSignalPicker(); load(); };
@@ -214,11 +235,15 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
       const hrs = [...brushed].sort((a, b) => a - b);
       return hrs.length ? ` · filtered to ${hrs.map(hourLabel).join(', ')}` : '';
     };
+    const q = soqlLink();
     el.note.innerHTML =
-      `Live from DataSF · ${sig.label} in ${titleCase(districtName)} · ` +
+      `Live from DataSF (<a href="https://data.sfgov.org/d/${sig.dataset}" target="_blank" rel="noopener">${sig.dataset}</a>) · ` +
+      `${sig.label} in ${titleCase(districtName)} · ` +
       `last ${weeks} week${weeks > 1 ? 's' : ''} through ${anchor.slice(0, 10)} · ${rows.length} reports` +
       brushLabel() +
-      `. Live data may be newer than the rest of this page. <button type="button" class="ra-clear"${brushed.size ? '' : ' hidden'}>Show all hours</button>`;
+      `. Live data may be newer than the rest of this page` +
+      (q ? ` · <a href="${q}" target="_blank" rel="noopener">run this query ↗</a>` : '') +
+      `. <button type="button" class="ra-clear"${brushed.size ? '' : ' hidden'}>Show all hours</button>`;
     const clr = el.note.querySelector('.ra-clear');
     if (clr) clr.onclick = () => { brushed.clear(); redraw(); };
 
@@ -329,8 +354,58 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     });
   }
 
+  // ── cross-street search (fully offline; district-scoped) ──
+  function dropSearchPin(lat, lng, label) {
+    if (!map) return;
+    clearSearchPin();
+    map.setView([lat, lng], Math.max(map.getZoom(), 16));
+    searchMarker = L.marker([lat, lng], {
+      icon: L.divIcon({ className: 'search-marker', html: '<span class="search-marker__pin"></span>',
+        iconSize: [22, 22], iconAnchor: [11, 11] }),
+      keyboard: false,
+    }).addTo(map);
+    if (label) searchMarker.bindTooltip(label, { direction: 'top', offset: [0, -12] });
+  }
+  function clearSearchPin() { if (searchMarker) { searchMarker.remove(); searchMarker = null; } }
+
+  function wireSearch() {
+    if (!el.search) return;
+    // Local tier = corners with reports in the CURRENT window (matches the hexes on screen); city tier
+    // = the baked SF corner index, gated to this district so a hit outside it is rejected, not panned to.
+    const inDistrict = (lat, lng) => inFeature(lng, lat, districtFeature);
+    wireSearchBox({
+      container: el.search,
+      placeholder: 'e.g. 16th & Mission',
+      onClear: clearSearchPin,
+      onSearch: async (query, { setStatus }) => {
+        if (!map) { setStatus('Map still loading — try again in a moment', true); return; }
+        const r = await resolveIntersection(query, { localIndex: buildLocalIndex(inWindow()), inDistrict });
+        switch (r.status) {
+          case 'need-two':
+            setStatus('Enter two cross streets (e.g. 16th & Mission)', true); break;
+          case 'local':
+            dropSearchPin(r.lat, r.lng, r.name);
+            setStatus(`${r.count} report${r.count === 1 ? '' : 's'} at ${r.name} in this window`); break;
+          case 'city':
+            // Block-level attribution (CFS snaps to the nearest named node) means a busy corner's
+            // reports can land one node over — soften instead of implying it's clean.
+            dropSearchPin(r.lat, r.lng, r.name);
+            setStatus(r.nearby ? 'None logged at this exact corner — see nearby hexes'
+                               : 'No recent reports at this corner'); break;
+          case 'out-of-district':
+            setStatus(`That corner is outside ${titleCase(districtName)} — this map covers only ${titleCase(districtName)}.`, true); break;
+          case 'none':
+            setStatus('No matching corner in SF', true); break;
+          default:
+            setStatus('Search failed', true);
+        }
+      },
+    });
+  }
+
   buildSignalPicker();
   buildRecency();
   wireHourBrush();
+  wireSearch();
   load();
 }

@@ -52,6 +52,7 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="../shared/map-search.css" />
 </head>
 <body>
   <header class="app-header">
@@ -91,6 +92,33 @@
     <!-- Success metrics — we want these to go DOWN. Click a card to focus the chart. -->
     <section class="summary" id="summary-cards" aria-label="Success metrics"></section>
 
+    <!-- Decomposition of the combined 311 headline + expandable "why combined" footnote. -->
+    <div class="enc-breakdown">
+      <p class="enc-breakdown__line">
+        <span id="enc-breakdown-text"></span>
+        <button type="button" id="enc-why" class="enc-why" aria-expanded="false" aria-controls="enc-footnote">
+          Why combined? ⓘ
+        </button>
+      </p>
+      <div id="enc-footnote" class="enc-footnote" hidden>
+        <h3>What “311 encampment and unhoused reports” counts, and why it’s combined</h3>
+        <p>In mid-2025, SF’s Department of Emergency Management and 311 deliberately <strong>split</strong> what had been a single “Encampment” request, because the public was filing reports about lone individuals under the encampment process. Separating them improves both response and analytics — you can now tell encampment concerns from individual concerns. The change went live around late June / July 2025.</p>
+        <p><strong>311’s definitions:</strong></p>
+        <ul>
+          <li><strong>Encampment</strong> — a more permanent situation: tents, structures, tarps, mattresses, or many large items.</li>
+          <li><strong>Unhoused individual concern</strong> — just a person, or a person with a few small items.</li>
+        </ul>
+        <p><strong>Why this number combines them:</strong> before the mid-2025 split, both were filed as “Encampment,” so the two can’t be separated in the historical record. To show a trend that stays comparable across the change, we union both report types. Read the combined figure as <em>“community 311 reports of unhoused presence,”</em> not as confirmed encampments. For the tents/structures signal on its own — cleaner from July 2025 forward — use the <strong>Encampment only</strong> toggle on the chart below.</p>
+        <p><strong>The exact queries (SF 311, dataset <code>vw6y-z8j6</code>):</strong></p>
+        <ul>
+          <li>Encampments: <code>service_name IN ('Encampment','Encampments')</code></li>
+          <li>Unhoused individuals: <code>service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'</code></li>
+          <li>Combined (this number): the two unioned, deduped on <code>service_request_id</code>.</li>
+        </ul>
+        <p class="enc-footnote__foot">Runnable versions of each are linked in the methodology below.</p>
+      </div>
+    </div>
+
     <!-- Citywide context for the focused signal — slim, full-width, above the chart. -->
     <section id="citywide-card" class="citywide-card" aria-label="Citywide context"></section>
 
@@ -102,7 +130,7 @@
       </div>
       <label class="subview-toggle" id="enc-only-wrap" hidden>
         <wa-switch id="enc-only-toggle" size="small"></wa-switch>
-        Show dedicated “Encampment” category only (reveals the June-2025 reporting reroute)
+        Show the <strong>Encampment</strong> category only (tents/structures — the cleaner measure from July 2025 on; earlier months still include individuals)
       </label>
       <div id="scrubber" class="scrubber" aria-label="Time window">
         <div class="scrubber__presets" id="scrubber-presets" role="group" aria-label="Quick windows"></div>
@@ -151,6 +179,7 @@
       <div id="ra-status" class="ra-status" hidden></div>
       <div id="ra-body" hidden>
         <h3 class="ra-subhead">Where — report density</h3>
+        <div id="ra-search" class="map-search"></div>
         <div id="ra-map" class="events-map"></div>
         <div class="ra-scale"><span>fewer reports</span><span class="ra-scale__ramp"></span><span>more</span></div>
         <h3 class="ra-subhead">When — reports by hour of day</h3>

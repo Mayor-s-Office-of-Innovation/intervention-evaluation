@@ -49,7 +49,7 @@ NOW_MONTHS = 3                               # "hot now" = trailing 3 complete m
 # RATE reads slightly low). This was True (2026-06-29) but reverted to False (2026-07-14): dividing a
 # half-elapsed month by NOW_MONTHS biased the "now" rate ~18% low MID-month, false-cooling the map, and
 # the map (unlike the chart) surfaced no partial-month cue. Now matches drug/: analyze only through the
-# last COMPLETE month. See dashboard-refresh-review.md finding #1.
+# last COMPLETE month. See docs/dashboard-refresh-review.md finding #1.
 INCLUDE_PARTIAL_MONTH = False
 
 # ── Tunable classification knobs (D12) ──
