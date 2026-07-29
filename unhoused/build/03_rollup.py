@@ -20,9 +20,19 @@ from collections import defaultdict
 from httpget import get_json
 from tod import BUCKETS, tod_bucket
 from signals import (
-    SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL, HISTORY_START,
+    SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL, DISTRICT_REGION, HISTORY_START,
     LURIE_INAUGURATION, DATASET_NAME, query_url,
 )
+
+
+def query_url_by_district(sig, where=None):
+    """Reader-facing district-verify links (U1/U3, Option A): the same monthly query, scoped to each
+    displayed district via its `:@computed_region_qgnn_b9vv` code. Keyed by the Title-case district
+    label the page uses. Reproduces our point-in-polygon count to <0.5% — see DISTRICT_REGION."""
+    return {
+        DISTRICT_LABEL[u]: query_url(sig, where=where, region=code)
+        for u, code in DISTRICT_REGION.items()
+    }
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -139,6 +149,7 @@ def rollup(signal_key, agg, points_out, provenance):
         "dataset_name": DATASET_NAME.get(sig["dataset"], sig["dataset"]),
         "filter": sig["where"],
         "query_url": query_url(sig),
+        "query_url_by_district": query_url_by_district(sig),
         "records_pulled": len(records),
     }
     if sig.get("dedup_note"):
@@ -147,7 +158,9 @@ def rollup(signal_key, agg, points_out, provenance):
     if parts:
         # Each component of a combined signal gets its own filter + runnable query (auditable union).
         prov["components"] = {
-            name: {"filter": w, "query_url": query_url(sig, where=w)} for name, w in parts.items()
+            name: {"filter": w, "query_url": query_url(sig, where=w),
+                   "query_url_by_district": query_url_by_district(sig, where=w)}
+            for name, w in parts.items()
         }
         prov["break_audit"] = {name: fetch_provenance_series(sig, w) for name, w in parts.items()}
         prov["break_audit"]["union"] = {mo: city.get(mo, 0) for mo in agg["months"]}
@@ -191,6 +204,7 @@ def build_groups(agg, provenance):
                     "dataset_name": DATASET_NAME.get(SIGNALS[m]["dataset"], SIGNALS[m]["dataset"]),
                     "filter": SIGNALS[m]["where"],
                     "query_url": query_url(SIGNALS[m]),
+                    "query_url_by_district": query_url_by_district(SIGNALS[m]),
                 } for m in members
             },
         }

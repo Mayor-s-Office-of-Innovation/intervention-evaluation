@@ -201,7 +201,9 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     el.signal.innerHTML = '';
     signals.forEach(s => {
       const b = document.createElement('button');
-      b.className = 'seg' + (s === sig ? ' is-active' : '');
+      // `test-sig-<key>` is a stable hook for e2e assertions so tests don't break when the chip/label
+      // copy is reworded (the visible text is display-only).
+      b.className = 'seg' + (s === sig ? ' is-active' : '') + (s.key ? ` test-sig-${s.key}` : '');
       b.textContent = s.chip || s.label;
       b.setAttribute('aria-pressed', String(s === sig));
       b.onclick = () => { if (s === sig) return; sig = s; buildSignalPicker(); load(); };

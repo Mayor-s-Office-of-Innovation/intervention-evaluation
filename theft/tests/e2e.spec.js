@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../tests/e2e-base.js';
 
 // Structural smoke tests for the v1 theft dashboard: it loads the baked JSON,
 // renders both reported-vs-enforced scorecards with charts, shows a verdict per

@@ -23,6 +23,13 @@ DISTRICT_LABEL = {
     "CENTRAL": "Central", "NORTHERN": "Northern",
     "MISSION": "Mission", "TENDERLOIN": "Tenderloin",
 }
+# Socrata `:@computed_region_qgnn_b9vv` codes for the "Current Police Districts" (qgnn-b9vv) boundary
+# — the SAME boundary our point-in-polygon uses. Verified 2026-06 on BOTH vw6y-z8j6 (311) and
+# 2zdj-bwza (911); the code map is identical across the two datasets, and the region counts reproduce
+# our baked point-in-polygon counts to <0.5% (311) / exactly (911). Used only to build reader-facing
+# district-scoped verify links (U1/U3, "Option A") — NOT to change any displayed number, and NOT the
+# divergent `police_district` text field. Re-verify these codes if the boundary version ever changes.
+DISTRICT_REGION = {"CENTRAL": "6", "NORTHERN": "4", "MISSION": "3", "TENDERLOIN": "5"}
 HISTORY_START = "2023-01-01T00:00:00"
 
 # The fixed Lurie-inauguration split that the transition map (D11/D12) is built on.
@@ -188,11 +195,17 @@ GROUPS = {
 }
 
 
-def query_url(sig_or_where, where=None, limit_rows=False):
+def query_url(sig_or_where, where=None, limit_rows=False, region=None):
     """Build a runnable Socrata REST query link for a signal dict or a (domain,dataset,where).
 
     Used by 03_rollup to write auditable per-signal / per-component query links into
     provenance.json (D7) so the page and the underlying data can't drift.
+
+    `region` (a `:@computed_region_qgnn_b9vv` code, see DISTRICT_REGION) scopes the returned monthly
+    series to one police district via the boundary spatial join — this is the reader-facing
+    district-verify link (U1/U3). It reproduces our point-in-polygon district count to <0.5%; it does
+    NOT change any displayed number. The existing `where` clauses are either fully parenthesised
+    (encampment union) or pure ANDs (CFS), so appending ` AND region=...` is precedence-safe.
     """
     import urllib.parse
     if isinstance(sig_or_where, dict):
@@ -203,6 +216,8 @@ def query_url(sig_or_where, where=None, limit_rows=False):
     else:
         raise ValueError("pass the signal dict")
     full = f"{w} AND {date_col} >= '{HISTORY_START}'"
+    if region is not None:
+        full += f" AND :@computed_region_qgnn_b9vv = '{region}'"
     q = (f"SELECT date_trunc_ym({date_col}) AS month, count(*) AS reports "
          f"WHERE {full} GROUP BY month ORDER BY month")
     return f"https://{domain}/resource/{dataset}.json?" + urllib.parse.urlencode({"$query": q})

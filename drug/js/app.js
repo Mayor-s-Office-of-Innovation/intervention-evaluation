@@ -309,8 +309,8 @@ function renderComposition() {
       drug arrests were <strong style="color:var(--c-red,#d64545)">${paraShare}% paraphernalia</strong>
       and only <strong style="color:var(--c-green,#2e9e6b)">${dealerShare}% dealer</strong>.
       Over the past year, dealer arrests are ${dT ? fmtPct(dT.pct) : '—'} and paraphernalia arrests are
-      ${pT ? fmtPct(pT.pct) : '—'} — much of the enforcement volume is catch-and-release churn, not supply
-      disruption.</p>`;
+      ${pT ? fmtPct(pT.pct) : '—'} — most of the enforcement volume is low-level possession and paraphernalia
+      arrests, not supply disruption.</p>`;
   $('#composition-note').textContent = AGG.groups.arrest_mix.note;
 }
 
@@ -375,7 +375,7 @@ function applyTod() {
   if (todFilter !== 'both' && getSplitView()) { setSplitView(false); refreshSplitToggle(); }
   const hint = $('.tod-filter__hint');
   if (hint) hint.textContent =
-    `Day 6am–8pm · Night 8pm–6am · showing ${todFilter === 'both' ? 'both' : todFilter + ' only'}`;
+    `Day 6am–8pm (14h) · Night 8pm–6am (10h) · showing ${todFilter === 'both' ? 'both' : todFilter + ' only'}`;
   renderSummary();
   renderFocusChart();   // also refreshes the citywide card
   renderComposition();
@@ -450,14 +450,24 @@ function setupRecentActivity() {
 function renderMethodology() {
   const s = PROV.signals;
   const q = url => `<a href="${url}" target="_blank" rel="noopener">query ↗</a>`;
+  // This dashboard is per-district (active is always a concrete district), so prefer the district-scoped
+  // verify link when one was baked; needles is citywide-only and falls back to its citywide query (DR2).
+  const scoped = p => (p.query_url_by_district && p.query_url_by_district[active]) || p.query_url;
   const row = (key, why) => {
     const p = s[key];
     return `<li><strong>${AGG.signals[key].label}</strong> — ${why}
-      <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(p.query_url)}</small></li>`;
+      <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(scoped(p))}</small></li>`;
   };
   document.getElementById('methodology-body').innerHTML = `
     <p class="meth-lead">Every signal names its dataset and links a runnable Socrata query, so each number
       ties back to source data.</p>
+    <p class="meth-lead">On this <strong>${active}</strong> page each “query ↗” is scoped to the district.
+      The arrest signals filter SFPD’s own <code>police_district</code> field, so the query returns the
+      <strong>exact</strong> number shown. The community drug-activity signal (911 calls) is placed by a
+      point-in-polygon against the police-district boundary, so its link is scoped by that boundary’s spatial
+      join (<code>:@computed_region_qgnn_b9vv</code>) — the same boundary the map draws — returning within
+      <strong>~0.5%</strong> of the figure shown. Needle reports carry no reliable district, so that link
+      stays citywide.</p>
 
     <h3>The two headline metrics</h3>
     <ul class="meth-list">
@@ -467,10 +477,10 @@ function renderMethodology() {
 
     <h3>What we leave OUT of dealer arrests — and why</h3>
     <p class="meth-out-lead">The dealer metric deliberately excludes the bulk of drug-arrest volume, because
-      those arrests are catch-and-release that rarely lead to charges — they measure enforcement churn, not
+      those arrests are catch-and-release that rarely lead to charges — they measure enforcement volume, not
       supply disruption:</p>
     <ul class="meth-list meth-list--out">
-      ${row('paraphernalia', 'possessing drug paraphernalia (pipes, etc.). The single largest drug-arrest type and the entire recent surge — but it’s user-level churn, not dealing.')}
+      ${row('paraphernalia', 'possessing drug paraphernalia (pipes, etc.). The single largest drug-arrest type and the entire recent surge — but it’s user-level, not dealing.')}
       ${row('other_drug_arrests', 'simple/ambiguous possession, under-the-influence, and loitering-where-sold. Also user-level, also excluded from the dealer metric.')}
     </ul>
     <p class="meth-caveat"><strong>Honesty note:</strong> the incident dataset (<code>wg3w-h783</code>) records
@@ -532,6 +542,15 @@ function renderMethodology() {
         (demand for service), and calls snap to the nearest named intersection — so a busy hex marks a
         reported <em>area</em>, approximately, not a verified count at one address.</li>
     </ul>
+
+    <h3>The Day / Night filter — read shares and trends, not raw day-vs-night totals</h3>
+    <p>The time-of-day chips split every report into <strong>Day (6am–8pm, 14 hours)</strong> and
+      <strong>Night (8pm–6am, 10 hours)</strong>. These windows mark daylight vs. overnight, not two
+      equal halves, so the day bucket spans four more hours and will tend to carry a higher raw count
+      for that reason alone. Compare the day/night <em>share</em>, or each bucket's <em>trend</em> over
+      time — don't read a larger day total as "more activity per hour." The split is a lens on the full
+      mix; the hotspot map still scores each block against its own district tide within the selected
+      slice, so the unequal window length doesn't distort the map's hot/cold verdict.</p>
 
     <p class="meth-foot">${PROV.settle_note}<br>Data current to ${PROV.generated}. History from
       ${PROV.history_start}. Seasonality-aware, observational (not causal).</p>`;

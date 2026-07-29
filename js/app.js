@@ -1,5 +1,5 @@
 import { parseTSV, groupBy } from './tsv.js';
-import { listInterventions, closeIntervention, reopenIntervention, updateIntervention } from './interventions-client.js';
+import { listInterventions, closeIntervention, reopenIntervention, updateIntervention, getIntervention, photoSrc, openPhotoWidget, onPhotosUpdated } from './interventions-client.js';
 import { LEVERS } from '../hypothesis/js/datapoints.js';
 
 const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
@@ -126,6 +126,9 @@ function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// A 2-week YoY off a tiny year-ago base is noise; we still show it (freshness) but MARK it below this floor.
+const TWO_WK_MIN_BASE = 20;
+
 function sumLast(arr, n) {
   if (!arr || arr.length < n) return null;
   return arr.slice(-n).reduce((a, b) => a + b, 0);
@@ -158,7 +161,9 @@ function getKRData(okrId, kr, district) {
   if (EMERGING_SIGNALS[kr.signal]) {
     const cached = emergingSignalsCache[`${kr.signal}_${district}`];
     if (!cached) return null;
-    return { change1mo: cached.change1mo, change3mo: cached.change3mo, change2wk: cached.change2wk ?? null, goal: kr.goal };
+    const base2wk = cached.prior2 ?? null;   // year-ago fortnight base, carried through the cache
+    return { change1mo: cached.change1mo, change3mo: cached.change3mo, change2wk: cached.change2wk ?? null,
+             lowBase2wk: base2wk != null && base2wk < TWO_WK_MIN_BASE, base2wk, goal: kr.goal, settles: true };
   }
 
   const data = aggregatesData[okrId];
@@ -203,7 +208,7 @@ function getKRData(okrId, kr, district) {
   const change3mo = pctChange(last3, prior3);
 
   // 2-week change: latest settled fortnight vs the same fortnight ~52 weeks prior (YoY, from series_weekly).
-  let change2wk = null;
+  let change2wk = null, base2wk = null;
   let weekly = signal.series_weekly?.[district];
   if (weekly && typeof weekly === 'object' && !Array.isArray(weekly)) weekly = weekly.reported;   // theft shape
   const weeks = data.weeks;
@@ -215,13 +220,15 @@ function getKRData(okrId, kr, district) {
       const last2 = sumLast(weekly.slice(0, wEnd + 1), 2);
       const prior2 = sumLast(weekly.slice(0, pIdx + 1), 2);
       change2wk = pctChange(last2, prior2);
+      base2wk = prior2;   // year-ago fortnight base — used to flag (not hide) small-N chips
     }
   }
+  const lowBase2wk = base2wk != null && base2wk < TWO_WK_MIN_BASE;
 
-  return { change1mo, change3mo, change2wk, goal: kr.goal };
+  return { change1mo, change3mo, change2wk, lowBase2wk, base2wk, goal: kr.goal, settles };
 }
 
-function renderChangeBadge(change, goal, label) {
+function renderChangeBadge(change, goal, label, opts = {}) {
   if (change === null) {
     return `<span class="kr-ticker__badge kr-ticker--nodata" title="${label}">—</span>`;
   }
@@ -230,7 +237,13 @@ function renderChangeBadge(change, goal, label) {
   const isGood = (goal === 'down' && isDown) || (goal === 'up' && isUp);
   const arrow = isUp ? '↑' : (isDown ? '↓' : '→');
   const cls = isGood ? 'kr-ticker--good' : 'kr-ticker--bad';
-  return `<span class="kr-ticker__badge ${cls}" title="${label}">${arrow}${Math.abs(change)}%</span>`;
+  // Low-base 2wk chips are still shown (freshness) but marked ~ + dotted, with a caveat tooltip —
+  // we intentionally discard the usual reliability floor here; a small fortnight base is noisy.
+  const low = opts.lowBase;
+  const title = low
+    ? `${label} — small window: only ${opts.base} reports in the year-ago fortnight (below our ${TWO_WK_MIN_BASE} floor), so read as directional`
+    : label;
+  return `<span class="kr-ticker__badge ${cls}${low ? ' kr-ticker--lowbase' : ''}" title="${title}">${low ? '~' : ''}${arrow}${Math.abs(change)}%</span>`;
 }
 
 function renderKRTicker(okr, district) {
@@ -244,7 +257,9 @@ function renderKRTicker(okr, district) {
       <div class="kr-ticker">
         <span class="kr-ticker__label">${esc(kr.label)}</span>
         <span class="kr-ticker__badges">
-          ${renderChangeBadge(data.change2wk, data.goal, '2 weeks vs last year (latest settled fortnight)')}
+          ${renderChangeBadge(data.change2wk, data.goal, data.settles
+            ? '2 weeks vs. a year ago — latest settled fortnight (lags ~weeks after approval)'
+            : '2 weeks vs. a year ago — the latest two weeks', { lowBase: data.lowBase2wk, base: data.base2wk })}
           ${renderChangeBadge(data.change1mo, data.goal, '1 month vs last year')}
           ${renderChangeBadge(data.change3mo, data.goal, '3 months vs last year')}
         </span>
@@ -256,7 +271,7 @@ function renderKRTicker(okr, district) {
     <div class="kr-ticker kr-ticker--header" aria-hidden="true">
       <span class="kr-ticker__label"></span>
       <span class="kr-ticker__badges">
-        <span class="kr-ticker__col" title="2 weeks vs. the same fortnight last year (latest settled period — see methodology below)">2wk</span>
+        <span class="kr-ticker__col" title="Two weeks vs. the same fortnight a year ago — see methodology for how 'settled' is defined">2wk</span>
         <span class="kr-ticker__col">1mo</span>
         <span class="kr-ticker__col">3mo</span>
       </span>
@@ -335,6 +350,7 @@ const viewHref = i => (i.id ? `./hypothesis/?view=${encodeURIComponent(i.id)}` :
 
 const INTERVENTION_COLUMNS = [
   { header: 'ID', cls: 'id', always: true, cell: i => `<span class="mono">${esc(i.intervention_id || i.id?.slice(0,8) || '—')}</span>` },
+  { header: 'Photo', cls: 'photo', has: i => i.photos?.length, cell: renderPhotoThumb },
   { header: 'Intervention', cls: 'name', always: true, cell: i => {
       const h = viewHref(i), name = esc(i.intervention || '');
       return h ? `<a class="intervention-link" href="${esc(h)}">${name}</a>` : `<strong>${name}</strong>`;
@@ -376,6 +392,31 @@ function renderActions(i) {
   }
   if (i.eval_link) return `<a href="${esc(i.eval_link)}" class="eval-link">Evaluate</a>`;
   return '—';
+}
+
+// First photo as a fixed-size square thumbnail (fixed dims → no layout shift regardless of the
+// image's intrinsic w/h), with a +N badge when a record has more than one. Clicking the row still
+// navigates to the read-only view, where the full gallery lives.
+function renderPhotoThumb(i) {
+  const photos = i.photos || [];
+  if (!photos.length) return '';
+  const p = photos[0];
+  const more = photos.length > 1 ? `<span class="intervention-thumb__more">+${photos.length - 1}</span>` : '';
+  return `<span class="intervention-thumb">
+    <img src="${esc(photoSrc(p.thumb))}" alt="${esc(p.caption || 'Intervention photo')}" width="44" height="44" loading="lazy">
+    ${more}
+  </span>`;
+}
+
+// Photo strip inside the inline editor: thumbnails link to the full-size image in a new tab. Photos
+// are added/removed in the Access-gated widget, so this is display-only (empty-state prompts the button).
+function renderEditorPhotoStrip(photos) {
+  const list = photos || [];
+  if (!list.length) return `<span class="editor-photos__empty">No photos yet.</span>`;
+  return list.map(p =>
+    `<a class="photos-strip__item" href="${esc(photoSrc(p.full))}" target="_blank" rel="noopener">` +
+    `<img src="${esc(photoSrc(p.thumb))}" alt="${esc(p.caption || 'Intervention photo')}" loading="lazy"></a>`
+  ).join('');
 }
 
 function renderInterventionRow(i, cols) {
@@ -430,6 +471,14 @@ function renderEditor(i) {
       intervention and <a href="./hypothesis/?district=${esc(currentDistrict)}">create a new one</a>
       with the new location.</p>
 
+    <div class="editor-photos">
+      <span class="editor-photos__label">Photos</span>
+      <div class="editor-photos__strip" data-id="${esc(i.id)}">${renderEditorPhotoStrip(i.photos)}</div>
+      <button class="action-btn editor-photos-btn" type="button" data-id="${esc(i.id)}">Add / manage photos</button>
+      <p class="editor-photos__note">Photos open in a separate, sign-in-protected tab and save immediately —
+        you don't need to click “Save changes” for them.</p>
+    </div>
+
     <p class="editor-error" role="alert" hidden></p>
     <div class="editor-actions">
       ${isClosed
@@ -472,6 +521,7 @@ function savedToRow(s) {
     last_edited: s.last_edited || s.created || '',
     // Location — carried through so the inline editor can show the current pin (read-only).
     lat: s.lat, lng: s.lng, radius: s.radius,
+    photos: s.photos || [],
     eval_link: s.url,
   };
 }
@@ -584,6 +634,9 @@ async function wireEditor(container, editor) {
   editor.querySelector('.editor-restore')?.addEventListener('click', () => {
     mutateAndRefresh(container, id, () => reopenIntervention(id), 'Could not restore — please try again.');
   });
+  // Photos live in the Access-gated widget (opens in a new tab). The module-level onPhotosUpdated
+  // listener (init) repaints this editor's strip in place when the widget posts back.
+  editor.querySelector('.editor-photos-btn')?.addEventListener('click', () => openPhotoWidget(id));
 
   await populateEditor(editor, rec);
   editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -827,8 +880,16 @@ function renderMethodology() {
     + `For those signals the <strong>2wk</strong> chip reflects the latest settled fortnight, which sits `
     + `several weeks in the past; creation-stamped signals (community 911 calls, homelessness reports) `
     + `have no lag, so their 2-week chip is genuinely the last two weeks.</p>`
-    + `<p>Each objective's Key Results are computed on its own dashboard — open a dashboard to see the `
-    + `dataset and the exact query behind every number. The one exception is the third KR on each `
+    + `<p>Two-week windows are small. A 2wk chip marked <strong>~</strong> is built on a year-ago `
+    + `fortnight below our usual reliability floor (${TWO_WK_MIN_BASE} reports) — we still show it for `
+    + `freshness, but read it as directional, not precise. And where a KR is an emerging signal fetched `
+    + `live, its 2wk chip uses a trailing-14-day window aligned to the day, so it can differ slightly from `
+    + `the baked chips' Monday-aligned fortnights.</p>`
+    + `<p>Each objective's monthly figures (the <strong>1mo</strong> and <strong>3mo</strong> chips) are `
+    + `computed on its own dashboard — open a dashboard to see the dataset and the exact query behind them. `
+    + `The <strong>2wk</strong> chip uses that same dataset and filter rolled up into weekly (Monday-start) `
+    + `buckets; the dashboards show the monthly view, so the fortnight isn't displayed there directly. `
+    + `The one exception is the third KR on each `
     + `district's property-&amp;-crime card (an emerging local issue), computed live here from the SFPD `
     + `incident dataset (<a href="https://data.sfgov.org/d/${DS}" target="_blank" rel="noopener">${DS}</a>):</p>`
     + `<ul class="home-methodology__list">${rows}</ul>`;
@@ -869,6 +930,23 @@ async function init() {
     // Esc cancels inline edit mode, wherever focus is.
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && editingId) { editingId = null; render(container); }
+    });
+
+    // Photo widget pings back after every upload/delete. Refresh the cached record, and — if that
+    // record's editor is open — repaint ONLY its photo strip in place. We deliberately avoid a full
+    // render() here: repopulating the editor would wipe the user's un-saved text edits. The row's
+    // Photo column (auto-hidden when no row has photos) picks up the change on the next natural
+    // render (Save / Cancel / Archive).
+    onPhotosUpdated(async id => {
+      try {
+        const item = await getIntervention(id);
+        const idx = savedInterventions.findIndex(s => s.id === id);
+        if (idx >= 0) savedInterventions[idx] = item;
+        if (editingId === id) {
+          const strip = container.querySelector(`.editor-photos__strip[data-id="${CSS.escape(id)}"]`);
+          if (strip) strip.innerHTML = renderEditorPhotoStrip(item.photos);
+        }
+      } catch { /* transient fetch error — leave the strip as-is */ }
     });
   } catch (err) {
     console.error('Failed to load data:', err);

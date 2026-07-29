@@ -1,7 +1,7 @@
 // Structural smoke test for the district dashboard. Serves the folder and checks
 // the page renders without console errors: 5 rollup cards, a chart SVG, the focus
 // tabs, the Leaflet map, and a working signal/focus/map-mode switch.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../tests/e2e-base.js';
 
 const errors = [];
 test.beforeEach(async ({ page }) => {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../tests/e2e-base.js';
 import { DATAPOINTS } from '../js/datapoints.js';
 
 // These tests drive the tool against the LIVE SF OpenData (Socrata) API, so
@@ -136,6 +136,106 @@ test('save/share: a report serializes to the URL and reopening reproduces it', a
   const restored = new URL(await page.evaluate(() => location.href));
   expect(restored.searchParams.get('from')).toBe(url.searchParams.get('from'));
   expect(restored.searchParams.get('to')).toBe(url.searchParams.get('to'));
+});
+
+test('read-only view renders a photo gallery linking to full-size images', async ({ page }) => {
+  const errors = collectErrors(page);
+  const REC = {
+    id: 'v1', intervention: 'Lighting upgrade', district: 'Central', status: 'open_in_progress',
+    levers: ['drug'], start_date: '2026-05-13', lat: 37.77346, lng: -122.42736, radius: 250,
+    person_submitted: 'Tester', last_edited: '2026-05-14T00:00:00Z', links: [],
+    photos: [
+      { id: 'p1', thumb: '/photos/v1/p1?v=thumb', full: '/photos/v1/p1?v=full', w: 1600, h: 1200, caption: 'before', uploaded_at: '2026-05-14T00:00:00Z' },
+      { id: 'p2', thumb: '/photos/v1/p2?v=thumb', full: '/photos/v1/p2?v=full', w: 1600, h: 1200, caption: 'after', uploaded_at: '2026-05-14T00:00:00Z' },
+    ],
+  };
+  // Serve the single record + its photo bytes from stubs (no Worker in CI). The live Socrata
+  // analysis still runs, but the gallery is built synchronously as #view-details reveals.
+  await page.route('**/interventions/v1', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ item: REC }),
+  }));
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC', 'base64');
+  await page.route('**/photos/**', route => route.fulfill({
+    status: 200, contentType: 'image/png',
+    headers: { 'Access-Control-Allow-Origin': '*' }, body: png,
+  }));
+
+  await page.goto('./?view=v1', { waitUntil: 'networkidle' });
+  await page.waitForSelector('#view-details:not([hidden])');
+
+  const photos = page.locator('.view-photos .view-photo');
+  await expect(photos).toHaveCount(2);
+  // thumb <img> joins the API base into an absolute serve URL; the wrapping <a> opens the full size.
+  await expect(photos.first().locator('img')).toHaveAttribute('src', /\/photos\/v1\/p1\?v=thumb$/);
+  await expect(photos.first().locator('a')).toHaveAttribute('href', /\/photos\/v1\/p1\?v=full$/);
+  await expect(photos.first().locator('figcaption')).toHaveText('before');
+  // opens in a new tab
+  await expect(photos.first().locator('a')).toHaveAttribute('target', '_blank');
+});
+
+test('create → "Add / manage photos" reveals, opens the widget, and live-refreshes the strip', async ({ page }) => {
+  // Point the API + widget host at THIS origin so:
+  //  - the create POST / getIntervention are SAME-ORIGIN (no CORS preflight the stub would have to
+  //    answer — a cross-origin application/json POST is a non-simple request and would be blocked),
+  //  - window.open targets a same-origin URL we can assert, and
+  //  - the onPhotosUpdated origin check accepts a page-dispatched postMessage.
+  // Also capture window.open (the real widget is a cross-origin, Access-gated tab we can't drive).
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('interventionsApi', location.origin);
+      localStorage.setItem('photoWidget', location.origin);
+    } catch { /* ignore */ }
+    window.__opened = [];
+    window.open = url => { window.__opened.push(url); return { closed: false, focus() {} }; };
+  });
+
+  // Stub the create + the read-back (getIntervention) + photo bytes — no Worker in CI.
+  await page.route('**/interventions/full', route => route.fulfill({
+    status: 201, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ id: 'new1', item: { id: 'new1', intervention: 'Test photos', photos: [] } }),
+  }));
+  let photos = [];   // getIntervention reflects this; grows when we simulate an upload
+  await page.route('**/interventions/new1', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ item: { id: 'new1', intervention: 'Test photos', photos } }),
+  }));
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC', 'base64');
+  await page.route('**/photos/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: png }));
+
+  // Enter via a shared link so the lever + title prefill; drop a pin (required) by clicking the map.
+  const errors = collectErrors(page);
+  await page.goto('./?dp=drug&what=Test+photos', { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => customElements.get('wa-input') && document.querySelector('#in-submitter'));
+  await page.locator('#in-submitter').evaluate(el => { el.value = 'Tester'; });
+  await page.waitForFunction(() => !!document.querySelector('#picker-map img.leaflet-tile'));
+  await page.locator('#picker-map').click({ position: { x: 200, y: 150 } });
+
+  // Dropping the pin kicks off a fresh analysis (hasRun is already true from the shared-link auto-run),
+  // which puts #run-btn into a non-interactive loading state. Clicking it while loading is a no-op, so
+  // wait for the run to settle (button idle) before submitting — otherwise the create never fires.
+  await expect
+    .poll(() => page.locator('#run-btn').evaluate(el => !!el.loading), { timeout: 30_000 })
+    .toBe(false);
+
+  // Submit → the create stub returns id=new1 → photo controls reveal (after the post-save run settles).
+  await page.locator('#run-btn').click();
+  await expect(page.locator('#photos-btn')).toBeVisible({ timeout: 30_000 });
+
+  // The button opens the widget at <origin>/?intervention=new1.
+  await page.locator('#photos-btn').click();
+  const opened = await page.evaluate(() => window.__opened);
+  expect(opened.some(u => u.includes('/?intervention=new1'))).toBeTruthy();
+
+  // Simulate the widget uploading a photo, then posting back → strip repaints via getIntervention.
+  photos = [{ id: 'p1', thumb: '/photos/new1/p1?v=thumb', full: '/photos/new1/p1?v=full', w: 1600, h: 1200, caption: 'after', uploaded_at: '2026-05-13T00:00:00Z' }];
+  await page.evaluate(() => window.postMessage({ type: 'photos-updated', intervention: 'new1' }, location.origin));
+  await expect(page.locator('#photos-strip .photos-strip__item')).toHaveCount(1);
+  await expect(page.locator('#photos-strip .photos-strip__item img')).toHaveAttribute('src', /\/photos\/new1\/p1\?v=thumb$/);
+
+  expect(errors).toEqual([]);
 });
 
 test('overflow: known reporting break surfaces only when the window straddles it', async ({ page }) => {

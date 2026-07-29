@@ -2,16 +2,25 @@
 // /drug/, /unhoused/, /theft/) are injected by js/app.js ONLY after it fetches data/interventions.tsv,
 // so a missing or broken script / data file — exactly what 404'd in production — yields zero links and
 // fails this test. The hypothesis tool is linked statically from index.html.
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../../tests/e2e-base.js';
 
 const DASHBOARDS = ['drug', 'unhoused', 'theft'];
 
 // Stubbed saved-interventions payload (the Worker isn't running in CI). Two items in different
 // districts so the per-district filter (Phase 1) is exercised hermetically.
 const SAVED = [
-  { id: 'a', url: '/hypothesis/?dp=drug&date=2026-05-11&what=alpha+report', what: 'alpha report', dp: 'drug', date: '2026-05-11', district: 'Northern', created: '2026-05-12T00:00:00Z' },
+  // Northern item carries two photos (relative serve URLs, as the Worker projects them) so the
+  // thumbnail column + "+N" badge are exercised hermetically.
+  { id: 'a', url: '/hypothesis/?dp=drug&date=2026-05-11&what=alpha+report', what: 'alpha report', dp: 'drug', date: '2026-05-11', district: 'Northern', created: '2026-05-12T00:00:00Z',
+    photos: [
+      { id: 'p1', thumb: '/photos/a/p1?v=thumb', full: '/photos/a/p1?v=full', w: 1600, h: 1200, caption: 'before', uploaded_at: '2026-05-12T00:00:00Z' },
+      { id: 'p2', thumb: '/photos/a/p2?v=thumb', full: '/photos/a/p2?v=full', w: 1600, h: 1200, caption: 'after', uploaded_at: '2026-05-12T00:00:00Z' },
+    ] },
   { id: 'b', url: '/hypothesis/?dp=drug&date=2026-04-01&what=beta+report', what: 'beta report', dp: 'drug', date: '2026-04-01', district: 'Central', created: '2026-04-02T00:00:00Z' },
 ];
+
+// A 1x1 transparent PNG so stubbed thumbnail requests resolve without hitting the real Worker.
+const PNG_1x1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC', 'base64');
 
 const errors = [];
 test.beforeEach(async ({ page }) => {
@@ -24,6 +33,12 @@ test.beforeEach(async ({ page }) => {
     contentType: 'application/json',
     headers: { 'Access-Control-Allow-Origin': '*' },
     body: JSON.stringify({ items: SAVED }),
+  }));
+  // Serve any photo bytes from a stub so thumbnails resolve hermetically (no Worker in CI).
+  await page.route('**/photos/**', route => route.fulfill({
+    status: 200, contentType: 'image/png',
+    headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=31536000, immutable' },
+    body: PNG_1x1,
   }));
 });
 
@@ -93,6 +108,26 @@ test('the Interventions table lists saved interventions per district', async ({ 
   await expect(page.locator('.intervention-empty')).toBeVisible();
 });
 
+test('a saved intervention with photos shows a thumbnail + overflow badge', async ({ page }) => {
+  await page.goto('/index.html');
+  await expect(page.locator('.district-tab')).toHaveCount(4);
+
+  // Northern's Alpha item has two photos → one thumbnail image + a "+1" overflow badge.
+  const thumb = page.locator('.intervention-cell--photo .intervention-thumb');
+  await expect(thumb).toHaveCount(1);
+  const img = thumb.locator('img');
+  await expect(img).toBeVisible();
+  // The relative serve URL is joined with the API base into an absolute /photos/ URL.
+  await expect(img).toHaveAttribute('src', /\/photos\/a\/p1\?v=thumb$/);
+  await expect(thumb.locator('.intervention-thumb__more')).toHaveText('+1');
+
+  // Central's item has no photos → the thumbnail column auto-hides (no cell rendered).
+  await page.locator('.district-tab[data-district="Central"]').click();
+  await expect(page.locator('.intervention-cell--photo')).toHaveCount(0);
+
+  expect(errors).toEqual([]);
+});
+
 test('archiving a saved intervention (from the inline editor) removes it from the list for good', async ({ page }) => {
   // Archiving reuses the close endpoint, which returns the updated (closed) item; the row then
   // leaves the view permanently. Archive lives inside the inline editor (Edit → Archive), not as a
@@ -117,6 +152,47 @@ test('archiving a saved intervention (from the inline editor) removes it from th
   await expect(page.locator('.section-interventions')).not.toContainText('Alpha report');
   await expect(page.locator('.view-closed-toggle')).toHaveCount(0);
   await expect(page.locator('.intervention-empty')).toBeVisible();
+});
+
+test('inline editor: photo strip + "Add / manage photos" opens the widget and live-refreshes', async ({ page }) => {
+  // Point the widget host at THIS origin so (a) window.open targets a same-origin URL we can assert,
+  // and (b) the onPhotosUpdated origin check accepts a postMessage we dispatch from the page. Also
+  // capture window.open calls (the real widget is a cross-origin, Access-gated tab we can't drive).
+  await page.addInitScript(() => {
+    try { localStorage.setItem('photoWidget', location.origin); } catch { /* ignore */ }
+    window.__opened = [];
+    window.open = url => { window.__opened.push(url); return { closed: false, focus() {} }; };
+  });
+
+  await page.goto('/index.html');
+  await expect(page.locator('.intervention-table')).toContainText('Alpha report');  // Northern, has 2 photos
+
+  // Open the inline editor for the photo-bearing row.
+  await page.locator('.action-edit').first().click();
+  const strip = page.locator('.editor-photos__strip[data-id="a"]');
+  await expect(strip).toBeVisible();
+  await expect(strip.locator('.photos-strip__item')).toHaveCount(2);
+  await expect(strip.locator('.photos-strip__item img').first()).toHaveAttribute('src', /\/photos\/a\/p1\?v=thumb$/);
+
+  // The button opens the widget in a new tab at <origin>/?intervention=a.
+  await page.locator('.editor-photos-btn').click();
+  const opened = await page.evaluate(() => window.__opened);
+  expect(opened).toHaveLength(1);
+  expect(opened[0]).toContain('/?intervention=a');
+
+  // Simulate the widget posting back a third photo → the strip repaints in place (no full re-render).
+  await page.route('**/interventions/a', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify({ item: { ...SAVED[0], photos: [
+      ...SAVED[0].photos,
+      { id: 'p3', thumb: '/photos/a/p3?v=thumb', full: '/photos/a/p3?v=full', w: 1600, h: 1200, caption: 'new', uploaded_at: '2026-05-13T00:00:00Z' },
+    ] } }),
+  }));
+  await page.evaluate(() => window.postMessage({ type: 'photos-updated', intervention: 'a' }, location.origin));
+  await expect(strip.locator('.photos-strip__item')).toHaveCount(3);
+
+  expect(errors).toEqual([]);
 });
 
 // Regression guard for the layout-shift fix (see docs/plan-layout-shift.md). The districts block is

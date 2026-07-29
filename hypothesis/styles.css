@@ -149,6 +149,33 @@ a { color: var(--c-blue); }
   background: color-mix(in srgb, var(--c-blue) 15%, transparent);
   color: var(--c-blue);
 }
+/* Photo gallery in the read-only view — thumbnails open full-size in a new tab. */
+.view-photos { display: flex; flex-wrap: wrap; gap: .6rem; }
+.view-photo { margin: 0; display: flex; flex-direction: column; gap: .25rem; max-width: 140px; }
+.view-photo a { display: block; line-height: 0; }
+.view-photo img {
+  width: 140px; height: 105px; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--c-line);
+  background: color-mix(in srgb, var(--c-blue) 6%, transparent);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.view-photo a:hover img { transform: translateY(-2px); box-shadow: var(--shadow, 0 2px 8px rgba(0,0,0,.15)); }
+.view-photo a:focus-visible img { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.view-photo figcaption { font-size: .74rem; color: var(--muted); line-height: 1.3; }
+
+/* Photo strip under the share bar on a just-saved intervention (photos managed in the widget). */
+.photos-strip { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .25rem; }
+.photos-strip__item { display: block; line-height: 0; }
+.photos-strip__item img {
+  width: 96px; height: 72px; object-fit: cover;
+  border-radius: 8px; border: 1px solid var(--c-line);
+  background: color-mix(in srgb, var(--c-blue) 6%, transparent);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.photos-strip__item:hover img { transform: translateY(-2px); box-shadow: var(--shadow, 0 2px 8px rgba(0,0,0,.15)); }
+.photos-strip__item:focus-visible img { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.photos-strip__empty { font-size: .82rem; color: var(--muted); margin: 0; }
+
 @media (max-width: 30rem) {
   .view-details__list { grid-template-columns: 1fr; gap: .15rem 0; }
   .view-details__list dd { margin-bottom: .75rem; }

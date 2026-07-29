@@ -182,8 +182,17 @@
           <wa-icon slot="start" name="bookmark"></wa-icon>
           Save this intervention
         </wa-button>
+        <!-- Revealed once this intervention is saved (we have its id). Opens the Access-gated photo
+             widget in a new tab; uploaded photos flow back via postMessage into #photos-strip. -->
+        <wa-button id="photos-btn" size="small" appearance="outlined" variant="brand" hidden>
+          <wa-icon slot="start" name="image"></wa-icon>
+          Add / manage photos
+        </wa-button>
         <small id="copy-status" class="copy-status" role="status" aria-live="polite"></small>
       </div>
+
+      <!-- Thumbnail strip for photos on this saved intervention (managed in the widget). -->
+      <div id="photos-strip" class="photos-strip" hidden></div>
 
       <!-- Save dialog — native <dialog> (accessible: focus trap, Esc, backdrop). POSTs {url,email}. -->
       <dialog id="save-dialog" class="save-dialog" aria-labelledby="save-dialog-title">

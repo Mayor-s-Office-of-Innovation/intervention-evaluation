@@ -149,6 +149,13 @@ a { color: var(--c-blue); }
   background: var(--c-line);
   color: var(--muted);
 }
+/* Small-base 2wk chip: keep its good/bad color, but mark it (dotted) so a noisy fortnight reads as directional. */
+.kr-ticker--lowbase {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+  opacity: .85;
+}
 html.wa-dark .kr-ticker--good {
   background: #14532d;
   color: #86efac;
@@ -387,6 +394,37 @@ html.wa-dark .intervention-row:hover td {
   font-weight: 500;
 }
 
+/* Photo thumbnail column — fixed square so rows never shift as images load. */
+.intervention-cell--photo { width: 52px; padding-right: 0; }
+.intervention-thumb {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+}
+.intervention-thumb img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border, rgba(0,0,0,.12));
+  display: block;
+  background: var(--muted-bg, rgba(0,0,0,.04));
+}
+.intervention-thumb__more {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  font-size: .62rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--c-blue, #2563eb);
+  box-shadow: 0 0 0 1.5px var(--card-bg, #fff);
+}
+
 .intervention-cell--kr {
   min-width: 110px;
   color: var(--c-blue);
@@ -617,6 +655,32 @@ html.wa-dark .intervention-edit-row td {
 .editor-location__note { margin: -.35rem 0 0; font-size: .78rem; color: var(--muted); }
 .editor-location__note a { color: var(--c-blue); font-weight: 600; text-decoration: none; }
 .editor-location__note a:hover { text-decoration: underline; }
+
+/* Photos block in the inline editor — a label, a thumbnail strip, and the widget button. */
+.editor-photos {
+  display: flex; flex-direction: column; gap: .4rem;
+  padding: .6rem .75rem; border: 1px dashed var(--c-line); border-radius: 8px;
+}
+.editor-photos__label { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; color: var(--muted); }
+.editor-photos__strip { display: flex; flex-wrap: wrap; gap: .5rem; }
+.editor-photos__empty { color: var(--muted); font-size: .82rem; }
+.editor-photos-btn { align-self: flex-start; color: var(--c-blue); }
+.editor-photos-btn:hover { background: #dbeafe; }
+html.wa-dark .editor-photos-btn:hover { background: #1e3a5f; }
+.editor-photos__note { margin: 0; font-size: .78rem; color: var(--muted); }
+
+/* Shared thumbnail strip (homepage editor + reused sizing). Fixed dims → no layout shift. */
+.photos-strip { display: flex; flex-wrap: wrap; gap: .5rem; }
+.photos-strip__item { display: block; line-height: 0; }
+.photos-strip__item img {
+  width: 72px; height: 54px; object-fit: cover;
+  border-radius: 6px; border: 1px solid var(--c-line);
+  background: var(--muted-bg, rgba(0,0,0,.04));
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.photos-strip__item:hover img { transform: translateY(-2px); box-shadow: var(--shadow, 0 2px 8px rgba(0,0,0,.15)); }
+.photos-strip__item:focus-visible img { outline: 2px solid var(--c-blue); outline-offset: 2px; }
+.photos-strip__empty { color: var(--muted); font-size: .82rem; margin: 0; }
 
 .editor-error { margin: 0; color: var(--c-red, #ef4444); font-size: .85rem; }
 

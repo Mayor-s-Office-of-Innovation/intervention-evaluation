@@ -7,7 +7,7 @@ and appear in the **read-only view** of an intervention.
 
 ## Decisions locked
 
-- **Storage:** Cloudflare **R2** bucket, with **client-side resize** (browser
+- **Storage:** Cloudflare **R2** bucket **`intervention-storage`** (created), with **client-side resize** (browser
   `<canvas>` re-encode) before upload. Cheap, keeps the Worker dumb, and re-encoding
   strips EXIF/GPS automatically.
 - **Auth:** a **separate, fully auth-gated photo widget** hosted on a newly
@@ -146,7 +146,7 @@ Small single-page app served by the upload Worker:
 ## Infra / ops (manual, done by you in dashboards)
 
 1. Register the domain; add it to Cloudflare (creates the zone).
-2. Create the `PHOTOS` R2 bucket.
+2. ~~Create the `PHOTOS` R2 bucket.~~ **Done** — bucket name is `intervention-storage`.
 3. Bind `PHOTOS` (read) to the existing Worker; bind `PHOTOS` (write) + `INTERVENTIONS`
    KV to the new upload Worker. Add `[[r2_buckets]]` to the relevant `wrangler.toml`(s).
 4. Put the upload Worker on a custom domain route (`photos.NEWDOMAIN`) and **disable
@@ -172,13 +172,86 @@ Small single-page app served by the upload Worker:
 
 ## Suggested build order
 
-1. R2 bucket + data model (`photos[]` in create/update/publicItem) + public serve
-   route on the existing Worker. Seed a record with a photo by hand to unblock UI work.
-2. Homepage list thumbnails + read-only view gallery (pure display, no auth) — ships
-   value immediately for any seeded photos.
-3. New upload Worker + widget + Cloudflare Access. The gated write path.
-4. Wire the "Add / manage photos" buttons + `postMessage` refresh into the create form
-   and the inline editor.
+1. ✅ **DONE (2026-07-28)** — R2 bucket + data model (`photos[]` in create/publicItem) + public
+   serve route on the existing Worker. Verified locally with `wrangler dev` (R2/KV simulated): create
+   projects `photos:[]`; serve route returns bytes with immutable cache + ETag (404 when missing);
+   `publicItem` projects `id/w/h/caption/uploaded_at` + relative `thumb`/`full` URLs; neither `email`
+   nor `uploaded_by` leaks. **Still TODO for step 1's tail:** hand-seed a photo on the *deployed*
+   bucket to unblock UI work (commands below). Note: photo URLs are ORIGIN-RELATIVE — the client joins
+   them with its API base (keeps local dev correct); no absolute-base var needed.
+2. ✅ **DONE (2026-07-28)** — Homepage list thumbnails + read-only view gallery (pure display, no auth).
+   - `photoSrc(rel)` helper in [js/interventions-client.js](js/interventions-client.js) joins the
+     origin-relative serve URLs with the API base.
+   - Homepage: new auto-hiding **Photo** column ([js/app.js](js/app.js) `renderPhotoThumb` +
+     `INTERVENTION_COLUMNS`), fixed 44px square thumb + `+N` overflow badge; `savedToRow` now carries
+     `photos[]` through. CSS in [styles.css](styles.css).
+   - Read-only view: **Photos** gallery row in [hypothesis/js/app.js](hypothesis/js/app.js)
+     `renderViewDetails` — thumbnails open full-size in a new tab (plain `<a target=_blank>`, no
+     lightbox dep). CSS in [hypothesis/styles.css](hypothesis/styles.css).
+   - Tests: homepage e2e asserts thumbnail + `+N` badge + column auto-hide; hypothesis e2e asserts the
+     gallery renders, `img`/`a` join the API base, caption + new-tab. All green. No new JS *files* → no
+     `deploy.yml` staging change needed.
+3. ✅ **DONE (2026-07-28)** — New upload Worker + widget + Cloudflare Access (the gated write path).
+   Code complete + verified locally; **the Cloudflare Access app + custom-domain route are the
+   remaining manual dashboard steps** (see [../photo-upload-worker/README.md](../photo-upload-worker/README.md)).
+   - New sibling Worker [photo-upload-worker/](../photo-upload-worker/): `src/index.js` (router +
+     Access-JWT verify + upload/delete/context), `src/widget.js` (`widgetHtml()` — inline HTML/JS
+     upload app, drag-drop + `<canvas>` resize to 1600/320px JPEG + sequential POST + `postMessage`
+     to opener; written as concatenated strings, **no template literals/`${`**, so it nests cleanly),
+     `wrangler.toml` (shared KV id + R2 `intervention-storage` write + `ACCESS_*` placeholders),
+     `README.md`.
+   - Auth: DEV bypass (`--var DEV:1` → `dev@sfgov.org`) for local only; prod verifies
+     `iss/aud/exp/nbf` + RS256 vs team JWKS and asserts `@sfgov.org`. Un-configured `ACCESS_*` →
+     401 by default. `workers.dev` route to be disabled in the dashboard.
+   - **Verified locally** (two `wrangler dev`, shared `--persist-to`, real `sips`-minted JPEGs):
+     create→`photos:[]`; upload→201 (absolute URLs, **no `uploaded_by` leak**); widget `GET /:id`
+     context ok; `publicItem.photos[]` relative URLs; serve→200 `image/jpeg` + immutable cache +
+     ETag; delete→idempotent 200, serve-after-delete 404, KV `photos[]` empty. Guards: non-JPEG→400,
+     missing part→400, 7th photo→400 (cap 6), unknown id→404, **no-DEV unauthenticated upload→401
+     "missing Access token"**. Widget `GET /` serves HTML with `__CFG__` injected.
+   - **Not e2e-tested** (real OTP is impractical in CI) — the widget's auth+upload path is a manual
+     smoke test after the Access app exists; display side (steps 2) is covered by Playwright.
+4. ✅ **DONE (2026-07-28)** — Wired the "Add / manage photos" buttons + `postMessage` refresh into the
+   create form and the inline editor. This is the last frontend code; it's independent of whether the
+   Cloudflare Access app is live yet (a user just gets an OTP prompt when the widget tab opens).
+   - **Shared helpers** in [js/interventions-client.js](js/interventions-client.js), mirroring the
+     existing `PROD_API`/`localStorage.interventionsApi` pattern:
+     `PROD_PHOTO_WIDGET = 'https://photos.sfinterventionassets.org'` + exported `PHOTO_WIDGET` with a
+     `localStorage.photoWidget` local-dev override; `openPhotoWidget(id)` (`window.open` to
+     `<widget>/?intervention=<id>`, named tab, **no `noopener`** — the widget needs `window.opener` to
+     post back); `onPhotosUpdated(handler)` (adds a `message` listener that checks
+     `e.origin === new URL(PHOTO_WIDGET).origin` + `e.data.type==='photos-updated'` + a truthy
+     `intervention`, returns an unsubscribe fn). Reuses `photoSrc` + `getIntervention`.
+   - **Create form** ([hypothesis/index.html](hypothesis/index.html) + [hypothesis/js/app.js](hypothesis/js/app.js)):
+     a hidden `#photos-btn` + `#photos-strip` in the `.share-bar`; `showPhotoControls()` reveals them in
+     both `handleSubmit` success branches once `editId` is set; `refreshPhotoStrip(id)` re-fetches via
+     `getIntervention` and repaints the strip; `onPhotosUpdated` refreshes when the posted id matches the
+     open `editId`/`viewId`.
+   - **Homepage inline editor** ([js/app.js](js/app.js)): an `.editor-photos` block in `renderEditor`
+     (label + `.editor-photos__strip[data-id]` + button + a note that photos save immediately, no "Save
+     changes" needed); button wired in `wireEditor`; `saveEditor` untouched (photos aren't in the PATCH
+     body). **postMessage-refresh design: targeted strip update, NOT a full `render()`** — the handler
+     re-fetches the record, swaps it into the `savedInterventions` cache, and if that editor is open
+     repaints only its `.editor-photos__strip` innerHTML in place, so un-saved field edits aren't
+     clobbered. The row's Photo column refreshes on the next natural render (Save/Cancel/Archive).
+     Listener registered once, module-level in `init()`.
+   - **CSS**: shared `.photos-strip`/`.photos-strip__item` thumbs (+ dark mode) in both
+     [styles.css](styles.css) (72×54, plus the `.editor-photos` block) and
+     [hypothesis/styles.css](hypothesis/styles.css) (96×72).
+   - **Tests**: new homepage e2e (open editor for photo-bearing item → strip shows 2 thumbs → button
+     opens `<origin>/?intervention=a` → postMessage grows the strip to 3) and hypothesis e2e (create →
+     `#photos-btn` reveals → opens `<origin>/?intervention=new1` → postMessage renders 1 thumb). Both
+     point `localStorage.photoWidget` at the page origin so `window.open` is assertable and the
+     `onPhotosUpdated` origin check accepts a page-dispatched `postMessage`; `window.open` is captured
+     via `addInitScript`. No new JS *files* → no `deploy.yml` staging change.
+   - **Test-infra guardrail (added while verifying):** the create POST is a cross-origin
+     `application/json` request → CORS preflight; the fix points `localStorage.interventionsApi` at the
+     page origin so writes are same-origin (no preflight) and the stub intercepts them. Since the client
+     defaults to the **prod** Worker, a new shared base [tests/e2e-base.js](tests/e2e-base.js) (imported
+     by every spec in place of `@playwright/test`) installs a **fail-closed guard**: any un-stubbed
+     POST/PUT/PATCH/DELETE to `interventions-api.safestreetssf.workers.dev` is aborted + logged, so no
+     test can silently mutate production. Reads pass through; a spec's own `page.route` stub (registered
+     later) always wins over the guard.
 
 ## Open sub-decisions (sensible defaults chosen above; confirm when convenient)
 
@@ -195,12 +268,14 @@ registration is being handled by the user out-of-band.
 
 ## Config values to get from the user before writing Worker/Access code
 These are unknown until the domain + Cloudflare setup exist. Ask up front:
-- Registered domain + chosen **widget hostname** (e.g. `photos.example.org`).
+- ~~Registered domain + chosen **widget hostname**~~ → **`photos.sfinterventionassets.org`** (domain `sfinterventionassets.org`).
 - Cloudflare **Zero Trust team name** → gives the JWKS/issuer URL
   `https://<team>.cloudflareaccess.com`.
 - The **Access application AUD tag** (shown in the Access app's Overview) — needed for
   JWT `aud` validation.
-- **R2 bucket name** (suggest `intervention-photos`).
+- **Registered domain**: **`sfinterventionassets.org`** (zone created).
+  **Widget hostname**: **`photos.sfinterventionassets.org`**.
+- **R2 bucket name**: **`intervention-storage`** (created 2026-07-28).
 - Confirm caps: **6** photos, **1600px** display / **320px** thumb, types
   `jpeg/png/webp`.
 
@@ -308,6 +383,9 @@ new client JS file must be added to the staging globs + this guard or it 404s in
   read-only gallery against a **seeded record with `photos[]`**. The Access-gated widget
   itself is impractical to e2e (real OTP) — plan a manual smoke test, or the dev-bypass
   above for a non-prod run.
+- **Manual smoke test plan:** [test-plan-photo-uploads.md](test-plan-photo-uploads.md) —
+  covers the live Access/OTP gate, the upload/serve/delete round-trip against real R2,
+  and the widget→app `postMessage` refresh (the paths e2e can only stub).
 
 ## First concrete step when resuming
 Do **build order step 1** (see above): add the R2 binding + `photos[]` to the public

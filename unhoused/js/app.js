@@ -510,25 +510,34 @@ function initDistrict() {
 function renderMethodology() {
   const s = PROV.signals, g = PROV.groups;
   const q = url => `<a href="${url}" target="_blank" rel="noopener">query ↗</a>`;
+  // On a district page, prefer the district-scoped verify link (computed-region spatial join) so the
+  // query reproduces the district figure shown; fall back to citywide. (U1/U3, "Option A".)
+  const scoped = p => (active !== 'Citywide' && p.query_url_by_district && p.query_url_by_district[active]) || p.query_url;
+  const districtLink = active !== 'Citywide';
   const sigRow = (key, why) => {
     const p = s[key];
     let parts = '';
     if (p.components) {
       parts = '<ul class="meth-parts">' + Object.entries(p.components).map(([n, c]) =>
-        `<li><code>${n}</code>: ${q(c.query_url)}</li>`).join('') + '</ul>';
+        `<li><code>${n}</code>: ${q(scoped(c))}</li>`).join('') + '</ul>';
     }
     return `<li><strong>${AGG.signals[key].label}</strong> — ${why}
-      <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(p.query_url)}${p.dedup_note ? ' · ' + p.dedup_note : ''}</small>${parts}</li>`;
+      <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(scoped(p))}${p.dedup_note ? ' · ' + p.dedup_note : ''}</small>${parts}</li>`;
   };
   const grp = g.cfs_presence;
   const grpRow = `<li><strong>${grp.label}</strong> — two distinct, non-overlapping SFPD call types, summed.
     <br><small>${grp.note}</small>
     <ul class="meth-parts">${Object.values(grp.members).map(m =>
-      `<li>${m.label}: ${m.dataset_name} (<code>${m.dataset_id}</code>) · ${q(m.query_url)}</li>`).join('')}</ul></li>`;
+      `<li>${m.label}: ${m.dataset_name} (<code>${m.dataset_id}</code>) · ${q(scoped(m))}</li>`).join('')}</ul></li>`;
 
   document.getElementById('methodology-body').innerHTML = `
     <p class="meth-lead">Every signal — and every component of a combined one — names its dataset and links a
-      runnable Socrata query, so each number ties back to source data.</p>
+      runnable Socrata query, so each number ties back to source data.${districtLink ? ` On this
+      <strong>${active}</strong> page each query is scoped to the district using the police-district
+      boundary’s spatial join (<code>:@computed_region_qgnn_b9vv</code>) — the same boundary this
+      dashboard draws — so it returns within <strong>~0.5%</strong> of the figure shown here (our count
+      uses a point-in-polygon against that boundary; the two differ by a few reports). Switch to Citywide
+      for the unscoped query.` : ''}</p>
     <h3>Success metrics — what we want to go down, and why each is homeless-related</h3>
     <ul class="meth-list">
       ${sigRow('encampment', 'community 311 reports of unhoused presence. In mid-2025 SF split the single “Encampment” request into encampments (tents/structures) and unhoused-individual concerns; this unions both so the trend stays continuous across that change — read it as presence, not confirmed encampments')}
@@ -537,7 +546,7 @@ function renderMethodology() {
     <h3>Response signal — shown below, not a success target</h3>
     <ul class="meth-list">
       <li><strong>${AGG.signals.hsoc.label}</strong> — the city’s outreach <em>effort</em>, the analog of arrests in a crime dashboard: appropriate to rise while presence is high, but ultimately should fall as the problem improves. It overlaps the 911 calls and is never summed with them.
-        <br><small>${s.hsoc.dataset_name} (<code>${s.hsoc.dataset_id}</code>) · ${q(s.hsoc.query_url)}</small></li>
+        <br><small>${s.hsoc.dataset_name} (<code>${s.hsoc.dataset_id}</code>) · ${q(scoped(s.hsoc))}</small></li>
     </ul>
     <h3>Left out — and why (deferred to sibling projects)</h3>
     <ul class="meth-list meth-list--out">

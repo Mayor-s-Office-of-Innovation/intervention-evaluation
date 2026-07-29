@@ -22,8 +22,8 @@ from collections import defaultdict
 from httpget import get_json
 from tod import BUCKETS, tod_bucket, tod_case_sql
 from signals import (
-    SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL, HISTORY_START,
-    LURIE_INAUGURATION, DATASET_NAME, SETTLE_LAG_MONTHS, query_url,
+    SIGNALS, GROUPS, TARGET_DISTRICTS, DISTRICT_LABEL, DISTRICT_REGION, HISTORY_START,
+    LURIE_INAUGURATION, DATASET_NAME, SETTLE_LAG_MONTHS, query_url, query_url_by_district,
 )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -261,6 +261,7 @@ def _store_provenance(key, sig, total_records, provenance):
         "dataset_name": DATASET_NAME.get(sig["dataset"], sig["dataset"]),
         "filter": sig["where"],
         "query_url": query_url(sig),
+        "query_url_by_district": query_url_by_district(sig),
         "records": total_records,
         "axis": sig.get("axis"),
         "goal": sig.get("goal"),
