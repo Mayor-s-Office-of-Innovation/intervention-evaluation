@@ -1,0 +1,6 @@
+# Wrangler local state: simulated KV, build cache, account cache, dev bundles. Never commit.
+.wrangler/
+
+# Local secrets (wrangler dev) — should never be committed.
+.dev.vars
+.dev.vars.*
