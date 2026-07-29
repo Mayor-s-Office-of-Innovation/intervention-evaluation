@@ -370,6 +370,7 @@ html.wa-dark .leaflet-popup-close-button:hover { color: var(--text); }
   background: var(--bg); color: var(--muted); border: 1px solid var(--c-line); }
 .ra-status--error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
 html.wa-dark .ra-status--error { background: #3b1213; color: #fca5a5; border-color: #7f1d1d; }
+#ra-search { margin-bottom: .6rem; }
 #ra-map { height: 460px; }
 
 /* section divider marking the shift from the baked analysis to the live/operational view */

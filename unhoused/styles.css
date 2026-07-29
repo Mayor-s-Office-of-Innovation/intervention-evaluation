@@ -240,7 +240,8 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 
 /* ── Hotspots: Combined | Day-vs-night split view (Change #2) ── */
 .map-controls-row { display: flex; width: 100%; align-items: center; gap: .5rem; flex-wrap: wrap; }
-.map-controls-row > #map-view-toggle { margin-left: auto; }   /* search left · view toggle right */
+.map-controls-row > #map-search { order: 1; flex-basis: 100%; }   /* search on its own line BELOW the signal + view toggles */
+.map-controls-row > #map-view-toggle { margin-left: auto; }   /* signal left · view toggle right */
 .map-controls:empty { display: none; }   /* drug has no signal buttons — don't render an empty pill */
 .split-legend { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin-bottom: .75rem; font-size: .8rem; color: var(--muted); }
 .split-legend .k { display: inline-flex; align-items: center; gap: .35rem; }
@@ -413,6 +414,7 @@ html.wa-dark .leaflet-popup-close-button:hover { color: var(--text); }
   background: var(--bg); color: var(--muted); border: 1px solid var(--c-line); }
 .ra-status--error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
 html.wa-dark .ra-status--error { background: #3b1213; color: #fca5a5; border-color: #7f1d1d; }
+#ra-search { margin-bottom: .6rem; }
 #ra-map { height: 460px; }
 
 /* density-map legend — flips with theme, like the hexes */
