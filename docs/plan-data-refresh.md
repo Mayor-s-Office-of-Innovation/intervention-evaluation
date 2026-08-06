@@ -92,3 +92,25 @@ validation sequence, homepage-auto-follows, stop-on-mismatch). **[done]**
 
 ## Verification of done
 All validation green, `git diff` limited to data JSON, headline deltas sane, commands returned.
+
+## Run log
+
+### 2026-08-06 — drug + unhoused (theft skipped, mid-WIP on `theft-expansion`)
+Scoped refresh: theft build left alone (uncommitted theft-expansion work on the branch).
+
+| Dashboard | generated | latest settled | note |
+|-----------|-----------|----------------|------|
+| drug      | 2026-07-28 → **2026-08-06** | 2026-05 → **2026-06** | +partial month 2026-08 |
+| unhoused  | 2026-07-28 → **2026-08-06** | n/a (no settle field) | +partial month 2026-08 |
+
+- All builds ran clean (01_pull → 05_markers), anonymous GETs, no schema surprises.
+- **Validation:** `validate_build.py` ✓ · `parity.mjs` drug+unhoused ✓ (exact + fuzzed) ·
+  `trace.py` drug+unhoused ✓ **all settled months reconcile at 0.00% drift** ·
+  e2e `--project=drug --project=unhoused --project=homepage` 27 passed / 1 skipped (CLS test).
+- **Deltas sane:** new partial 2026-08 appended; 2026-07 revised **upward** as late reports
+  settled (drug reports 698→876, dealer arrests 73→79, paraphernalia 410→483,
+  other drug arrests 196→216, needles 212→242; encampment 5023→6107, encampment_only
+  2873→3496, cfs_sitlie 640→812, cfs_homeless 143→170, hsoc 1123→1385). No downward
+  revisions, no cliffs — pure settle fill-in.
+- **Diff scope:** only `drug/data/**` and `unhoused/data/**` JSON (+ both `provenance.json`
+  dates). No build/JS/CSS touched. Homepage auto-follows (reads aggregates live).

@@ -188,7 +188,7 @@ SIGNALS = {
         "label": "Needle / syringe reports (311)",
         "tier": 3, "axis": "presence", "goal": "context",
         "caveat": "A route-specific injection-drug indicator, shown citywide only and EXCLUDED from the "
-                  "trend read: needle reports fell ~19% year-over-year (and ~4× since 2018) as drug use "
+                  "trend read: needle reports have fallen year-over-year (and ~4× since 2018) as drug use "
                   "shifted from injection to fentanyl smoking, so using them in a Lurie-era comparison "
                   "would falsely inflate 'improvement' (D5). Shown for transparency, never summed into the "
                   "headline.",
