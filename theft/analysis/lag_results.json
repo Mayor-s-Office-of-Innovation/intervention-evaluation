@@ -1,0 +1,1063 @@
+{
+  "generated": "2026-07-31",
+  "dataset": "wg3w-h783",
+  "domain": "data.sfgov.org",
+  "history_start": "2021-01-01",
+  "merchant_where": "incident_subcategory in('Larceny Theft - Shoplifting','Burglary - Commercial','Robbery - Commercial')",
+  "maturity_days": 180,
+  "day_grid": [
+    0,
+    7,
+    14,
+    30,
+    45,
+    60,
+    90
+  ],
+  "month_grid": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "target_k_months": 1,
+  "n_rows_pulled": 24566,
+  "dedup_dropped": 346,
+  "publication_delta": {
+    "detected_reload_date": "2025-06-13",
+    "reload_row_count": 19711,
+    "faithful_n": 4855,
+    "median_days": 2,
+    "p90_days": 18,
+    "within_2_pct": 53,
+    "within_7_pct": 83
+  },
+  "filing_lag_crosscheck": {
+    "window": "2024-07-01..2025-07-01",
+    "n": 424,
+    "median_days": 0,
+    "within_7_pct": 89,
+    "within_30_pct": 94,
+    "within_60_pct": 98,
+    "p90_days": 9
+  },
+  "groups": {
+    "northern_reported_all": {
+      "n_rows": 2417,
+      "n_cohorts_mature": 61,
+      "cohort_range": [
+        "2021-01",
+        "2026-01"
+      ],
+      "day_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.9223,
+          "sd": 0.0879,
+          "p10": 0.825,
+          "p50": 0.9423,
+          "p90": 1.0,
+          "min": 0.575,
+          "max": 1.0,
+          "uplift": 1.0842
+        },
+        {
+          "key": 7,
+          "n": 61,
+          "mean": 0.9535,
+          "sd": 0.0793,
+          "p10": 0.8919,
+          "p50": 0.9714,
+          "p90": 1.0,
+          "min": 0.575,
+          "max": 1.0,
+          "uplift": 1.0488
+        },
+        {
+          "key": 14,
+          "n": 61,
+          "mean": 0.9635,
+          "sd": 0.0713,
+          "p10": 0.913,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.6,
+          "max": 1.0,
+          "uplift": 1.0379
+        },
+        {
+          "key": 30,
+          "n": 61,
+          "mean": 0.9817,
+          "sd": 0.0305,
+          "p10": 0.9535,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.85,
+          "max": 1.0,
+          "uplift": 1.0186
+        },
+        {
+          "key": 45,
+          "n": 61,
+          "mean": 0.9886,
+          "sd": 0.0226,
+          "p10": 0.963,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.875,
+          "max": 1.0,
+          "uplift": 1.0115
+        },
+        {
+          "key": 60,
+          "n": 61,
+          "mean": 0.9913,
+          "sd": 0.0167,
+          "p10": 0.9667,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.913,
+          "max": 1.0,
+          "uplift": 1.0088
+        },
+        {
+          "key": 90,
+          "n": 61,
+          "mean": 0.9935,
+          "sd": 0.0157,
+          "p10": 0.9714,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.913,
+          "max": 1.0,
+          "uplift": 1.0065
+        }
+      ],
+      "month_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.9223,
+          "sd": 0.0879,
+          "p10": 0.825,
+          "p50": 0.9423,
+          "p90": 1.0,
+          "min": 0.575,
+          "max": 1.0,
+          "uplift": 1.0842
+        },
+        {
+          "key": 1,
+          "n": 61,
+          "mean": 0.9821,
+          "sd": 0.0308,
+          "p10": 0.95,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.85,
+          "max": 1.0,
+          "uplift": 1.0182
+        },
+        {
+          "key": 2,
+          "n": 61,
+          "mean": 0.9913,
+          "sd": 0.0167,
+          "p10": 0.9667,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.913,
+          "max": 1.0,
+          "uplift": 1.0088
+        },
+        {
+          "key": 3,
+          "n": 61,
+          "mean": 0.9935,
+          "sd": 0.0157,
+          "p10": 0.9714,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.913,
+          "max": 1.0,
+          "uplift": 1.0065
+        }
+      ],
+      "by_year": {
+        "2021": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9464,
+            "1": 0.9895,
+            "2": 0.9919,
+            "3": 0.9919
+          }
+        },
+        "2022": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.882,
+            "1": 0.9681,
+            "2": 0.9903,
+            "3": 0.9951
+          }
+        },
+        "2023": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9594,
+            "1": 0.9906,
+            "2": 0.9955,
+            "3": 0.9955
+          }
+        },
+        "2024": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9152,
+            "1": 0.9756,
+            "2": 0.9928,
+            "3": 0.9948
+          }
+        },
+        "2025": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9021,
+            "1": 0.9853,
+            "2": 0.9853,
+            "3": 0.9899
+          }
+        },
+        "2026": {
+          "n_cohorts": 1,
+          "completion_by_k": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0
+          }
+        }
+      }
+    },
+    "northern_reported_shoplifting": {
+      "n_rows": 1543,
+      "n_cohorts_mature": 61,
+      "cohort_range": [
+        "2021-01",
+        "2026-01"
+      ],
+      "day_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.8989,
+          "sd": 0.1235,
+          "p10": 0.7667,
+          "p50": 0.9286,
+          "p90": 1.0,
+          "min": 0.4524,
+          "max": 1.0,
+          "uplift": 1.1125
+        },
+        {
+          "key": 7,
+          "n": 61,
+          "mean": 0.9405,
+          "sd": 0.1106,
+          "p10": 0.8824,
+          "p50": 0.9773,
+          "p90": 1.0,
+          "min": 0.4667,
+          "max": 1.0,
+          "uplift": 1.0633
+        },
+        {
+          "key": 14,
+          "n": 61,
+          "mean": 0.9523,
+          "sd": 0.1018,
+          "p10": 0.8889,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.4667,
+          "max": 1.0,
+          "uplift": 1.0501
+        },
+        {
+          "key": 30,
+          "n": 61,
+          "mean": 0.9792,
+          "sd": 0.0423,
+          "p10": 0.9412,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7857,
+          "max": 1.0,
+          "uplift": 1.0212
+        },
+        {
+          "key": 45,
+          "n": 61,
+          "mean": 0.988,
+          "sd": 0.0291,
+          "p10": 0.9583,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.8333,
+          "max": 1.0,
+          "uplift": 1.0121
+        },
+        {
+          "key": 60,
+          "n": 61,
+          "mean": 0.9916,
+          "sd": 0.021,
+          "p10": 0.9583,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.8889,
+          "max": 1.0,
+          "uplift": 1.0084
+        },
+        {
+          "key": 90,
+          "n": 61,
+          "mean": 0.9927,
+          "sd": 0.0205,
+          "p10": 0.9615,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.8889,
+          "max": 1.0,
+          "uplift": 1.0073
+        }
+      ],
+      "month_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.8989,
+          "sd": 0.1235,
+          "p10": 0.7667,
+          "p50": 0.9286,
+          "p90": 1.0,
+          "min": 0.4524,
+          "max": 1.0,
+          "uplift": 1.1125
+        },
+        {
+          "key": 1,
+          "n": 61,
+          "mean": 0.9797,
+          "sd": 0.0425,
+          "p10": 0.9355,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7857,
+          "max": 1.0,
+          "uplift": 1.0207
+        },
+        {
+          "key": 2,
+          "n": 61,
+          "mean": 0.9916,
+          "sd": 0.021,
+          "p10": 0.9583,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.8889,
+          "max": 1.0,
+          "uplift": 1.0084
+        },
+        {
+          "key": 3,
+          "n": 61,
+          "mean": 0.9927,
+          "sd": 0.0205,
+          "p10": 0.9615,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.8889,
+          "max": 1.0,
+          "uplift": 1.0073
+        }
+      ],
+      "by_year": {
+        "2021": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9307,
+            "1": 0.9951,
+            "2": 0.9951,
+            "3": 0.9951
+          }
+        },
+        "2022": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.8459,
+            "1": 0.956,
+            "2": 0.9888,
+            "3": 0.9907
+          }
+        },
+        "2023": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9319,
+            "1": 0.987,
+            "2": 0.9916,
+            "3": 0.9916
+          }
+        },
+        "2024": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.8925,
+            "1": 0.9702,
+            "2": 0.9936,
+            "3": 0.9936
+          }
+        },
+        "2025": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.8849,
+            "1": 0.9884,
+            "2": 0.9884,
+            "3": 0.9919
+          }
+        },
+        "2026": {
+          "n_cohorts": 1,
+          "completion_by_k": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0
+          }
+        }
+      }
+    },
+    "northern_reported_commercial": {
+      "n_rows": 874,
+      "n_cohorts_mature": 61,
+      "cohort_range": [
+        "2021-01",
+        "2026-01"
+      ],
+      "day_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.9681,
+          "sd": 0.059,
+          "p10": 0.875,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0329
+        },
+        {
+          "key": 7,
+          "n": 61,
+          "mean": 0.9782,
+          "sd": 0.0514,
+          "p10": 0.9231,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0223
+        },
+        {
+          "key": 14,
+          "n": 61,
+          "mean": 0.9812,
+          "sd": 0.0506,
+          "p10": 0.9333,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0192
+        },
+        {
+          "key": 30,
+          "n": 61,
+          "mean": 0.9836,
+          "sd": 0.0463,
+          "p10": 0.9412,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0167
+        },
+        {
+          "key": 45,
+          "n": 61,
+          "mean": 0.9877,
+          "sd": 0.0428,
+          "p10": 0.9474,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0124
+        },
+        {
+          "key": 60,
+          "n": 61,
+          "mean": 0.9877,
+          "sd": 0.0428,
+          "p10": 0.9474,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0124
+        },
+        {
+          "key": 90,
+          "n": 61,
+          "mean": 0.9919,
+          "sd": 0.0389,
+          "p10": 1.0,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0082
+        }
+      ],
+      "month_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.9681,
+          "sd": 0.059,
+          "p10": 0.875,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0329
+        },
+        {
+          "key": 1,
+          "n": 61,
+          "mean": 0.9836,
+          "sd": 0.0463,
+          "p10": 0.9412,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0167
+        },
+        {
+          "key": 2,
+          "n": 61,
+          "mean": 0.9877,
+          "sd": 0.0428,
+          "p10": 0.9474,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0124
+        },
+        {
+          "key": 3,
+          "n": 61,
+          "mean": 0.9919,
+          "sd": 0.0389,
+          "p10": 1.0,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.7143,
+          "max": 1.0,
+          "uplift": 1.0082
+        }
+      ],
+      "by_year": {
+        "2021": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9637,
+            "1": 0.9833,
+            "2": 0.9875,
+            "3": 0.9875
+          }
+        },
+        "2022": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9574,
+            "1": 0.9887,
+            "2": 0.9887,
+            "3": 0.9951
+          }
+        },
+        "2023": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9783,
+            "1": 0.9832,
+            "2": 1.0,
+            "3": 1.0
+          }
+        },
+        "2024": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9868,
+            "1": 0.9956,
+            "2": 0.9956,
+            "3": 1.0
+          }
+        },
+        "2025": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9519,
+            "1": 0.9658,
+            "2": 0.9658,
+            "3": 0.9762
+          }
+        },
+        "2026": {
+          "n_cohorts": 1,
+          "completion_by_k": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0
+          }
+        }
+      }
+    },
+    "northern_arrests_all": {
+      "n_rows": 914,
+      "n_cohorts_mature": 61,
+      "cohort_range": [
+        "2021-01",
+        "2026-01"
+      ],
+      "day_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.8504,
+          "sd": 0.2158,
+          "p10": 0.5833,
+          "p50": 0.975,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1759
+        },
+        {
+          "key": 7,
+          "n": 61,
+          "mean": 0.8694,
+          "sd": 0.2015,
+          "p10": 0.6667,
+          "p50": 0.9851,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1502
+        },
+        {
+          "key": 14,
+          "n": 61,
+          "mean": 0.8758,
+          "sd": 0.2005,
+          "p10": 0.6667,
+          "p50": 0.9881,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1418
+        },
+        {
+          "key": 30,
+          "n": 61,
+          "mean": 0.8968,
+          "sd": 0.1882,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1151
+        },
+        {
+          "key": 45,
+          "n": 61,
+          "mean": 0.8995,
+          "sd": 0.1885,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1117
+        },
+        {
+          "key": 60,
+          "n": 61,
+          "mean": 0.9022,
+          "sd": 0.1799,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1084
+        },
+        {
+          "key": 90,
+          "n": 61,
+          "mean": 0.9165,
+          "sd": 0.1687,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.25,
+          "max": 1.0,
+          "uplift": 1.0911
+        }
+      ],
+      "month_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.8504,
+          "sd": 0.2158,
+          "p10": 0.5833,
+          "p50": 0.975,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1759
+        },
+        {
+          "key": 1,
+          "n": 61,
+          "mean": 0.8968,
+          "sd": 0.1882,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1151
+        },
+        {
+          "key": 2,
+          "n": 61,
+          "mean": 0.9022,
+          "sd": 0.1799,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.125,
+          "max": 1.0,
+          "uplift": 1.1084
+        },
+        {
+          "key": 3,
+          "n": 61,
+          "mean": 0.9165,
+          "sd": 0.1687,
+          "p10": 0.75,
+          "p50": 1.0,
+          "p90": 1.0,
+          "min": 0.25,
+          "max": 1.0,
+          "uplift": 1.0911
+        }
+      ],
+      "by_year": {
+        "2021": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9005,
+            "1": 0.9491,
+            "2": 0.963,
+            "3": 0.9907
+          }
+        },
+        "2022": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9347,
+            "1": 0.9708,
+            "2": 0.9708,
+            "3": 0.9708
+          }
+        },
+        "2023": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.852,
+            "1": 0.9075,
+            "2": 0.9075,
+            "3": 0.9361
+          }
+        },
+        "2024": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9451,
+            "1": 0.9464,
+            "2": 0.9484,
+            "3": 0.954
+          }
+        },
+        "2025": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.6352,
+            "1": 0.7291,
+            "2": 0.7411,
+            "3": 0.7515
+          }
+        },
+        "2026": {
+          "n_cohorts": 1,
+          "completion_by_k": {
+            "0": 0.6667,
+            "1": 0.6667,
+            "2": 0.6667,
+            "3": 0.6667
+          }
+        }
+      }
+    },
+    "citywide_reported_all": {
+      "n_rows": 17165,
+      "n_cohorts_mature": 61,
+      "cohort_range": [
+        "2021-01",
+        "2026-01"
+      ],
+      "day_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.8999,
+          "sd": 0.1182,
+          "p10": 0.796,
+          "p50": 0.9429,
+          "p90": 0.972,
+          "min": 0.487,
+          "max": 0.981,
+          "uplift": 1.1113
+        },
+        {
+          "key": 7,
+          "n": 61,
+          "mean": 0.9371,
+          "sd": 0.0934,
+          "p10": 0.8482,
+          "p50": 0.9714,
+          "p90": 0.9896,
+          "min": 0.5786,
+          "max": 1.0,
+          "uplift": 1.0672
+        },
+        {
+          "key": 14,
+          "n": 61,
+          "mean": 0.9574,
+          "sd": 0.0709,
+          "p10": 0.9279,
+          "p50": 0.9796,
+          "p90": 0.9924,
+          "min": 0.6684,
+          "max": 1.0,
+          "uplift": 1.0445
+        },
+        {
+          "key": 30,
+          "n": 61,
+          "mean": 0.9829,
+          "sd": 0.017,
+          "p10": 0.9645,
+          "p50": 0.9878,
+          "p90": 0.9962,
+          "min": 0.8935,
+          "max": 1.0,
+          "uplift": 1.0174
+        },
+        {
+          "key": 45,
+          "n": 61,
+          "mean": 0.9904,
+          "sd": 0.0084,
+          "p10": 0.9773,
+          "p50": 0.992,
+          "p90": 1.0,
+          "min": 0.9661,
+          "max": 1.0,
+          "uplift": 1.0097
+        },
+        {
+          "key": 60,
+          "n": 61,
+          "mean": 0.9927,
+          "sd": 0.0073,
+          "p10": 0.9808,
+          "p50": 0.9948,
+          "p90": 1.0,
+          "min": 0.9702,
+          "max": 1.0,
+          "uplift": 1.0074
+        },
+        {
+          "key": 90,
+          "n": 61,
+          "mean": 0.9947,
+          "sd": 0.0068,
+          "p10": 0.9835,
+          "p50": 0.9965,
+          "p90": 1.0,
+          "min": 0.973,
+          "max": 1.0,
+          "uplift": 1.0053
+        }
+      ],
+      "month_curve": [
+        {
+          "key": 0,
+          "n": 61,
+          "mean": 0.8999,
+          "sd": 0.1182,
+          "p10": 0.796,
+          "p50": 0.9429,
+          "p90": 0.972,
+          "min": 0.487,
+          "max": 0.981,
+          "uplift": 1.1113
+        },
+        {
+          "key": 1,
+          "n": 61,
+          "mean": 0.9835,
+          "sd": 0.0168,
+          "p10": 0.9636,
+          "p50": 0.988,
+          "p90": 0.9966,
+          "min": 0.8935,
+          "max": 1.0,
+          "uplift": 1.0168
+        },
+        {
+          "key": 2,
+          "n": 61,
+          "mean": 0.9927,
+          "sd": 0.0073,
+          "p10": 0.9808,
+          "p50": 0.9948,
+          "p90": 1.0,
+          "min": 0.9702,
+          "max": 1.0,
+          "uplift": 1.0073
+        },
+        {
+          "key": 3,
+          "n": 61,
+          "mean": 0.9947,
+          "sd": 0.0068,
+          "p10": 0.9835,
+          "p50": 0.9965,
+          "p90": 1.0,
+          "min": 0.973,
+          "max": 1.0,
+          "uplift": 1.0053
+        }
+      ],
+      "by_year": {
+        "2021": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.8491,
+            "1": 0.9825,
+            "2": 0.9931,
+            "3": 0.9942
+          }
+        },
+        "2022": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.8324,
+            "1": 0.9779,
+            "2": 0.9946,
+            "3": 0.9962
+          }
+        },
+        "2023": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.9561,
+            "1": 0.9885,
+            "2": 0.9925,
+            "3": 0.9939
+          }
+        },
+        "2024": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.933,
+            "1": 0.9799,
+            "2": 0.9904,
+            "3": 0.9939
+          }
+        },
+        "2025": {
+          "n_cohorts": 12,
+          "completion_by_k": {
+            "0": 0.931,
+            "1": 0.9886,
+            "2": 0.9925,
+            "3": 0.9948
+          }
+        },
+        "2026": {
+          "n_cohorts": 1,
+          "completion_by_k": {
+            "0": 0.8723,
+            "1": 0.984,
+            "2": 1.0,
+            "3": 1.0
+          }
+        }
+      }
+    }
+  },
+  "confidence": {
+    "target_k_months": 1,
+    "mean_completion": 0.9821,
+    "p10_p90_band": 0.05,
+    "uplift": 1.0182,
+    "expected_increase_pct": 1.8,
+    "level": "high",
+    "range_band_viable": true,
+    "rule": "high if p10\u2013p90 spread at k=1 \u2264 0.05"
+  },
+  "queries": {
+    "northern_merchant_monthly_reported": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272021-01-01%27+GROUP+BY+month+ORDER+BY+month",
+    "cohort_2025_01_eventual_total": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272025-01-01%27+AND+incident_date+%3C+%272025-02-01%27",
+    "cohort_2025_01_filed_within_30d": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272025-01-01%27+AND+incident_date+%3C+%272025-02-01%27+AND+report_datetime+%3C%3D+%272025-03-02%27",
+    "filing_lag_raw_rows_recent_settled": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+incident_date%2C+report_datetime+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272024-07-01%27+AND+incident_date+%3C+%272025-07-01%27+ORDER+BY+incident_date",
+    "publication_delta_faithful_window": "https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+incident_date%2C+report_datetime%2C+data_loaded_at+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+data_loaded_at+%3E+%272025-06-14%27+ORDER+BY+data_loaded_at+DESC"
+  }
+}
