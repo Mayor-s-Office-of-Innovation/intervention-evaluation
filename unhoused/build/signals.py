@@ -175,8 +175,8 @@ SIGNALS = {
         "tier": 3,
         "caveat": "A CITY-RESPONSE signal (Healthy Streets Operation Center routing), NOT a measure of "
                   "need and NOT a success metric. It rises as the program scales. It OVERLAPS the 911 "
-                  "signals above — it's every call routed to Healthy Streets regardless of type, so ~75% of "
-                  "it is the same records already counted in Sit/Lie and Homeless Complaint. NEVER sum it "
+                  "signals above — it's every call routed to Healthy Streets regardless of type, so the "
+                  "majority of it is the same records already counted in Sit/Lie and Homeless Complaint. NEVER sum it "
                   "with those — you'd double-count.",
     },
 }

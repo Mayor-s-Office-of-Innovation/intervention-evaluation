@@ -45,6 +45,14 @@
 
   <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.7.0/styles/webawesome.css" />
   <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"></script>
+
+  <!-- Leaflet (shoplifting concentration map — Workstream C). Deferred data load, but the lib
+       is small and shared with the other dashboards' CDN cache. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link rel="stylesheet" href="../shared/map-search.css" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -69,7 +77,58 @@
     <small id="data-asof" class="field-hint"></small>
     <section class="cards" id="cards"></section>
 
+    <!-- Shoplifting concentration map + time scrubber (Workstreams C + E).
+         STATIC concentration only — no hot/cold/DiD/baseline. A hot corner ≈ a single store;
+         counts reflect that store's reporting, which can switch on/off (see caveat below). -->
+    <section id="shoplifting-map-section" class="sm-section" aria-labelledby="sm-heading">
+      <h2 id="sm-heading" class="sm-heading">Where shoplifting reports concentrate</h2>
+      <p class="sm-lead">Shoplifting reports cluster hard on a few store-corners. This map shows the
+        <strong>absolute number of reports per corner</strong> for the window you pick below — bigger
+        circle, more reports. It is a snapshot of concentration, not a “what moved” comparison.</p>
+
+      <div class="sm-scrubber">
+        <div class="sm-scrubber__row">
+          <div class="sm-presets" id="sm-presets" role="group" aria-label="Time window presets"></div>
+          <div class="sm-window-label" id="sm-window-label"></div>
+        </div>
+        <div class="sm-strip" id="sm-strip" role="slider" aria-label="Drag across the months to set a custom window"></div>
+        <div class="sm-strip-legend" id="sm-strip-legend"></div>
+      </div>
+
+      <div class="sm-toolbar">
+        <div class="map-search" id="sm-search"></div>
+      </div>
+
+      <div class="sm-layout">
+        <div id="sm-map" class="sm-map"></div>
+        <aside class="sm-side">
+          <div class="sm-side__title">Top corners in this window</div>
+          <div id="sm-list" class="sm-list"></div>
+        </aside>
+      </div>
+
+      <p class="sm-caveat">
+        <strong>Read a hot corner as one store, not one block.</strong> A shoplifting corner is
+        usually a single retailer, so its count reflects that store’s loss-prevention reporting —
+        which can switch on or off (a new manager, a reporting drive) without the underlying theft
+        changing. Corners are placed by the incident report’s native intersection; shoplifting only.
+      </p>
+    </section>
+
+    <!-- Excluded-category caveat qualifies the merchant-theft KRs above, so it stays with them
+         (not pushed below the vehicle context block). -->
     <p class="exclusion" id="exclusion-note"></p>
+
+    <!-- Vehicle theft is CONTEXT only, so it renders below the two committed key results and their
+         concentration map — never beside them as a co-equal OKR. Card + detail form one block. -->
+    <section id="vehicle-context" class="vehicle-context" aria-labelledby="vehicle-context-head">
+      <h2 id="vehicle-context-head" class="vehicle-context__head">Also tracked</h2>
+      <p class="vehicle-context__lead">Beyond the two committed key results, one more theft category is
+        worth watching — shown here as context, not as a co-equal objective.</p>
+      <div class="cards" id="vehicle-cards"></div>
+    </section>
+
+    <section id="detail-sections"></section>
 
     <section class="methodology">
       <h2 class="methodology__title">How this is measured — data &amp; method</h2>

@@ -149,3 +149,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python bytecode (build/ and analysis/ scripts)
+__pycache__/
+*.py[cod]

@@ -76,12 +76,14 @@ export function reportTone(pct) {
   return s === 0 ? 'flat' : s < 0 ? 'good' : 'bad';
 }
 
-/** Headline verdict, based on the de-noised 12-month trend of business reports. */
-export function trendVerdict(pct) {
+/** Headline verdict, based on the de-noised 12-month trend of reports. `noun` lets a non-merchant
+ *  signal (e.g. vehicle theft, reported by owners not businesses) read correctly. */
+export function trendVerdict(pct, noun = 'thefts reported by businesses') {
   const s = sign(pct);
-  if (s < 0) return { label: 'Improving', tone: 'good', text: 'Fewer thefts reported by businesses over the past year.' };
-  if (s > 0) return { label: 'Worsening', tone: 'bad', text: 'More thefts reported by businesses over the past year.' };
-  return { label: 'Little change', tone: 'flat', text: 'Business-reported theft is about flat over the past year.' };
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+  if (s < 0) return { label: 'Improving', tone: 'good', text: `Fewer ${noun} over the past year.` };
+  if (s > 0) return { label: 'Worsening', tone: 'bad', text: `More ${noun} over the past year.` };
+  return { label: 'Little change', tone: 'flat', text: `${Noun} held about flat over the past year.` };
 }
 
 export const fmtPct = x => (x == null ? '—' : `${x >= 0 ? '▲' : '▼'} ${Math.abs(x * 100).toFixed(0)}%`);

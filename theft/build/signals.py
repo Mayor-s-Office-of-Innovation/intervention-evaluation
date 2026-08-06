@@ -57,6 +57,42 @@ SIGNALS = {
             "robbery": "incident_subcategory = 'Robbery - Commercial'",
         },
     },
+    # Vehicle theft is CONTEXT, not a committed KR (see ../plan-property-crime-expansion.md decision #1).
+    # It is a major property-crime driver — Northern volume rivals shoplifting and it is falling city-wide —
+    # and, being almost entirely victim-reported, it fits the enforcement-robust axis. Unlike the merchant
+    # signals it has no meaningful arrests axis (MVT arrests are near-zero), so the card suppresses arrests.
+    "vehicle": {
+        "label": "Vehicle theft",
+        "desc": "Cars, trucks, motorcycles and other vehicles reported stolen. A major driver of property "
+                "crime, shown here as context alongside the two merchant-theft key results.",
+        "where": "incident_category = 'Motor Vehicle Theft'",
+        "context_only": True,          # not a KR; header does not badge it KR3
+        "no_arrests": True,            # app.js suppresses the arrests context block for this card
+        "reported_label": "Vehicles reported stolen",   # primary-stat eyebrow (not "…by businesses")
+        "noun": "vehicles reported stolen",             # verdict copy: "Fewer vehicles reported stolen…"
+        "why": "Motor vehicle theft is one of the largest property-crime categories by volume (in Northern "
+               "it rivals shoplifting) and is almost entirely victim-reported — you report a stolen car — so "
+               "like the merchant signals it is robust to enforcement intensity. City-wide it has fallen "
+               "sharply from its 2023 peak. We include it as context on the same objective, not as a "
+               "committed key result, because the decline is a broad city-wide trend rather than this team's "
+               "result.",
+        # Powers the Vehicle theft DETAIL section (../plan-property-crime-expansion.md workstream B):
+        # vehicle-type mix, hour-of-day, and all-time top intersections — all over the full 2018→present
+        # history (stated on the section) for stable percentages, unlike the 2021-onward card window.
+        "detail": {
+            "start": "2018-01-01",
+            # incident_description → coarse vehicle type. Recovered/attempted rows carry no type and are
+            # excluded from the mix (≈18% of all MVT), which the section states explicitly.
+            "types": {
+                "Vehicle, Stolen, Auto": "auto",
+                "Vehicle, Stolen, Truck": "truck",
+                "Vehicle, Stolen, Motorcycle": "motorcycle",
+                "Vehicle, Stolen, Other Vehicle": "other",
+                "Vehicle, Stolen, Mobile Home or House Trailer": "other",
+                "Vehicle, Stolen, Bus": "other",
+            },
+        },
+    },
 }
 
 # Excluded category — surfaced as a visible dashboard footnote (../plan.md D9).
@@ -64,10 +100,10 @@ EXCLUDED = [{
     "code": "Theft from Merchant or Library",
     "where": "incident_description = 'Theft from Merchant or Library'",
     "reason": "A fading legacy code: Northern reports peaked in 2018–20 (~17–28/yr) and are now ~1–6/yr, "
-              "almost certainly reclassified into the Shoplifting taxonomy. Too small and too "
+              "consistent with reclassification into the Shoplifting taxonomy. Too small and too "
               "declining-for-reporting-reasons to be a trustworthy signal, so it is excluded here.",
     "why": "A reader might reasonably expect a literal 'theft from merchant' code to be included. We "
            "exclude it because its usage has collapsed (peaked at ~28/yr in Northern in 2018–20, now "
-           "~1–6/yr) — the drop reflects reclassification into the Shoplifting taxonomy, not a real "
-           "change on the ground, so trending it would mislead. Run the query to see the decline.",
+           "~1–6/yr) — a pattern consistent with reclassification into the Shoplifting taxonomy rather "
+           "than a real change on the ground, so trending it would mislead. Run the query to see the decline.",
 }]

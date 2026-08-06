@@ -69,19 +69,35 @@ def live_monthly(query_url):
 
 def trace_signal(dash, key, agg, prov):
     sig_prov = prov["signals"].get(key)
-    if not sig_prov or not sig_prov.get("query_url"):
-        return ("skip", f"{key}: no query_url in provenance (contract gap)")
-    series = agg["signals"][key]["series"].get("Citywide")
-    if series is None:
-        return ("skip", f"{key}: no Citywide series")
-
+    if not sig_prov:
+        return ("skip", f"{key}: no provenance entry")
+    node = agg["signals"][key]
     months = agg["months"]
-    settles = agg["signals"][key].get("settles") or sig_prov.get("axis") == "enforcement"
-    ceiling = agg["latest_settled_month"] if settles else agg["latest_complete_month"]
-    tol = TOLERANCE_PCT.get(sig_prov.get("axis"), 0.0)
 
+    # Two baked citywide shapes:
+    #  • drug/unhoused — a flat Citywide district series reconciled against `query_url`.
+    #  • theft — no Citywide district; citywide REPORTED totals live under node.citywide.reported and
+    #    are reconciled against `citywide_query_url`. Reported theft is approval-lagged (supervisor
+    #    sign-off) but settles fast, so it stops at latest_settled_month like the enforcement axis.
+    series = node.get("series", {}).get("Citywide")
+    if series is not None:
+        query_url = sig_prov.get("query_url")
+        if not query_url:
+            return ("skip", f"{key}: no query_url in provenance (contract gap)")
+        settles = node.get("settles") or sig_prov.get("axis") == "enforcement"
+        ceiling = agg["latest_settled_month"] if settles else agg["latest_complete_month"]
+        tol = TOLERANCE_PCT.get(sig_prov.get("axis"), 0.0)
+    else:
+        series = node.get("citywide", {}).get("reported")
+        query_url = sig_prov.get("citywide_query_url")
+        if series is None or not query_url:
+            return ("skip", f"{key}: no Citywide series")
+        ceiling = agg["latest_settled_month"]   # reported settles fast but is still approval-lagged
+        tol = 0.0                               # historic months exact; recent tail below gets a hair
+
+    dsid = sig_prov.get("dataset_id") or agg.get("dataset", "")
     try:
-        live = live_monthly(sig_prov["query_url"])
+        live = live_monthly(query_url)
     except Exception as e:
         return ("error", f"{key}: query failed — {e}")
 
@@ -104,9 +120,9 @@ def trace_signal(dash, key, agg, prov):
     n = sum(1 for m in months if m <= ceiling and m in live)
     if rows:
         return ("fail", f"{key}: {len(rows)}/{n} settled months diverge (worst {worst*100:.1f}%) "
-                        f"[dataset {sig_prov['dataset_id']}, ≤{ceiling}]\n" + "\n".join(rows))
+                        f"[dataset {dsid}, ≤{ceiling}]\n" + "\n".join(rows))
     return ("ok", f"{key}: {n} settled months reconcile (worst Δ {worst*100:.2f}%) "
-                  f"[dataset {sig_prov['dataset_id']}, ≤{ceiling}]")
+                  f"[dataset {dsid}, ≤{ceiling}]")
 
 
 def main():

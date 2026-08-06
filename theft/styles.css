@@ -109,6 +109,8 @@ body {
 .badge--bad { background: var(--c-bad); }
 .badge--warn { background: var(--c-warn); }
 .badge--flat { background: var(--c-flat); }
+.badge--context { background: transparent; color: var(--c-flat); border: 1px solid var(--wa-color-surface-border, #e2e4e9); }
+.scorecard__badges { display: inline-flex; gap: .4rem; align-items: center; }
 
 /* Primary stat: theft reported by businesses */
 .primary__eyebrow { font-size: .8rem; color: var(--wa-color-text-quiet, #4b4f58); }
@@ -128,6 +130,15 @@ body {
 .trend--good { color: var(--c-good); }
 .trend--bad { color: var(--c-bad); }
 .trend--flat { color: var(--c-flat); }
+.primary__peek {
+  margin: .25rem 0 .1rem; font-size: .82rem; color: var(--wa-color-text-quiet, #4b4f58);
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: .3rem .45rem;
+}
+.primary__peek strong { font-weight: 700; color: var(--wa-color-text-normal, #1c1c1e); font-variant-numeric: tabular-nums; }
+.primary__peek-tag {
+  font-size: .64rem; text-transform: uppercase; letter-spacing: .04em; color: var(--c-flat);
+  border: 1px solid var(--wa-color-surface-border, #e2e4e9); border-radius: 999px; padding: .08rem .45rem;
+}
 
 .verdict { margin: .55rem 0 .75rem; font-size: .92rem; font-weight: 600; }
 .verdict--good { color: var(--c-good); }
@@ -183,6 +194,166 @@ body {
 .legend__item i { width: 14px; height: 2px; border-radius: 2px; display: inline-block; }
 
 .scorecard__foot { display: block; margin-top: .6rem; color: var(--c-flat); font-size: .74rem; }
+
+/* ── Vehicle-theft context block (demoted below the KR map) ───────────────
+   Rendered as a full-width editorial "context band", not a scorecard: the section
+   heading is a quiet divider and the band itself is a flat, tinted, left-railed aside
+   so it never reads as a co-equal OKR. */
+.vehicle-context { margin: 2.75rem 0 0; padding-top: 1.5rem; border-top: 1px solid var(--wa-color-surface-border, #e2e4e9); }
+.vehicle-context__head {
+  font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--c-flat); margin: 0 0 .35rem;
+}
+.vehicle-context__lead { margin: 0 0 1.1rem; font-size: .9rem; color: var(--wa-color-text-quiet, #4b4f58); max-width: 46rem; }
+#vehicle-cards { grid-template-columns: 1fr; }   /* the band spans the full content width */
+
+/* Strip the scorecard chrome and dress the band as a flat aside with a neutral left rail. */
+.scorecard--wide::part(base) {
+  background: var(--wa-color-surface-lowered, #f6f7f9);
+  border: 1px solid var(--wa-color-surface-border, #e2e4e9);
+  border-left: 4px solid var(--c-flat);
+  border-radius: .7rem; box-shadow: none;
+}
+.scorecard--wide::part(body) { padding: 1.15rem 1.3rem 1.25rem; }
+
+/* Top row: a concise stat lede (number + verdict) beside a wide chart. */
+.ctx-band__grid { display: grid; grid-template-columns: minmax(14rem, 19rem) 1fr; gap: 1.6rem; align-items: start; }
+@media (max-width: 48rem) { .ctx-band__grid { grid-template-columns: 1fr; gap: .5rem; } }
+
+/* Meta row: the three comparisons + SF-context span the full band width below the split,
+   so the chips get room to breathe instead of cramming into the narrow lede column. */
+.ctx-band__meta {
+  display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(13rem, 1fr); gap: 1rem 1.4rem;
+  align-items: start; margin-top: 1.1rem; padding-top: .95rem;
+  border-top: 1px solid var(--wa-color-surface-border, #e2e4e9);
+}
+@media (max-width: 48rem) { .ctx-band__meta { grid-template-columns: 1fr; } }
+.ctx-band__meta .sf-context { margin-top: 0; }   /* it's a grid cell now, not a stacked block */
+
+.ctx-band__kicker { display: flex; align-items: center; gap: .55rem; margin-bottom: .5rem; }
+/* the band's title is a quiet label, not a headline — the loud number/verdict do the work */
+.scorecard--wide .scorecard__title {
+  font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--c-flat);
+}
+.scorecard--wide .scorecard__desc { margin-bottom: .75rem; }
+/* de-emphasise the figure vs. the OKR scorecards (2.6rem there) */
+.scorecard--wide .primary__num { font-size: 2rem; }
+.scorecard--wide .primary__eyebrow { display: none; }   /* redundant with the wide chart legend */
+.ctx-band__chart { min-width: 0; }   /* let the chart SVG shrink inside the grid track */
+.ctx-band__chart .chart-host { margin-top: 0; }
+
+/* ── Vehicle-theft detail section (Workstream B) ───────────────────────── */
+.detail { margin: 2.25rem 0 0; }
+.detail__head { font-size: 1.2rem; margin: 0 0 .35rem; }
+.detail__note { margin: 0 0 1.1rem; font-size: .85rem; color: var(--wa-color-text-quiet, #4b4f58); max-width: 46rem; }
+.detail-grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+.dt-panel { border: 1px solid var(--wa-color-surface-border, #e2e4e9); border-radius: .6rem; padding: .9rem 1rem; }
+.dt-panel--wide { margin-top: 1rem; }
+.dt-panel__title {
+  font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--c-flat); margin-bottom: .7rem; display: flex; align-items: center; gap: .5rem;
+}
+.dt-panel__tag {
+  font-size: .62rem; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--c-flat);
+  border: 1px solid var(--wa-color-surface-border, #e2e4e9); border-radius: 999px; padding: .05rem .4rem;
+}
+.dt-panel__foot { margin: .75rem 0 0; font-size: .72rem; color: var(--c-flat); }
+.dt-panel__foot code { font-size: .9em; background: var(--wa-color-surface-lowered, #f4f5f7); padding: .05rem .3rem; border-radius: .25rem; }
+
+/* horizontal bars — type mix + top corners */
+.tbar, .cbar { display: grid; grid-template-columns: 5.5rem 1fr auto; align-items: center; gap: .5rem; margin: .35rem 0; font-size: .82rem; }
+.cbar { grid-template-columns: 11rem 1fr auto; }
+.tbar__label, .cbar__label { color: var(--wa-color-text-quiet, #4b4f58); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tbar__track, .cbar__track { background: var(--wa-color-surface-lowered, #f4f5f7); border-radius: 999px; height: .55rem; overflow: hidden; }
+.tbar__fill, .cbar__fill { display: block; height: 100%; background: var(--c-reported); border-radius: 999px; }
+.tbar__val, .cbar__val { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--wa-color-text-normal, #1c1c1e); }
+.tbar__val small, .cbar__val small { color: var(--c-flat); font-weight: 400; }
+
+/* hour-of-day histogram (reported hour) */
+.hours { display: flex; align-items: flex-end; gap: 2px; height: 110px; }
+.hour-bar { flex: 1; background: var(--c-reported); opacity: .5; border-radius: 2px 2px 0 0; min-height: 2px; }
+.hour-bar--peak { opacity: 1; background: var(--chart-monthly); }
+.hours-axis { display: flex; gap: 2px; margin-top: .25rem; }
+.hours-axis__t { flex: 1; font-size: .6rem; color: var(--c-flat); }
+
+/* ── Shoplifting concentration map + scrubber (Workstreams C + E) ──────────
+   Tokens map-search.css expects (--c-blue / --text / --muted / --surface / --c-line / --c-red). */
+.sm-section {
+  --c-blue: var(--c-reported); --text: var(--wa-color-text-normal, #1c1c1e);
+  --muted: var(--c-flat); --surface: var(--wa-color-surface-default, #fff);
+  --c-line: var(--wa-color-surface-border, #e2e4e9); --c-red: var(--c-bad);
+  margin: 2.5rem 0 0;
+}
+.sm-heading { font-size: 1.3rem; margin: 0 0 .35rem; }
+.sm-lead { margin: 0 0 1.1rem; font-size: .9rem; color: var(--wa-color-text-quiet, #4b4f58); max-width: 46rem; }
+
+/* scrubber */
+.sm-scrubber { margin-bottom: 1rem; }
+.sm-scrubber__row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .9rem; margin-bottom: .55rem; }
+.sm-presets { display: inline-flex; flex-wrap: wrap; gap: .3rem; }
+.sm-seg {
+  font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer;
+  padding: .32rem .7rem; border-radius: 999px; color: var(--c-flat);
+  border: 1px solid var(--wa-color-surface-border, #e2e4e9); background: var(--wa-color-surface-default, #fff);
+  transition: all .12s ease;
+}
+.sm-seg:hover { color: var(--wa-color-text-normal, #1c1c1e); border-color: var(--c-reported); }
+.sm-seg.is-active { color: #fff; background: var(--c-reported); border-color: var(--c-reported); }
+.sm-seg.is-custom { cursor: default; opacity: .8; font-style: italic; }
+.wa-dark .sm-seg { background: rgba(255,255,255,.04); }
+.sm-window-label { font-size: .84rem; color: var(--wa-color-text-quiet, #4b4f58); }
+.sm-window-label small { color: var(--c-flat); }
+
+/* brushable month strip */
+.sm-strip {
+  display: flex; align-items: flex-end; gap: 1px; height: 46px; padding: 2px 0;
+  touch-action: none; cursor: ew-resize; user-select: none;
+  border-bottom: 1px solid var(--wa-color-surface-border, #e2e4e9);
+}
+.sm-bar { flex: 1; min-width: 1px; background: var(--c-flat); opacity: .28; border-radius: 2px 2px 0 0; transition: opacity .1s, background .1s; }
+.sm-bar.is-in { background: var(--c-reported); opacity: .75; }
+.sm-bar.is-settling { background: repeating-linear-gradient(45deg, var(--c-warn), var(--c-warn) 2px, transparent 2px, transparent 4px); opacity: .8; }
+.sm-bar.is-lurie { box-shadow: -1px 0 0 0 var(--c-good); }
+.sm-strip-legend { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: .4rem; font-size: .7rem; color: var(--c-flat); }
+.sm-lg { display: inline-flex; align-items: center; gap: .35rem; }
+.sm-lg i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.sm-lg__lurie { background: var(--c-good); }
+.sm-lg__settling { background: repeating-linear-gradient(45deg, var(--c-warn), var(--c-warn) 2px, transparent 2px, transparent 4px); border: 1px solid var(--c-warn); }
+
+.sm-toolbar { margin-bottom: .75rem; }
+
+/* map + ranked side list */
+.sm-layout { display: grid; grid-template-columns: 1fr 20rem; gap: 1rem; align-items: stretch; }
+@media (max-width: 44rem) { .sm-layout { grid-template-columns: 1fr; } }
+.sm-map {
+  height: 460px; border-radius: .6rem; overflow: hidden; z-index: 0;
+  border: 1px solid var(--wa-color-surface-border, #e2e4e9);
+}
+@media (max-width: 44rem) { .sm-map { height: 340px; } }
+.sm-side { border: 1px solid var(--wa-color-surface-border, #e2e4e9); border-radius: .6rem; padding: .8rem .9rem; overflow: hidden; }
+.sm-side__title { font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--c-flat); margin-bottom: .55rem; }
+.sm-list { display: flex; flex-direction: column; gap: .3rem; }
+.sm-rank {
+  display: grid; grid-template-columns: 1fr; gap: .15rem; width: 100%; text-align: left; cursor: pointer;
+  font: inherit; border: none; background: none; padding: .25rem .3rem; border-radius: .35rem;
+}
+.sm-rank:hover { background: var(--wa-color-surface-lowered, #f4f5f7); }
+.sm-rank__label { font-size: .8rem; color: var(--wa-color-text-normal, #1c1c1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sm-rank__track { background: var(--wa-color-surface-lowered, #f4f5f7); border-radius: 999px; height: .4rem; overflow: hidden; }
+.sm-rank__fill { display: block; height: 100%; background: var(--chart-monthly); border-radius: 999px; }
+.sm-rank__val { font-size: .78rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--wa-color-text-normal, #1c1c1e); }
+.sm-rank__val small { color: var(--c-flat); font-weight: 400; }
+.sm-empty { font-size: .82rem; color: var(--c-flat); margin: .3rem 0; }
+
+.sm-caveat {
+  margin: 1rem 0 0; padding: .75rem 1rem; font-size: .82rem;
+  border-left: 3px solid var(--c-warn); background: var(--wa-color-surface-lowered, #f4f5f7);
+  border-radius: .4rem; color: var(--wa-color-text-quiet, #4b4f58); max-width: 52rem;
+}
+
+/* Leaflet tooltip in dark mode */
+.wa-dark .leaflet-tooltip { background: #23262d; color: #e6e6e6; border-color: #3a3f47; }
+.wa-dark .leaflet-tooltip-top:before { border-top-color: #23262d; }
 
 .exclusion {
   margin: 1.5rem 0 0; padding: .75rem 1rem; font-size: .82rem;
