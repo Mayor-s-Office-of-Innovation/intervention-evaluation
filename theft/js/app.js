@@ -289,7 +289,7 @@ function detailSection(key, sig, d, prov) {
       <span class="cbar__val">${fmtNum(t.n)}</span>
     </div>`).join('');
 
-  const q = prov?.signals?.[key]?.detail_queries;
+  const q = prov?.signals?.[key]?.detail_queries?.[active];
   const qlink = (url, text) => url ? `<a href="${url}" target="_blank" rel="noopener">${text}</a>` : '';
   const queries = q ? `<p class="detail__method">Method: vehicle type parsed from <code class="fn-filter">incident_description</code>;
     hour uses the <em>reported</em> time, not the (unknown) moment of theft. All figures span ${startYear}→present.
@@ -379,10 +379,10 @@ function renderReportingNote(agg) {
 }
 
 // Build the runnable footnote query links CLIENT-SIDE from the build-generated `filter`, so the
-// "run the query" link reproduces the district actually on screen (the baked provenance.query_url is
-// hard-coded to one district). These mirror theft/build/build.py exactly:
-//   signal_query()          → per-district reported+arrests (split by resolution)
-//   monthly_count_citywide()→ citywide denominator behind the "share of SF" tile
+// "run the query" link reproduces the district actually on screen. The build bakes only the citywide
+// denominator query; the per-district query lives here (there's no single canonical district):
+//   districtQueryUrl → per-district reported+arrests (split by resolution)
+//   citywideQueryUrl → citywide denominator behind the "share of SF" tile
 const SODA = 'https://data.sfgov.org/resource/wg3w-h783.json';
 const HISTORY_START = '2021-01-01';   // build.py HISTORY_START
 const RES_REPORTED = 'Open or Active'; // build.py RES_REPORTED

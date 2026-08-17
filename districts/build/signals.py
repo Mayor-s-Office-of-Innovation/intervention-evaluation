@@ -9,10 +9,13 @@ Two datasets, two geometries:
   • SFPD CFS (2zdj-bwza): coords in the intersection_point geo  → geo_kind 'point'
 """
 
-TARGET_DISTRICTS = ["CENTRAL", "NORTHERN", "MISSION", "TENDERLOIN"]
+TARGET_DISTRICTS = ["CENTRAL", "NORTHERN", "MISSION", "TENDERLOIN",
+                    "SOUTHERN", "BAYVIEW", "PARK", "RICHMOND", "INGLESIDE", "TARAVAL"]
 DISTRICT_LABEL = {
     "CENTRAL": "Central", "NORTHERN": "Northern",
     "MISSION": "Mission", "TENDERLOIN": "Tenderloin",
+    "SOUTHERN": "Southern", "BAYVIEW": "Bayview", "PARK": "Park",
+    "RICHMOND": "Richmond", "INGLESIDE": "Ingleside", "TARAVAL": "Taraval",
 }
 HISTORY_START = "2023-01-01T00:00:00"
 

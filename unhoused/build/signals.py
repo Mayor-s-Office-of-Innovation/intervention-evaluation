@@ -18,10 +18,13 @@ Two datasets, two geometries:
   • SFPD CFS (2zdj-bwza): coords in the intersection_point geo  → geo_kind 'point'
 """
 
-TARGET_DISTRICTS = ["CENTRAL", "NORTHERN", "MISSION", "TENDERLOIN"]
+TARGET_DISTRICTS = ["CENTRAL", "NORTHERN", "MISSION", "TENDERLOIN",
+                    "SOUTHERN", "BAYVIEW", "PARK", "RICHMOND", "INGLESIDE", "TARAVAL"]
 DISTRICT_LABEL = {
     "CENTRAL": "Central", "NORTHERN": "Northern",
     "MISSION": "Mission", "TENDERLOIN": "Tenderloin",
+    "SOUTHERN": "Southern", "BAYVIEW": "Bayview", "PARK": "Park",
+    "RICHMOND": "Richmond", "INGLESIDE": "Ingleside", "TARAVAL": "Taraval",
 }
 # Socrata `:@computed_region_qgnn_b9vv` codes for the "Current Police Districts" (qgnn-b9vv) boundary
 # — the SAME boundary our point-in-polygon uses. Verified 2026-06 on BOTH vw6y-z8j6 (311) and
@@ -29,7 +32,9 @@ DISTRICT_LABEL = {
 # our baked point-in-polygon counts to <0.5% (311) / exactly (911). Used only to build reader-facing
 # district-scoped verify links (U1/U3, "Option A") — NOT to change any displayed number, and NOT the
 # divergent `police_district` text field. Re-verify these codes if the boundary version ever changes.
-DISTRICT_REGION = {"CENTRAL": "6", "NORTHERN": "4", "MISSION": "3", "TENDERLOIN": "5"}
+DISTRICT_REGION = {"CENTRAL": "6", "NORTHERN": "4", "MISSION": "3", "TENDERLOIN": "5",
+                   "SOUTHERN": "1", "BAYVIEW": "2", "PARK": "7", "RICHMOND": "8",
+                   "INGLESIDE": "9", "TARAVAL": "10"}  # 6 new codes verified 2026-08-14 (wg3w-h783)
 HISTORY_START = "2023-01-01T00:00:00"
 
 # The fixed Lurie-inauguration split that the transition map (D11/D12) is built on.

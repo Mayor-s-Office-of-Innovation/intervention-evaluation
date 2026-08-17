@@ -31,10 +31,13 @@ HISTORY_START = "2023-01-01T00:00:00"
 # Canonical district keys are UPPERCASE (the unhoused/emergent-map convention + the qgnn-b9vv
 # geojson properties). The agg_only signals canonicalize their native police_district to UPPER
 # to match, so the 2zdj-bwza (UPPER) vs wg3w-h783 (Title) casing difference is absorbed.
-TARGET_DISTRICTS = ["NORTHERN", "MISSION", "CENTRAL", "TENDERLOIN"]
+TARGET_DISTRICTS = ["NORTHERN", "MISSION", "CENTRAL", "TENDERLOIN",
+                    "SOUTHERN", "BAYVIEW", "PARK", "RICHMOND", "INGLESIDE", "TARAVAL"]
 DISTRICT_LABEL = {
     "NORTHERN": "Northern", "MISSION": "Mission",
     "CENTRAL": "Central", "TENDERLOIN": "Tenderloin",
+    "SOUTHERN": "Southern", "BAYVIEW": "Bayview", "PARK": "Park",
+    "RICHMOND": "Richmond", "INGLESIDE": "Ingleside", "TARAVAL": "Taraval",
 }
 
 # Socrata `:@computed_region_qgnn_b9vv` codes for the "Current Police Districts" (qgnn-b9vv) boundary.
@@ -44,7 +47,9 @@ DISTRICT_LABEL = {
 # The arrest signals don't use this: they're grouped on the native `police_district` field, so their
 # verify link filters that field directly for an EXACT round-trip. Code map re-verified 2026-07-28
 # (identical to the unhoused U1 map).
-DISTRICT_REGION = {"NORTHERN": "4", "MISSION": "3", "CENTRAL": "6", "TENDERLOIN": "5"}
+DISTRICT_REGION = {"NORTHERN": "4", "MISSION": "3", "CENTRAL": "6", "TENDERLOIN": "5",
+                   "SOUTHERN": "1", "BAYVIEW": "2", "PARK": "7", "RICHMOND": "8",
+                   "INGLESIDE": "9", "TARAVAL": "10"}  # 6 new codes verified 2026-08-14 (wg3w-h783)
 
 # Fixed Lurie-inauguration split the transition map (D11/D12) is built on.
 LURIE_INAUGURATION = "2025-01-08"
