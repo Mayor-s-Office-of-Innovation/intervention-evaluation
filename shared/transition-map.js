@@ -12,6 +12,7 @@
 // aware tiering (searchIntersections) + the Leaflet actions on its own map.
 // ──────────────────────────────────────────────────────────────────────
 import { streetTokens, matchIndex, distMeters, NEARBY_M, ensureCityIntersections } from './cross-street-search.js';
+import { CITYWIDE, isCitywide } from './districts.js';
 
 // Light uses CARTO Voyager for noticeably clearer street labels than Positron; dark stays Dark Matter
 // (Voyager has no dark variant). Street names are part of the basemap, drawn under the data dots.
@@ -143,12 +144,15 @@ export function restoreMapView(center, zoom) {
   map.setView([center.lat, center.lng], zoom);
 }
 
-/** Draw (or redraw) the boundary for the active district and zoom to it. */
+/** Draw (or redraw) the boundary for the active district and zoom to it.
+ *  Citywide draws every district boundary and fits the whole city. */
 export function focusDistrict(el, geojson, districtName) {
   ensureMap(el);
   if (boundary) boundary.remove();
   const upper = districtName.toUpperCase();
-  const feats = geojson.features.filter(f => f.properties.district === upper);
+  const feats = isCitywide(districtName)
+    ? geojson.features
+    : geojson.features.filter(f => f.properties.district === upper);
   boundary = L.geoJSON({ type: 'FeatureCollection', features: feats }, {
     style: { color: '#64748b', weight: 2, fill: false, opacity: 0.7, dashArray: '4 3' },
   }).addTo(map);
@@ -195,8 +199,9 @@ export function renderCells(cells, districtName, visible) {
   cellMarkers.clear();
   clearSearchResult();   // drop any stale search pin on district/window change (fixes lingering marker)
   const counts = { persistent: 0, cooled: 0, emerged: 0 };
+  const cw = isCitywide(districtName);   // Citywide renders every cell, not just one district's
   for (const c of cells) {
-    if (c.district !== districtName) continue;
+    if (!cw && c.district !== districtName) continue;
     counts[c.category] = (counts[c.category] || 0) + 1;
     if (!visible.has(c.category)) continue;
     const meta = CATEGORY[c.category];

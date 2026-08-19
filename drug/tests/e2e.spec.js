@@ -40,6 +40,30 @@ test('headline cards, citywide card, scrubber, chart, map render (no console err
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('#citywide opens a first-class citywide focus (cards, map, no district-normalized toggle)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('citywide'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+
+  // Header reads Citywide (not "Citywide district").
+  await expect(page.locator('.app-header__eyebrow')).toHaveText(/·\s*Citywide\s*·/);
+
+  // Headline + citywide cards still render off the baked .Citywide series.
+  await expect(page.locator('.scard')).toHaveCount(2);
+  await expect(page.locator('#citywide-card .chip')).toHaveCount(3);
+
+  // Map renders (all district polygons + cells); the composition scope toggle is redundant → hidden.
+  await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();
+  await expect(page.locator('#composition-controls .seg')).toHaveCount(0);
+
+  // The rendered citywide headline equals the baked .Citywide series.
+  const idx = AGG.months.indexOf(AGG.latest_complete_month);
+  const expected = AGG.signals.cfs_drug.series.Citywide[idx].toLocaleString('en-US');
+  await expect(page.locator('.scard[data-focus="cfs_drug"] .scard__num')).toContainText(expected);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('V7 · the rendered headline number equals aggregates.json (data↔UI)', async ({ page }) => {
   await page.goto(url('mission'), { waitUntil: 'networkidle' });
   await page.waitForTimeout(400);

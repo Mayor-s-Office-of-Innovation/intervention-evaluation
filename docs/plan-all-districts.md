@@ -10,12 +10,39 @@ feature is unrelated and out of scope — see [§AI summaries](#ai-summaries--de
 
 ---
 
-## Status — updated 2026-08-14 · **Phase 1 shipped ✅**
+## Status — updated 2026-08-17 · **Phase 1 + Phase 2 shipped ✅**
 
-> **Fresh-session pickup:** Phase 1 (data) is complete and validated on branch `alldistricts`. All 10
-> SFPD districts are baked into every artifact; the three big dashboards' frontends still hardcode the
-> original 4 (intended data-first split). **Next up is Phase 2** (centralize the district list + swap
-> tab rows for a Citywide-default dropdown). Start there.
+> **Fresh-session pickup:** Phase 1 (data) and Phase 2 (UI) are both complete on branch `alldistricts`.
+> All 10 SFPD districts + a true-citywide scope are live on the homepage picker and drill through to a
+> first-class Citywide focus view in every dashboard. The `./districts` view has been removed. Only
+> **Phase 3 polish** (AI summaries graceful-empty; new-district verify-link round-trip spot-check)
+> remains — see below.
+
+### Phase 2 — what shipped (two decisions changed from the original sketch)
+
+- **Pills, not a dropdown.** The homepage keeps the existing `.district-tabs` pill row, expanded from 4
+  to **11** (Citywide + 10 districts, Citywide first with a distinct multi-color dot). The
+  `<wa-select>` dropdown idea was dropped — the pill row already wraps and reads better at 11.
+- **Citywide = a first-class focus view in each dashboard**, reached via `#citywide`. drug/unhoused/theft
+  each render Citywide as a real scope (headline off the baked `.Citywide` / `sig.citywide.reported`
+  series), not a fallback. Maps show all 10 polygons + every cell; the ×tide district normalization is
+  **dropped citywide** (each cell still normalizes against *its own* district) with a map note, since
+  `_meta.json district_monthly` has no Citywide key. Recent-activity + arrests/share-of-SF blocks that
+  are self-referential citywide are hidden. theft's 2wk chip shows `—` citywide (no weekly citywide
+  series — documented, not synthesized).
+- **`./districts` view deleted** (not linked as the Citywide target). It was redundant once each
+  dashboard got its own Citywide focus, and the user won't invest in it. Its Playwright project,
+  `test:districts` script, deploy-loop entry, the theft footer link, and README/comment references were
+  all removed. `git rm -r districts/` is run by the user.
+- **`shared/districts.js`** is the single source of truth (`DISTRICTS`, `CITYWIDE`, `PICKER`,
+  `fromHash`/`toHash`/`isCitywide`); homepage + all three dashboards import it and their local
+  `DISTRICTS` arrays are gone. `validate_build.py` now asserts the JS list == each baked
+  `aggregates.json.districts`.
+- **Verified:** `validate_build.py` (incl. the new assert) + `parity.mjs {drug,unhoused}` clean; homepage
+  e2e (incl. a new Citywide + Bayview test) and all three dashboard suites (each with a new `#citywide`
+  drill-through test) pass.
+
+### Phase 1 recap
 
 ### What's done (Phase 1)
 
@@ -38,7 +65,11 @@ feature is unrelated and out of scope — see [§AI summaries](#ai-summaries--de
 - **Commit still pending:** Phase 1 edits + regenerated data are uncommitted (git mutations are run by
   the user). Suggested: `git add docs/plan-all-districts.md {drug,unhoused,theft,districts}/ && git commit`.
 
-### Next up — Phase 2 (see full detail below)
+### ~~Next up — Phase 2~~ (SUPERSEDED — shipped; see "what shipped" above)
+
+> The sketch below is the original Phase 2 plan. It was **partly revised in flight** — pills were kept
+> instead of a `<wa-select>` dropdown, and `./districts` was deleted rather than linked as the Citywide
+> target. Kept for historical context; the "what shipped" section above is authoritative.
 
 1. **`shared/districts.js`** — canonical ordered list + area groups + hash/lowercase helpers; delete the
    ~5 duplicated frontend `DISTRICTS` arrays (`index.html`→`js/app.js:5`, `drug/js/app.js:39`,
@@ -287,3 +318,26 @@ git commit -m "Plan: expand dashboards to all 10 SF police districts"
 # back to your experimental work when ready:
 git checkout aisummary
 ```
+
+---
+
+## Follow-up fix (2026-08-18): cross-street search dead in the new districts
+
+**Symptom:** on `./drug/#southern` (and the other 5 new districts) the "Find cross streets" box
+returned *"No results in SF"* for real corners — e.g. `6th & Bryant`, `7th & Minna`, `5th & Market`.
+The original 4 districts were unaffected.
+
+**Root cause — not data, not a district gate.** A tokenizer bug in the shared
+`streetTokens()` (`shared/cross-street-search.js`). DataSF (jfxm-zeee) zero-pads single-digit
+numbered streets — `"06TH ST"` tokenizes to `"06"` — but a user types `"6th"` → `"6"`. `"06" ≠ "6"`,
+so every single-digit numbered-street corner failed to match, on **both** the baked-index side and the
+local hotspot/marker tiers (`"07TH ST / MINNA ST"` → `"07"`). Double-digit streets were fine
+(`"16TH ST"`→`"16"` == `"16th"`), which is exactly why the original districts never hit it: Mission is
+14th–26th; Northern/Central/Tenderloin are mostly named streets. The 6 new districts (Southern/SoMa
+especially) sit on the single-digit numbered grid (1st–9th), so nearly every numbered search there broke.
+
+**Fix (one line, shared tokenizer → fixes every search surface at once):** after stripping the ordinal
+suffix, fold a purely-numeric token through `Number()` so leading zeros drop:
+`if (/^\d+$/.test(w)) w = String(Number(w));  // "06" → "6"`. Symmetric on index-build and query sides.
+Verified: all Southern corners now resolve; Northern still works; `16th & Mission` (double-digit)
+unchanged. Covers hotspots map, recent-activity, theft shoplifting map, and the hypothesis picker.

@@ -26,7 +26,6 @@ export default defineConfig({
   // Cheap/baked suites first, live-Socrata hypothesis last.
   projects: [
     { name: 'homepage',   testDir: './homepage/tests' },
-    { name: 'districts',  testDir: './districts/tests' },
     { name: 'theft',      testDir: './theft/tests' },
     { name: 'drug',       testDir: './drug/tests' },
     { name: 'unhoused',   testDir: './unhoused/tests' },

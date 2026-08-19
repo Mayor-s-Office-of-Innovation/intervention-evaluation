@@ -14,6 +14,7 @@
 // owns its Leaflet map, and reuses the shared cross-street search widget. Leaflet is the global `L`
 // (CDN in index.html). Theme-aware via the page's `themechange` event.
 import { wireSearch, resolveIntersection, buildLocalIndex } from '../../shared/cross-street-search.js';
+import { isCitywide } from '../../shared/districts.js';
 
 const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
@@ -37,7 +38,10 @@ let brushing = null;            // drag anchor index while brushing the strip
 const $ = sel => document.querySelector(sel);
 
 // ── data helpers ─────────────────────────────────────────────────────────
-const corners = () => (DATA && DATA.districts[district]) || [];
+// Citywide: union every district's corners so the map, strip, bbox, and list span the whole city.
+const corners = () => !DATA ? []
+  : isCitywide(district) ? Object.values(DATA.districts).flat()
+  : (DATA.districts[district] || []);
 
 // Absolute reports at a corner over [win.lo, win.hi] (the corner's `m` dict is sparse).
 function windowCount(corner) {

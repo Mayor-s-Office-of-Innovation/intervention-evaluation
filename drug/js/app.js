@@ -20,6 +20,7 @@ import {
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 import { wireSplitToggle, refreshSplitToggle, wireSearch } from '../../shared/hotspots-panel.js';
 import { initRecentActivity } from '../../shared/recent-activity.js';
+import { CITYWIDE, fromHash, isCitywide } from '../../shared/districts.js';
 
 // Evergreen recent-activity signal — mirrors drug/build/signals.py `_CFS_DRUG_WHERE` verbatim.
 const RECENT_SIGNALS = [{
@@ -35,7 +36,6 @@ const RECENT_SIGNALS = [{
   label: 'community drug-activity calls (911 CFS)',
 }];
 
-const DISTRICTS = ['Northern', 'Mission', 'Central', 'Tenderloin'];
 const $ = sel => document.querySelector(sel);
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -177,7 +177,7 @@ function renderCitywide(key) {
   const idx = evalIdx(key);
   const cur = city[idx];
   let shareLine = '';
-  if (!cwOnly) {
+  if (!cwOnly && !isCitywide(active)) {
     const dseries = seriesFor(key, active);
     const shareNow = city[idx] ? dseries[idx] / city[idx] : null;
     let d = 0, c = 0;
@@ -206,7 +206,7 @@ function renderFocusChart() {
     overlays: {
       trend: trailing12Line(series),
       priorYear: priorYearLine(series),
-      citywideScaled: fi.citywideOnly ? null : city.map(v => v * (maxD / maxC)),
+      citywideScaled: (fi.citywideOnly || isCitywide(active)) ? null : city.map(v => v * (maxD / maxC)),
     },
     noun: sig(fi.key).axis === 'enforcement' ? 'arrest' : 'report',
     window: win, onBrush: onChartBrush, maxSel: latestCompleteIdx, minWin: MIN_WIN,
@@ -284,6 +284,8 @@ function onChartBrush(lo, hi, committed) {
 
 // ── composition: what drug arrests are made of (dealer vs churn) ──
 function buildCompositionControls() {
+  // Citywide focus: district and citywide scopes are identical, so the toggle is redundant — hide it.
+  if (isCitywide(active)) { $('#composition-controls').innerHTML = ''; return; }
   const opts = [['district', active], ['citywide', 'Citywide']];
   $('#composition-controls').innerHTML = opts.map(([k, lab]) =>
     `<button class="seg ${compScope === k ? 'is-active' : ''}" data-c="${k}">${lab}</button>`).join('');
@@ -305,7 +307,7 @@ function renderComposition() {
   const paraShare = total ? Math.round(para[idx] / total * 100) : 0;
   const dT = trend12(dealer, idx), pT = trend12(para, idx);
   $('#composition-lead').innerHTML = `
-    <p>In <strong>${prettyMonth(AGG.months[idx])}</strong>, ${compScope === 'citywide' ? 'citywide' : active}
+    <p>In <strong>${prettyMonth(AGG.months[idx])}</strong>, ${(compScope === 'citywide' || isCitywide(active)) ? 'citywide' : active}
       drug arrests were <strong style="color:var(--c-red,#d64545)">${paraShare}% paraphernalia</strong>
       and only <strong style="color:var(--c-green,#2e9e6b)">${dealerShare}% dealer</strong>.
       Over the past year, dealer arrests are ${dT ? fmtPct(dT.pct) : '—'} and paraphernalia arrests are
@@ -344,13 +346,17 @@ async function renderMap() {
     </button>`).join('');
   $('#map-legend').querySelectorAll('.legend-item').forEach(b =>
     b.onclick = () => { const c = b.dataset.cat; visibleCats.has(c) ? visibleCats.delete(c) : visibleCats.add(c); renderMap(); });
-  const tide = +districtTide(dm[active], w, b).toFixed(2);
+  const cw = isCitywide(active);
+  const tide = cw ? null : +districtTide(dm[active], w, b).toFixed(2);
   const hot = sigMeta.hot_rate_per_month;
   const span = `${prettyMonth(AGG.months[win.lo])}–${prettyMonth(AGG.months[win.hi])}`;
+  const normNote = cw
+    ? `each block <strong>normalized against its own district’s overall change</strong> (baseline→window) so citywide growth `
+    : `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so citywide growth `;
   $('#map-note').innerHTML =
     `Each dot is a ~block (≈110 m) reaching at least <strong>${hot} drug-activity calls/month</strong>, ` +
     `classified by how its rate over <strong>${span}</strong> compares to its <strong>pre-Lurie (2023–24) baseline</strong>, ` +
-    `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so citywide growth ` +
+    normNote +
     `doesn’t read as local change. Built on community drug-activity reports only (never enforcement). ` +
     `This is the displacement view — where activity persisted, cooled, or emerged as people were moved around. ` +
     `<strong>Drag the chart above</strong> to change the window; <strong>click a block</strong> for its monthly trend, ` +
@@ -407,11 +413,12 @@ function enterSplitView(isSplit) {
 
 // ── district (locked from homepage selection) ──
 function initDistrict() {
-  const h = (location.hash || '').replace('#', '').toLowerCase();
-  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
+  active = fromHash(location.hash) || 'Northern';
   // Update header to show which district we're viewing
   const eyebrow = document.querySelector('.app-header__eyebrow');
-  if (eyebrow) eyebrow.textContent = `San Francisco · ${active} district · Drug activity`;
+  if (eyebrow) eyebrow.textContent = isCitywide(active)
+    ? 'San Francisco · Citywide · Drug activity'
+    : `San Francisco · ${active} district · Drug activity`;
   // Carry the district back to the homepage so its pill stays selected
   const back = document.querySelector('.back-home');
   if (back) back.href = `../#${active.toLowerCase()}`;
@@ -431,6 +438,8 @@ let raStarted = false;
 function setupRecentActivity() {
   if (raStarted) return;
   const panel = document.getElementById('recent-activity');
+  // Citywide has no single district polygon to seed the recent-activity map — hide the section.
+  if (panel && isCitywide(active)) { panel.hidden = true; return; }
   const feature = GEO && GEO.features.find(f => (f.properties.district || '').toUpperCase() === active.toUpperCase());
   if (!panel || !feature) return;
   const start = () => {
@@ -458,16 +467,21 @@ function renderMethodology() {
     return `<li><strong>${AGG.signals[key].label}</strong> — ${why}
       <br><small>${p.dataset_name} (<code>${p.dataset_id}</code>) · ${q(scoped(p))}</small></li>`;
   };
+  const scopeLead = isCitywide(active)
+    ? `<p class="meth-lead">On this <strong>Citywide</strong> view each “query ↗” is unfiltered — it counts
+        every incident citywide (no <code>police_district</code> filter), so the query returns the
+        <strong>exact</strong> number shown. Needle reports are citywide-only.</p>`
+    : `<p class="meth-lead">On this <strong>${active}</strong> page each “query ↗” is scoped to the district.
+        The arrest signals filter SFPD’s own <code>police_district</code> field, so the query returns the
+        <strong>exact</strong> number shown. The community drug-activity signal (911 calls) is placed by a
+        point-in-polygon against the police-district boundary, so its link is scoped by that boundary’s spatial
+        join (<code>:@computed_region_qgnn_b9vv</code>) — the same boundary the map draws — returning within
+        <strong>~0.5%</strong> of the figure shown. Needle reports carry no reliable district, so that link
+        stays citywide.</p>`;
   document.getElementById('methodology-body').innerHTML = `
     <p class="meth-lead">Every signal names its dataset and links a runnable Socrata query, so each number
       ties back to source data.</p>
-    <p class="meth-lead">On this <strong>${active}</strong> page each “query ↗” is scoped to the district.
-      The arrest signals filter SFPD’s own <code>police_district</code> field, so the query returns the
-      <strong>exact</strong> number shown. The community drug-activity signal (911 calls) is placed by a
-      point-in-polygon against the police-district boundary, so its link is scoped by that boundary’s spatial
-      join (<code>:@computed_region_qgnn_b9vv</code>) — the same boundary the map draws — returning within
-      <strong>~0.5%</strong> of the figure shown. Needle reports carry no reliable district, so that link
-      stays citywide.</p>
+    ${scopeLead}
 
     <h3>The two headline metrics</h3>
     <ul class="meth-list">

@@ -1,5 +1,5 @@
 /* ──────────────────────────────────────────────────────────────────────
-   Unhoused dashboard — reuses the districts/root design tokens. Plain CSS,
+   Unhoused dashboard — reuses the root design tokens. Plain CSS,
    no framework, layered alongside Web Awesome tokens.
    ────────────────────────────────────────────────────────────────────── */
 :root {
@@ -184,7 +184,7 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
 .rb__num small { font-size: .8rem; font-weight: 500; color: var(--muted); }
 .rb__note { margin: 0; font-size: .85rem; color: var(--muted); max-width: 80ch; }
 
-/* ───────────── Chart (reused from districts) ───────────── */
+/* ───────────── Chart ───────────── */
 .chart-host { position: relative; width: 100%; touch-action: none; }
 .chart-host svg { display: block; width: 100%; }
 .chart-grid line { stroke: var(--c-line); stroke-dasharray: 3 3; }

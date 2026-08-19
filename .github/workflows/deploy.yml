@@ -48,8 +48,7 @@ jobs:
           node validation/parity.mjs unhoused
       - name: e2e suites (V5 + V7 included)
         # One root playwright.config.js with a project per dashboard (plan-test-harness-consolidation.md).
-        # Baked suites only here — hypothesis hits the live Socrata API, a poor deploy gate; districts
-        # stays out too, matching the prior scope.
+        # Baked suites only here — hypothesis hits the live Socrata API, a poor deploy gate, so it stays out.
         run: npx playwright test --project=homepage --project=drug --project=unhoused --project=theft
 
   deploy:
@@ -96,7 +95,7 @@ jobs:
           #   offline Python and is intentionally not shipped). Add a project here
           #   when it gains an index.html. `hypothesis` is the self-serve tool that
           #   used to live at the repo root.
-          for project in districts theft unhoused drug okr-map hypothesis; do
+          for project in theft unhoused drug okr-map hypothesis; do
             if [ ! -f "$project/index.html" ]; then
               echo "Skipping $project (no index.html yet)"
               continue

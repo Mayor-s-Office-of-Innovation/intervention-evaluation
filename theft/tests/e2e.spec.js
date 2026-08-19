@@ -61,6 +61,37 @@ test('shows the SF-context strip: citywide trend + Northern share over time', as
   await expect(first).toContainText(/vs \d+% all-time avg/); // robust share baseline
 });
 
+test('#citywide opens a first-class citywide focus (cards, no share/arrests context, citywide query links)', async ({ page }) => {
+  const errors = [];
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', e => errors.push(e.message));
+
+  await page.goto('/theft/index.html#citywide', { waitUntil: 'domcontentloaded' });
+
+  // Header reads Citywide, not "Citywide district".
+  await expect(page.locator('.app-header__eyebrow')).toHaveText(/·\s*Citywide\s*·/);
+  await expect(page.locator('#data-asof')).toContainText('Citywide');
+
+  // All three cards still render off the baked citywide series.
+  await expect(page.locator('.scorecard')).toHaveCount(3);
+  await expect(page.locator('.primary__num')).toHaveCount(3);
+
+  // Self-referential blocks are suppressed citywide: no "share of SF" strip, no arrests context.
+  await expect(page.locator('.sf-context')).toHaveCount(0);
+  await expect(page.locator('.context')).toHaveCount(0);
+
+  // Footnote query links point at the unfiltered citywide query (not an invalid police_district='Citywide').
+  await expect(page.locator('#footnotes')).toContainText('run the citywide query');
+  await expect(page.locator('#footnotes')).not.toContainText("police_district='Citywide'");
+
+  // The shoplifting concentration map lazy-loads on scroll and spans the whole city.
+  await page.locator('#shoplifting-map-section').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(800);
+  await expect(page.locator('#sm-map path.leaflet-interactive').first()).toBeVisible();
+
+  expect(errors, `console errors: ${errors.join(' | ')}`).toEqual([]);
+});
+
 test('arrests appear as context below the chart, not as a headline', async ({ page }) => {
   await page.goto('/theft/index.html', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.context__head').first()).toContainText('context, not a success target');

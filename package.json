@@ -10,7 +10,6 @@
     "test": "playwright test && python3 validation/validate_build.py && node validation/parity.mjs",
     "test:e2e": "playwright test",
     "test:homepage": "playwright test --project=homepage",
-    "test:districts": "playwright test --project=districts",
     "test:theft": "playwright test --project=theft",
     "test:drug": "playwright test --project=drug",
     "test:unhoused": "playwright test --project=unhoused",
