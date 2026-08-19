@@ -115,3 +115,84 @@ Recording it so it's not mistaken for a bug: this is the intended Phase-1 (data-
 Ship the PR. Consider **F1** (a one-line methodology sentence) before/with launch since it's the only
 item touching what a reader could misread; **F3** is a good cleanup to fold in; **F2/F4** are
 defer-able. No numbers need changing.
+
+---
+
+# Phase 2 review — Citywide focus views & the 11-pill picker (`a4b4ec6` + `d408a1f`)
+
+> Reviewed 2026-08-18. Scope: the reader-facing surfaces that Phase 2 actually lit up — the homepage
+> **Citywide + 10-district** pill picker, and the first-class **Citywide** drill-through (`#citywide`)
+> in `drug` / `unhoused` / `theft`. Focus per the review ask: does every citywide figure tie to a
+> runnable source, and does anything citywide read as a hard district-normalized comparison?
+>
+> **Headline: no accuracy defects. Every citywide figure is sourced and round-trips to a runnable
+> query; the map note is honest; self-referential blocks are correctly suppressed.** The two findings
+> below are clarity/redundancy calls — neither blocks the PR, neither changes a number.
+
+## Ranked findings
+
+| # | Finding | Dimension | Severity | Status |
+|---|---------|-----------|----------|--------|
+| CW-1 | drug & unhoused: under `#citywide` the focused headline card and the "Citywide · …" context card show the **same number twice** | 8 earn-its-place / 6 fidelity | Low–Med | **Done** — `#citywide-card` hidden under `isCitywide(active)` (2026-08-18) |
+| CW-2 | theft homepage **2wk** chip is `—` under Citywide beside populated 1mo/3mo, with no inline reason | 3 consistency / 6 fidelity | Low | Open — discuss |
+
+## Verifications that PASSED (recorded so they aren't re-litigated)
+
+- **CW map is genuinely per-district-normalized, and the note says so accurately.**
+  `renderMap()` (drug `:349-359`, unhoused `:393-405`) passes `signals[k].district_monthly` (confirmed
+  **10 districts** present in each `_meta.json`: drug/cfs_drug, unhoused/encampment, unhoused/cfs_presence)
+  into `classifyCells`, which classifies each cell against `districtMonthly[c.district]` — i.e. its **own**
+  district's tide (`shared/classify.js:70-72`). Under `#citywide` only the single `×N` scalar is dropped
+  from the note text (correct — there is no single district); the note reads "each block **normalized
+  against its own district's overall change**", which is exactly what the code does. The unhoused
+  `#citywide` e2e asserts this note text. **Not "unnormalized citywide growth" — an honest DiD map.**
+- **Citywide headline numbers round-trip to a runnable source.**
+  drug/unhoused methodology carries an `isCitywide` lead stating each "query ↗" is **unfiltered** (no
+  `police_district`) so it "returns the **exact** number shown" (drug `:470-473`; unhoused `scoped`
+  fallback to `p.query_url`, `:528`). theft footnotes swap the invalid per-district link for
+  `citywideQueryUrl(filter)` labelled **"run the citywide query ↗"** (`:408,:423`) and never emit
+  `police_district='Citywide'` (e2e-guarded). drug e2e asserts the rendered citywide headline **equals**
+  the baked `.Citywide` series (data↔UI).
+- **Citywide is a true unfiltered aggregate, not a sum of the 10** (carried from Phase 1 — still holds):
+  numerator and denominator share one universe, so no denominator conflation.
+- **Self-referential blocks are correctly suppressed citywide.** "share of SF" (`X is N% of citywide`
+  would be a nonsensical 100%), the arrests-context block (no citywide arrests series is baked), and the
+  recent-activity map (no single district polygon to seed it) are all hidden under `#citywide`
+  (drug `:180,:442`; unhoused `:199,:328`; theft `:94,:125,:189`). Removal is the right call, not a gap.
+
+## Findings in detail
+
+### CW-1 — Redundant "Citywide" context card on an already-citywide page
+**Location:** `drug/js/app.js:174-193` (`renderCitywide`) + the focused `.scard`; same shape in
+`unhoused/js/app.js:190-202`.
+**Problem:** The `#citywide-card` exists to give **macro context beside a single-district headline**
+("Citywide · Drug complaints" under a Northern headline). When the page itself is Citywide, the focused
+headline card *is* the citywide series, so the context card restates the identical number and chips — two
+cards, one fact, for the focused signal.
+**Why it (mildly) misleads:** a reader scanning two adjacent "citywide" cards may hunt for the difference
+between them and find none; it spends attention (Dimension 8) and softens the headline's referent
+(Dimension 6).
+**Proposed change:** when `isCitywide(active)`, hide `#citywide-card` (it has done its job — the headline
+carries the number), or collapse it into the headline. No number changes.
+**Applied (2026-08-18):** `renderCitywide` now sets `card.hidden = true` and clears it when
+`isCitywide(active)` (drug + unhoused); added `.citywide-card[hidden]{display:none}` to both stylesheets
+(the `display:flex` rule would otherwise leave an empty box). The drug/unhoused `#citywide` e2e tests now
+assert `#citywide-card` is hidden instead of rendering 3 chips. All 23 drug+unhoused e2e pass.
+
+### CW-2 — theft 2-week chip shows "—" under Citywide with no inline reason
+**Location:** `js/app.js` `getKRData` (`:213` `signal.series_weekly?.[district]`, no citywide fallback) →
+`renderChangeBadge` nodata `—` (`:234`).
+**Problem:** theft bakes no citywide **weekly** series, so the 2wk YoY chip is correctly `—` while the 1mo
+and 3mo chips beside it show real values. The `—` is honest (absence, not zero), but its `title` is just
+the timeframe label — a reader could read it as "no change" or a broken cell rather than "not computed at
+this scope."
+**Why it (mildly) misleads:** a blank next to two populated figures reads as an error or a null result,
+not a scope limitation (Dimension 3/6). This is the documented graceful-degrade from the Phase-2 plan.
+**Proposed change:** keep the `—` (do **not** synthesize a citywide fortnight); give the nodata badge a
+reason tooltip for the citywide case ("no citywide fortnight series — theft weekly is per-district").
+Low priority. *Discuss before applying.*
+
+## Recommendation (Phase 2)
+Ship. Both findings are clarity-only and change no numbers. **CW-1** is the one worth doing with launch
+(it's the only citywide surface a reader could misread); **CW-2** is a nice-to-have tooltip. Everything a
+citywide viewer sees is accurate, sourced to a runnable query, and honestly framed.
