@@ -37,6 +37,10 @@ test('#citywide opens a first-class citywide focus (cards, whole-city map, no re
   await expect(page.locator('#chart > svg')).toBeVisible();
   await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();
 
+  // CW-1: the "Citywide · …" context card is hidden here — the focused headline card already shows
+  // this exact citywide number (it stays on single-district views as the macro backdrop).
+  await expect(page.locator('#citywide-card')).toBeHidden();
+
   // Citywide isn't district-normalized — the map note says so, and the recent-activity map is hidden.
   await expect(page.locator('#map-note')).toContainText(/its own district/i);
   await expect(page.locator('#recent-activity')).toBeHidden();

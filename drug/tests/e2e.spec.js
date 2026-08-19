@@ -48,9 +48,11 @@ test('#citywide opens a first-class citywide focus (cards, map, no district-norm
   // Header reads Citywide (not "Citywide district").
   await expect(page.locator('.app-header__eyebrow')).toHaveText(/·\s*Citywide\s*·/);
 
-  // Headline + citywide cards still render off the baked .Citywide series.
+  // Headline cards render off the baked .Citywide series.
   await expect(page.locator('.scard')).toHaveCount(2);
-  await expect(page.locator('#citywide-card .chip')).toHaveCount(3);
+  // CW-1: the "Citywide · …" context card is hidden here — the focused headline card already shows
+  // this exact citywide number, so the context card would only duplicate it (it stays on district views).
+  await expect(page.locator('#citywide-card')).toBeHidden();
 
   // Map renders (all district polygons + cells); the composition scope toggle is redundant → hidden.
   await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();

@@ -155,6 +155,7 @@ html:not(.wa-dark) .district-nav a.is-active { color: var(--c-slate); }
   background: var(--surface); border: 1px solid var(--c-line); border-radius: var(--radius);
   padding: .7rem 1.1rem; box-shadow: var(--shadow);
 }
+.citywide-card[hidden] { display: none; }   /* hidden on the Citywide page (CW-1): the flex rule above would otherwise keep an empty box */
 .cw__label { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
 .cw__num { display: flex; align-items: baseline; gap: .4rem; font-size: 1.5rem; font-weight: 800; line-height: 1; }
 .cw__num small { font-size: .72rem; font-weight: 500; color: var(--muted); }

@@ -188,6 +188,11 @@ function updateEncBreakdown() {
 // district cards drill into. Replaces the old per-district "vs last month/year/typical" detail strip,
 // whose comparisons now live on the card pills.
 function renderCitywide(fi) {
+  const card = $('#citywide-card');
+  // On a Citywide page the focused headline card already shows this exact number, so the context
+  // card would only restate it — hide it (CW-1). It still earns its place on single-district views.
+  if (isCitywide(active)) { card.hidden = true; card.innerHTML = ''; return; }
+  card.hidden = false;
   const idx = lastIdx(), city = fi.series('Citywide'), dseries = fi.series(active);
   const cur = city[idx];
   const shareNow = city[idx] ? dseries[idx] / city[idx] : null;
@@ -199,7 +204,7 @@ function renderCitywide(fi) {
   const shareLine = isCitywide(active) ? '' :
     `<span class="cw__share">${active} is <strong>${shareNow != null ? Math.round(shareNow * 100) + '%' : '—'}</strong> ` +
     `of citywide <small>(typically ${shareAvg != null ? Math.round(shareAvg * 100) + '%' : '—'})</small></span>`;
-  $('#citywide-card').innerHTML = `
+  card.innerHTML = `
     <span class="cw__label">Citywide · ${fi.label}</span>
     <span class="cw__num">${cur.toLocaleString()}<small>${prettyMonth(AGG.latest_complete_month)}</small></span>
     ${momentumChips(city, idx)}
