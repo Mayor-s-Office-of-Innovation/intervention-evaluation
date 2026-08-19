@@ -1,4 +1,4 @@
-// Hand-rolled SVG multi-line chart (no chart lib; mirrors ../districts/ approach).
+// Hand-rolled SVG multi-line chart (no chart lib).
 // Draws monthly series as lines over the full months axis, with year gridlines,
 // the current partial month flagged, and a small legend.
 

@@ -19,6 +19,7 @@ import {
 import { classifyCells, ymRange, districtTide } from '../../shared/classify.js';
 import { wireSplitToggle, refreshSplitToggle, wireSearch } from '../../shared/hotspots-panel.js';
 import { initRecentActivity } from '../../shared/recent-activity.js';
+import { DISTRICTS, CITYWIDE, fromHash, isCitywide } from '../../shared/districts.js';
 
 // Evergreen recent-activity signals — mirror unhoused/build/signals.py filters verbatim.
 // encampment = 311 (lat/long cols); cfs_presence = SFPD CFS union (sit/lie + homeless complaint).
@@ -37,7 +38,6 @@ const RECENT_SIGNALS = [
   },
 ];
 
-const DISTRICTS = ['Northern', 'Mission', 'Tenderloin', 'Central'];
 const $ = sel => document.querySelector(sel);
 
 // ── deep-linkable map state (query string; the district stays in the hash) ──
@@ -194,12 +194,16 @@ function renderCitywide(fi) {
   let d = 0, c = 0;
   for (let i = 0; i <= idx; i++) { d += dseries[i]; c += city[i]; }
   const shareAvg = c ? d / c : null;
+  // The share line compares the focused district to citywide; under a Citywide focus that's 100% of
+  // itself, so drop it.
+  const shareLine = isCitywide(active) ? '' :
+    `<span class="cw__share">${active} is <strong>${shareNow != null ? Math.round(shareNow * 100) + '%' : '—'}</strong> ` +
+    `of citywide <small>(typically ${shareAvg != null ? Math.round(shareAvg * 100) + '%' : '—'})</small></span>`;
   $('#citywide-card').innerHTML = `
     <span class="cw__label">Citywide · ${fi.label}</span>
     <span class="cw__num">${cur.toLocaleString()}<small>${prettyMonth(AGG.latest_complete_month)}</small></span>
     ${momentumChips(city, idx)}
-    <span class="cw__share">${active} is <strong>${shareNow != null ? Math.round(shareNow * 100) + '%' : '—'}</strong> ` +
-    `of citywide <small>(typically ${shareAvg != null ? Math.round(shareAvg * 100) + '%' : '—'})</small></span>`;
+    ${shareLine}`;
 }
 
 // ── the focused chart ──
@@ -213,7 +217,8 @@ function renderFocusChart() {
     overlays: {
       trend: trailing12Line(series),
       priorYear: priorYearLine(series),
-      citywideScaled: city.map(v => v * (maxD / maxC)),
+      // Under a Citywide focus the main series IS the citywide series — no scaled overlay of itself.
+      citywideScaled: isCitywide(active) ? null : city.map(v => v * (maxD / maxC)),
     },
     breaks: fi.breaks || [], noun: 'report',
     window: win, onBrush: onChartBrush, maxSel: latestCompleteIdx, minWin: MIN_WIN,
@@ -319,6 +324,8 @@ let raStarted = false;
 function setupRecentActivity() {
   if (raStarted) return;
   const panel = document.getElementById('recent-activity');
+  // Citywide has no single district polygon to seed the recent-activity map — hide the section.
+  if (panel && isCitywide(active)) { panel.hidden = true; return; }
   const feature = GEO && GEO.features.find(f => (f.properties.district || '').toUpperCase() === active.toUpperCase());
   if (!panel || !feature) return;
   const start = () => {
@@ -383,14 +390,19 @@ async function renderMap() {
     </button>`).join('');
   $('#map-legend').querySelectorAll('.legend-item').forEach(b =>
     b.onclick = () => { const c = b.dataset.cat; visibleCats.has(c) ? visibleCats.delete(c) : visibleCats.add(c); renderMap(); });
-  const tide = +districtTide(dm[active], w, b).toFixed(2);
+  const cw = isCitywide(active);
+  const tide = cw ? null : +districtTide(dm[active], w, b).toFixed(2);
   const hot = sigMeta.hot_rate_per_month;
   const span = `${prettyMonth(AGG.months[win.lo])}–${prettyMonth(AGG.months[win.hi])}`;
+  const normNote = cw
+    ? `each block <strong>normalized against its own district’s overall change</strong> (baseline→window) so the mid-2025 ` +
+      `311 encampment/unhoused category split and citywide growth don’t read as local change. `
+    : `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so the mid-2025 ` +
+      `311 encampment/unhoused category split and citywide growth don’t read as local change. `;
   $('#map-note').innerHTML =
     `Each dot is a ~block (≈110 m) that reaches at least <strong>${hot} ${mapSignal === 'encampment' ? 'reports' : 'calls'}/month</strong>, ` +
     `classified by how its rate over <strong>${span}</strong> compares to its <strong>pre-Lurie (2023–24) baseline</strong>, ` +
-    `<strong>normalized against ${active}’s overall change</strong> (×${tide} baseline→window) so the mid-2025 ` +
-    `311 encampment/unhoused category split and citywide growth don’t read as local change. ` +
+    normNote +
     `Built on presence reports only (not HSOC). ` +
     (mapSignal === 'encampment'
       ? 'This 311 signal spans the mid-2025 category split — the split-free “911 calls” view corroborates the pattern. '
@@ -497,11 +509,12 @@ function enterSplitView(isSplit) {
 
 // ── district (locked from homepage selection) ──
 function initDistrict() {
-  const h = (location.hash || '').replace('#', '').toLowerCase();
-  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
+  active = fromHash(location.hash) || 'Northern';   // resolves #citywide to the Citywide scope
   const eyebrow = document.querySelector('.app-header__eyebrow');
-  if (eyebrow) eyebrow.textContent = `San Francisco · ${active} district · Unhoused presence`;
-  // Carry the district back to the homepage so its pill stays selected
+  if (eyebrow) eyebrow.textContent = isCitywide(active)
+    ? `San Francisco · Citywide · Unhoused presence`
+    : `San Francisco · ${active} district · Unhoused presence`;
+  // Carry the scope back to the homepage so its pill stays selected
   const back = document.querySelector('.back-home');
   if (back) back.href = `../#${active.toLowerCase()}`;
 }

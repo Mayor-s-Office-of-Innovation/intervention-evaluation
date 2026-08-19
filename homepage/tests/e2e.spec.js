@@ -46,7 +46,7 @@ test('landing page renders links to every dashboard without errors', async ({ pa
   await page.goto('/index.html');
 
   // app.js fetched the TSV and rendered the four district tabs (proves script + data loaded)
-  await expect(page.locator('.district-tab')).toHaveCount(4);
+  await expect(page.locator('.district-tab')).toHaveCount(11);   // Citywide + 10 SFPD districts
 
   // each OKR dashboard is linked from the page (cards are rendered in the tab content)
   for (const slug of DASHBOARDS) {
@@ -64,6 +64,40 @@ test('landing page renders links to every dashboard without errors', async ({ pa
   expect(errors).toEqual([]);
 });
 
+test('all 10 districts + Citywide render as pills; Citywide routes cards to #citywide', async ({ page }) => {
+  // Stub the live emerging-signal counts so the KR3 badges resolve hermetically.
+  await page.route('**/wg3w-h783.json*', route => route.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify([{ count: '7' }]),
+  }));
+
+  await page.goto('/index.html');
+  await expect(page.locator('.district-tab')).toHaveCount(11);
+
+  // The Citywide pill is first and carries a distinct class; the 6 new districts are present.
+  await expect(page.locator('.district-tab--citywide')).toHaveCount(1);
+  for (const d of ['Southern', 'Bayview', 'Park', 'Richmond', 'Ingleside', 'Taraval']) {
+    await expect(page.locator(`.district-tab[data-district="${d}"]`)).toBeVisible();
+  }
+
+  // A new district (Bayview) resolves: clicking it points every OKR card at ./<dash>/#bayview.
+  await page.locator('.district-tab[data-district="Bayview"]').click();
+  await expect(page.locator('a.okr-card[href$="#bayview"]').first()).toBeVisible();
+
+  // Citywide is a first-class scope: cards drill through to <dash>/#citywide.
+  await page.locator('.district-tab[data-district="Citywide"]').click();
+  const cwCards = page.locator('a.okr-card[href$="#citywide"]');
+  expect(await cwCards.count()).toBeGreaterThan(0);
+  await expect(cwCards.first()).toBeVisible();
+
+  // Deep-link #citywide selects the Citywide pill on load.
+  await page.goto('/index.html#citywide');
+  await expect(page.locator('.district-tab[data-district="Citywide"].is-active')).toHaveCount(1);
+
+  expect(errors).toEqual([]);
+});
+
 test('KR tickers show three YoY change chips (2wk / 1mo / 3mo) on baked cards', async ({ page }) => {
   // Stub the live emerging-signal counts (wg3w-h783) so the district KR3 badges resolve hermetically
   // and any console error left is a real baked-path fault (undefined series_weekly/weeks access).
@@ -74,7 +108,7 @@ test('KR tickers show three YoY change chips (2wk / 1mo / 3mo) on baked cards', 
   }));
 
   await page.goto('/index.html');
-  await expect(page.locator('.district-tab')).toHaveCount(4);
+  await expect(page.locator('.district-tab')).toHaveCount(11);   // Citywide + 10 SFPD districts
 
   // The header row exposes exactly the three timeframe columns, in fresh→stale order.
   const cols = await page.locator('.kr-ticker--header').first().locator('.kr-ticker__col').allTextContents();
@@ -90,7 +124,7 @@ test('KR tickers show three YoY change chips (2wk / 1mo / 3mo) on baked cards', 
 
 test('the Interventions table lists saved interventions per district', async ({ page }) => {
   await page.goto('/index.html');
-  await expect(page.locator('.district-tab')).toHaveCount(4);
+  await expect(page.locator('.district-tab')).toHaveCount(11);   // Citywide + 10 SFPD districts
   // The OKRs and Interventions sections now render together (no tabs).
 
   // default district Northern → its saved item, with the Target KR derived from dp=drug
@@ -110,7 +144,7 @@ test('the Interventions table lists saved interventions per district', async ({ 
 
 test('a saved intervention with photos shows a thumbnail + overflow badge', async ({ page }) => {
   await page.goto('/index.html');
-  await expect(page.locator('.district-tab')).toHaveCount(4);
+  await expect(page.locator('.district-tab')).toHaveCount(11);   // Citywide + 10 SFPD districts
 
   // Northern's Alpha item has two photos → one thumbnail image + a "+1" overflow badge.
   const thumb = page.locator('.intervention-cell--photo .intervention-thumb');

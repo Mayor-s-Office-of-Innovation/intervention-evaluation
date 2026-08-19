@@ -306,7 +306,9 @@ function renderMethodology() {
   wrap.appendChild(el('p', null,
     `<strong>${s.label}.</strong> Community-reported reports assigned to a police district by ` +
     `point-in-polygon against the SFPD district boundaries, then rolled up to monthly counts per district ` +
-    `and citywide. Full history from 2023; the current month is partial and shown faintly.`));
+    `and citywide. A small share of reports with imprecise coordinates fall outside every district ` +
+    `boundary, so the per-district counts won't sum exactly to the citywide total. ` +
+    `Full history from 2023; the current month is partial and shown faintly.`));
   if (s.caveat) wrap.appendChild(el('div', 'method-warn', `<strong>Read with care:</strong> ${s.caveat}`));
   if (brk) wrap.appendChild(el('div', 'method-warn', `<strong>Reporting change, ${prettyMonth(brk.month)}:</strong> ${brk.detail}`));
   wrap.appendChild(el('p', 'repro-note',

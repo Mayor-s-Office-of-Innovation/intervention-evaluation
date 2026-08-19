@@ -68,7 +68,16 @@
            cards below don't get shoved down when js/app.js renders. Overwritten by
            the first render() (container.innerHTML = …). aria-hidden — decorative. -->
       <div class="districts-skeleton" aria-hidden="true">
+        <!-- 11 pills (Citywide + 10 districts): matches the real render so the wrapped
+             row height is reserved and the OKR grid below doesn't shift on first paint. -->
         <div class="district-tabs">
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
+          <span class="skeleton skeleton--tab"></span>
           <span class="skeleton skeleton--tab"></span>
           <span class="skeleton skeleton--tab"></span>
           <span class="skeleton skeleton--tab"></span>

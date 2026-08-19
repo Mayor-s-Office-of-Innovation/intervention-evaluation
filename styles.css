@@ -307,6 +307,13 @@ html.wa-dark .district-tab.is-active {
   background: var(--c-blue);
 }
 
+/* Citywide is a scope, not a district — set it apart from the 10 pills with a
+   trailing gap and a multi-colour dot that reads as "all districts". */
+.district-tab--citywide { margin-right: .65rem; }
+.district-tab--citywide .district-tab__dot {
+  background: conic-gradient(from 90deg, #3b82f6, #10b981, #f59e0b, #ef4444, #3b82f6);
+}
+
 /* ───────────── Content tabs (OKRs | Interventions) ───────────── */
 .content-tabs {
   display: flex;

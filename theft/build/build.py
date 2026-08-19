@@ -309,10 +309,11 @@ def shoplifting_map_query(district):
         f"GROUP BY intersection, month ORDER BY intersection, month")
 
 
-def vehicle_detail_queries(sig):
-    """Runnable Socrata links behind the DETAIL numbers ([[dashboard-source-provenance-footnotes]])."""
+def vehicle_detail_queries(sig, district):
+    """Runnable Socrata links behind the DETAIL numbers, scoped to the district on screen
+    ([[dashboard-source-provenance-footnotes]])."""
     d, w = sig["detail"], sig["where"]
-    base = f"({w}) AND police_district='Northern' AND {DATE_COL} >= '{d['start']}'"
+    base = f"({w}) AND police_district='{district}' AND {DATE_COL} >= '{d['start']}'"
     return {
         "type_mix": query_url(f"SELECT incident_description, count(*) AS n WHERE {base} "
                               "GROUP BY incident_description ORDER BY n DESC"),
@@ -358,11 +359,6 @@ if __name__ == "__main__":
     latest_settled_week = settled_week(weeks, latest_settled)
     settle_lag_weeks = (weeks.index(weeks[-2]) - weeks.index(latest_settled_week)
                         if latest_settled_week else None)
-
-    def signal_query(where, district):
-        return (f"SELECT date_trunc_ym({DATE_COL}) AS month, resolution, count(*) AS n "
-                f"WHERE ({where}) AND police_district='{district}' AND {DATE_COL} >= '{HISTORY_START}' "
-                f"GROUP BY month, resolution ORDER BY month")
 
     agg = {
         "generated": TODAY.isoformat(),
@@ -484,12 +480,16 @@ if __name__ == "__main__":
         provenance["signals"][key] = {
             "label": sig["label"], "why": sig["why"], "filter": sig["where"],
             "dataset_id": DATASET,
-            "query_url": query_url(signal_query(sig["where"], "Northern")),
+            # Per-district "run the query" links are rebuilt client-side (theft/js/app.js) so they
+            # match the district on screen; only the citywide denominator query is baked here.
             "citywide_query_url": query_url(citywide_reported_query),
         }
         if sig.get("detail"):
             provenance["signals"][key]["detail_start"] = sig["detail"]["start"]
-            provenance["signals"][key]["detail_queries"] = vehicle_detail_queries(sig)
+            # Per-district so the "run the exact queries" links match the district on screen
+            # (the detail panel and its data are already per-district).
+            provenance["signals"][key]["detail_queries"] = {
+                d: vehicle_detail_queries(sig, d) for d in DISTRICTS}
 
     for e in EXCLUDED:
         eq = (f"SELECT incident_year, count(*) AS n WHERE ({e['where']}) "

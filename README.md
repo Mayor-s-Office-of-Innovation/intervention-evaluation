@@ -29,18 +29,17 @@ Safety Pod — OKR Dashboards"* — at `http://localhost:8090/`. It links the li
 | **Drug activity** | [`/drug/`](drug/) | Drug activity by district — community 911 reports (↓) + dealer arrests (↑), arrest-composition, displacement map, **time scrubber** | [drug/plan.md](drug/plan.md) · [plan-scrubber.md](drug/plan-scrubber.md) |
 | **Unhoused presence** | [`/unhoused/`](unhoused/) | Encampment (311) + 911 unhoused calls by district, HSOC response, displacement map, **time scrubber** | [unhoused/plan.md](unhoused/plan.md) |
 | **Theft** | [`/theft/`](theft/) | Theft reported by merchants (victim-reported), arrests as context | [theft/plan.md](theft/plan.md) |
-| **Districts** | [`/districts/`](districts/) | Encampment reports by district over time — the base stack the others reuse | [districts/plan.md](districts/plan.md) |
 | **OKR map** | [`/okr-map/`](okr-map/) | Draft mapping of the OKR spreadsheet → dashboards | — |
 | **Hypothesis tool** | [`/hypothesis/`](hypothesis/) | Self-serve "does the data support my hypothesis?" intervention check (live 911 dispatch data) | [hypothesis/PLAN.md](hypothesis/PLAN.md) |
 
-*(The homepage links drug, unhoused, theft, and the hypothesis tool; districts and okr-map are auxiliary.)*
+*(The homepage links drug, unhoused, theft, and the hypothesis tool; okr-map is auxiliary.)*
 
 ## Layout
 
 ```
 index.html, styles.css     ← root homepage/launcher
-shared/                     ← shared ES-module lib: data, rollup, classify, chart, transition-map
-                              (imported by drug + unhoused as ../../shared/*.js)
+shared/                     ← shared ES-module lib: data, rollup, classify, chart, transition-map, districts
+                              (imported by drug + unhoused + theft as ../../shared/*.js)
 <tool>/
   index.html styles.css
   js/app.js                 ← per-dashboard orchestration (imports shared/)
@@ -78,7 +77,7 @@ rebuild-and-commit Action is a noted later option.
 python3 validation/validate_build.py        # data invariants + transitions↔aggregates axis alignment
 node validation/parity.mjs drug             # client classifier == baked Python oracle (also: unhoused)
 python3 validation/trace.py drug            # re-derive headline numbers from the declared Socrata query
-npx playwright test --project=drug          # e2e for one dashboard (also: unhoused, theft, homepage, districts, hypothesis)
+npx playwright test --project=drug          # e2e for one dashboard (also: unhoused, theft, homepage, hypothesis)
 npm test                                     # everything: all e2e projects + build invariants + parity
 ```
 

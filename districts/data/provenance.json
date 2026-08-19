@@ -1,10 +1,10 @@
 {
-  "generated": "2026-06-11",
+  "generated": "2026-08-14",
   "districts_geojson": "qgnn-b9vv",
   "signals": {
     "encampment": {
       "filter": "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
-      "records_pulled": 172175,
+      "records_pulled": 184759,
       "break_audit": {
         "encampment_only": {
           "2023-01": 2386,
@@ -48,7 +48,9 @@
           "2026-03": 2981,
           "2026-04": 3042,
           "2026-05": 3489,
-          "2026-06": 1234
+          "2026-06": 3370,
+          "2026-07": 3496,
+          "2026-08": 1533
         },
         "rerouted": {
           "2024-06": 34,
@@ -75,7 +77,9 @@
           "2026-03": 2602,
           "2026-04": 2477,
           "2026-05": 2978,
-          "2026-06": 858
+          "2026-06": 2583,
+          "2026-07": 2611,
+          "2026-08": 1083
         },
         "union": {
           "2023-01": 2386,
@@ -119,33 +123,35 @@
           "2026-03": 5583,
           "2026-04": 5519,
           "2026-05": 6467,
-          "2026-06": 2092
+          "2026-06": 5953,
+          "2026-07": 6107,
+          "2026-08": 2616
         }
       }
     },
     "encampment_only": {
       "filter": "service_name IN ('Encampment','Encampments')",
-      "records_pulled": 145937
+      "records_pulled": 153102
     },
     "waste": {
       "filter": "service_name='Street and Sidewalk Cleaning' AND (lower(service_details) LIKE '%human%' OR lower(service_details) LIKE '%urine%' OR lower(service_details) LIKE '%fece%')",
-      "records_pulled": 143685
+      "records_pulled": 152380
     },
     "needles": {
       "filter": "service_name='Street and Sidewalk Cleaning' AND (lower(service_details) LIKE '%needle%' OR lower(service_details) LIKE '%syringe%')",
-      "records_pulled": 9531
+      "records_pulled": 10000
     },
     "cfs_sitlie": {
       "filter": "call_type_final_desc = 'SIT/LIE ENFORCEMENT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
-      "records_pulled": 25589
+      "records_pulled": 27216
     },
     "cfs_homeless": {
       "filter": "call_type_final_desc = 'HOMELESS COMPLAINT' AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
-      "records_pulled": 16477
+      "records_pulled": 16773
     },
     "hsoc": {
       "filter": "onview_flag='HSOC' AND dup_cad_number IS NULL",
-      "records_pulled": 52933
+      "records_pulled": 55531
     }
   }
 }

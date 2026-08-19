@@ -10,8 +10,8 @@ import {
 } from './rollup.js';
 import { drawChart } from './chart.js';
 import { initShopliftingMap, setShopliftingDistrict } from './shoplifting-map.js';
+import { CITYWIDE, fromHash, isCitywide } from '../../shared/districts.js';
 
-const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
 let active = 'Northern';
 let AGG, PROV;
 
@@ -25,13 +25,14 @@ const exclHost = document.getElementById('exclusion-note');
 let charts = [];
 
 function initDistrict() {
-  const h = (location.hash || '').replace('#', '').toLowerCase();
-  active = DISTRICTS.find(d => d.toLowerCase() === h) || 'Northern';
+  active = fromHash(location.hash) || 'Northern';
 
   // Update header to show which district
   const eyebrow = document.querySelector('.app-header__eyebrow');
   if (eyebrow) {
-    eyebrow.textContent = `San Francisco · ${active} district · Property & street crime`;
+    eyebrow.textContent = isCitywide(active)
+      ? 'San Francisco · Citywide · Property & street crime'
+      : `San Francisco · ${active} district · Property & street crime`;
   }
   // Carry the district back to the homepage so its pill stays selected
   const back = document.querySelector('.back-home');
@@ -44,7 +45,7 @@ function renderDistrict() {
   charts = [];
 
   const idx = monthIndex(AGG, AGG.latest_settled_month);
-  asOf.textContent = `${active} district · latest settled month ${prettyMonth(AGG.latest_settled_month)} · built ${AGG.generated}`;
+  asOf.textContent = `${isCitywide(active) ? 'Citywide' : active + ' district'} · latest settled month ${prettyMonth(AGG.latest_settled_month)} · built ${AGG.generated}`;
 
   for (const [key, sig] of Object.entries(AGG.signals)) {
     // Committed KRs render up top; context signals (vehicle) render below the map.
@@ -72,8 +73,12 @@ function chip(label, detail, pct) {
 }
 
 function renderCard(key, sig, agg, idx, host = cardsHost) {
-  // Get district-specific data from new structure
-  const districtData = sig.series?.[active];
+  // Get district-specific data from new structure. Citywide has no per-district `series` entry —
+  // its reported series lives at sig.citywide.reported (no arrests axis citywide).
+  const cw = isCitywide(active);
+  const districtData = cw
+    ? (sig.citywide ? { reported: sig.citywide.reported } : null)
+    : sig.series?.[active];
   if (!districtData) {
     console.warn(`No data for ${active} in signal ${key}`);
     return;
@@ -85,7 +90,8 @@ function renderCard(key, sig, agg, idx, host = cardsHost) {
   const month = agg.months[idx];
   const trend = trailingYoY(reported, idx);
   const v = trendVerdict(trend.pct, sig.noun);
-  const noArrests = !!sig.no_arrests;   // vehicle theft: MVT arrests are near-zero, so we suppress the block
+  // Citywide has no arrests series baked, so suppress the enforcement block there too.
+  const noArrests = !!sig.no_arrests || cw || !arrests;   // vehicle theft: MVT arrests are near-zero, so we suppress the block
 
   const vsLast = compareMonth(reported, idx, idx - 1);
   const vsYear = compareMonth(reported, idx, idx - 12);
@@ -104,21 +110,29 @@ function renderCard(key, sig, agg, idx, host = cardsHost) {
 
   // Arrests settle slower than reports (long enforcement tail), so the arrests context evaluates at its
   // OWN settled month — one month behind the reported headline (Workstream F) — not the reported idx.
-  const arrIdx = agg.latest_settled_month_arrests ? monthIndex(agg, agg.latest_settled_month_arrests) : idx;
-  const arrMonthLabel = agg.months[arrIdx];
-  const arrMonth = arrests[arrIdx];
-  const arrYear = compareMonth(arrests, arrIdx, arrIdx - 12);
+  // Skipped citywide (no arrests series) and where arrests aren't shown.
+  let arrIdx, arrMonthLabel, arrMonth, arrYear;
+  if (!noArrests) {
+    arrIdx = agg.latest_settled_month_arrests ? monthIndex(agg, agg.latest_settled_month_arrests) : idx;
+    arrMonthLabel = agg.months[arrIdx];
+    arrMonth = arrests[arrIdx];
+    arrYear = compareMonth(arrests, arrIdx, arrIdx - 12);
+  }
 
-  const cityTrend = trailingYoY(sig.citywide.reported, idx);
-  const shareNow = shareAt(reported, sig.citywide.reported, idx);
-  const shareAvg = shareAllTime(reported, sig.citywide.reported);
-  // Arrow must agree with the numbers actually printed (both render at integer-percent via
-  // fmtSharePct), or an 11.4% vs 10.9% gap shows as "11% ▲ vs 11%" — a contradiction (review Fix 3).
-  // Gate on the rounded displayed values, not the raw 0.5pp delta.
-  const shareNowR = shareNow == null ? null : Math.round(shareNow * 100);
-  const shareAvgR = shareAvg == null ? null : Math.round(shareAvg * 100);
-  const shareArrow = (shareNowR == null || shareAvgR == null) ? ''
-    : shareNowR > shareAvgR ? '▲' : shareNowR < shareAvgR ? '▼' : '▬';
+  // "In SF context" compares this district against all of SF — self-referential citywide, so suppressed.
+  let cityTrend, shareNow, shareAvg, shareArrow = '';
+  if (!cw) {
+    cityTrend = trailingYoY(sig.citywide.reported, idx);
+    shareNow = shareAt(reported, sig.citywide.reported, idx);
+    shareAvg = shareAllTime(reported, sig.citywide.reported);
+    // Arrow must agree with the numbers actually printed (both render at integer-percent via
+    // fmtSharePct), or an 11.4% vs 10.9% gap shows as "11% ▲ vs 11%" — a contradiction (review Fix 3).
+    // Gate on the rounded displayed values, not the raw 0.5pp delta.
+    const shareNowR = shareNow == null ? null : Math.round(shareNow * 100);
+    const shareAvgR = shareAvg == null ? null : Math.round(shareAvg * 100);
+    shareArrow = (shareNowR == null || shareAvgR == null) ? ''
+      : shareNowR > shareAvgR ? '▲' : shareNowR < shareAvgR ? '▼' : '▬';
+  }
 
   const card = document.createElement('wa-card');
   // Context signals (vehicle) render below the KR map as a full-width editorial "context band":
@@ -172,7 +186,7 @@ function renderCard(key, sig, agg, idx, host = cardsHost) {
       <span class="legend__item"><i style="background:var(--chart-trend);height:3px"></i>Reported (12-mo avg)</span>
       ${noArrests ? '' : '<span class="legend__item"><i style="background:var(--chart-arrests)"></i>Arrests (context)</span>'}
     </div>`;
-  const sfContext = `
+  const sfContext = cw ? '' : `
     <div class="sf-context">
       <div class="sf-context__head">In SF context</div>
       <div class="sf-context__row">
@@ -289,7 +303,7 @@ function detailSection(key, sig, d, prov) {
       <span class="cbar__val">${fmtNum(t.n)}</span>
     </div>`).join('');
 
-  const q = prov?.signals?.[key]?.detail_queries;
+  const q = prov?.signals?.[key]?.detail_queries?.[active];
   const qlink = (url, text) => url ? `<a href="${url}" target="_blank" rel="noopener">${text}</a>` : '';
   const queries = q ? `<p class="detail__method">Method: vehicle type parsed from <code class="fn-filter">incident_description</code>;
     hour uses the <em>reported</em> time, not the (unknown) moment of theft. All figures span ${startYear}→present.
@@ -379,10 +393,10 @@ function renderReportingNote(agg) {
 }
 
 // Build the runnable footnote query links CLIENT-SIDE from the build-generated `filter`, so the
-// "run the query" link reproduces the district actually on screen (the baked provenance.query_url is
-// hard-coded to one district). These mirror theft/build/build.py exactly:
-//   signal_query()          → per-district reported+arrests (split by resolution)
-//   monthly_count_citywide()→ citywide denominator behind the "share of SF" tile
+// "run the query" link reproduces the district actually on screen. The build bakes only the citywide
+// denominator query; the per-district query lives here (there's no single canonical district):
+//   districtQueryUrl → per-district reported+arrests (split by resolution)
+//   citywideQueryUrl → citywide denominator behind the "share of SF" tile
 const SODA = 'https://data.sfgov.org/resource/wg3w-h783.json';
 const HISTORY_START = '2021-01-01';   // build.py HISTORY_START
 const RES_REPORTED = 'Open or Active'; // build.py RES_REPORTED
@@ -401,17 +415,22 @@ function renderFootnotes(prov) {
   if (!host || !prov) return;
   const link = (url, text = 'run the exact query ↗') => `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
   const code = s => `<code class="fn-filter">${s}</code>`;
+  const cw = isCitywide(active);
   const items = [];
+  // Citywide view: the on-screen number IS the unfiltered citywide count, so the runnable link is the
+  // citywide query (no district filter) — the per-district link would build an invalid police_district.
+  const scopedMeta = filter => cw
+    ? `Filter: ${code(filter)} · ${link(citywideQueryUrl(filter), 'run the citywide query ↗')}`
+    : `Filter: ${code(filter)} · ${link(districtQueryUrl(filter, active), `run the ${active} query ↗`)} · `
+      + `${link(citywideQueryUrl(filter), 'citywide denominator ↗')}`;
 
   for (const key of ['shoplifting', 'commercial']) {
     const s = prov.signals[key];
     if (!s) continue;
     items.push({ id: `fn-${key}`, title: s.label,
-      body: `${s.why} <span class="fn-meta">Filter: ${code(s.filter)} · `
-          + `${link(districtQueryUrl(s.filter, active), `run the ${active} query ↗`)} · `
-          + `${link(citywideQueryUrl(s.filter), 'citywide denominator ↗')}</span>` });
+      body: `${s.why} <span class="fn-meta">${scopedMeta(s.filter)}</span>` });
   }
-  items.push({ id: 'fn-sf-context', title: 'In SF context — citywide trend & share',
+  if (!cw) items.push({ id: 'fn-sf-context', title: 'In SF context — citywide trend & share',
     body: `The “Citywide 12-mo trend” and “${active} share of SF” compare this district against all of SF. `
         + `The citywide denominator drops the district filter and counts reported incidents `
         + `(<code class="fn-filter">resolution='${RES_REPORTED}'</code>) — the “citywide denominator ↗” link on each `
@@ -435,9 +454,7 @@ function renderFootnotes(prov) {
   if (veh) {
     items.push({ id: 'fn-vehicle', title: veh.label,
       body: `${veh.why} <em>Shown as context, not a key result; motor-vehicle theft has no meaningful `
-          + `arrests axis, so the card shows reports only.</em> <span class="fn-meta">Filter: ${code(veh.filter)} · `
-          + `${link(districtQueryUrl(veh.filter, active), `run the ${active} query ↗`)} · `
-          + `${link(citywideQueryUrl(veh.filter), 'citywide denominator ↗')}</span>` });
+          + `arrests axis, so the card shows reports only.</em> <span class="fn-meta">${scopedMeta(veh.filter)}</span>` });
   }
 
   host.innerHTML = items.map(it =>

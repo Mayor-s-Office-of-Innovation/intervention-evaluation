@@ -1,5 +1,5 @@
 // Structural smoke test for the district dashboard. Serves the folder and checks
-// the page renders without console errors: 5 rollup cards, a chart SVG, the focus
+// the page renders without console errors: 11 rollup cards, a chart SVG, the focus
 // tabs, the Leaflet map, and a working signal/focus/map-mode switch.
 import { test, expect } from '../../tests/e2e-base.js';
 
@@ -13,16 +13,16 @@ test.beforeEach(async ({ page }) => {
 test('renders cards, chart, and map without errors', async ({ page }) => {
   await page.goto('/districts/index.html');
 
-  // 5 rollup cards (4 districts + citywide)
-  await expect(page.locator('#cards .card')).toHaveCount(5);
+  // 11 rollup cards (all 10 SFPD districts + citywide)
+  await expect(page.locator('#cards .card')).toHaveCount(11);
   await expect(page.locator('.card--citywide')).toHaveCount(1);
 
   // chart drew an SVG with bars
   await expect(page.locator('#chart-host svg')).toBeVisible();
   expect(await page.locator('#chart-host rect.chart-bar').count()).toBeGreaterThan(30);
 
-  // focus tabs: Citywide + 4 districts
-  await expect(page.locator('#focus-tabs .tab')).toHaveCount(5);
+  // focus tabs: Citywide + all 10 districts
+  await expect(page.locator('#focus-tabs .tab')).toHaveCount(11);
 
   // map initialised (container visible, tiles loaded, district boundary paths drawn)
   await expect(page.locator('#map.leaflet-container')).toBeVisible();

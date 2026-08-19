@@ -1,8 +1,7 @@
 import { parseTSV, groupBy } from './tsv.js';
 import { listInterventions, closeIntervention, reopenIntervention, updateIntervention, getIntervention, photoSrc, openPhotoWidget, onPhotosUpdated } from './interventions-client.js';
 import { LEVERS } from '../hypothesis/js/datapoints.js';
-
-const DISTRICTS = ['Northern', 'Central', 'Mission', 'Tenderloin'];
+import { DISTRICTS, PICKER, CITYWIDE, fromHash, toHash, isCitywide } from '../shared/districts.js';
 
 // Base OKR definitions (shared across districts)
 const OKR_DEFS = {
@@ -50,9 +49,12 @@ const DISTRICT_KR3 = {
   Tenderloin: { signal: 'dog_bites', label: 'Dog bites', goal: 'down' },
 };
 
-// Build district-specific OKRs
+// Build district-specific OKRs. The bespoke 3rd theft KR only exists for the
+// four original districts (DISTRICT_KR3); the 6 new districts and the Citywide
+// scope have none, so append it only when present — otherwise renderKRTicker
+// would dereference an undefined KR and blow up the whole card.
 function getOKRsForDistrict(district) {
-  const kr3 = DISTRICT_KR3[district];
+  const extra = DISTRICT_KR3[district];
   return [
     OKR_DEFS.drug,
     OKR_DEFS.unhoused,
@@ -60,7 +62,7 @@ function getOKRsForDistrict(district) {
       ...OKR_DEFS.theft,
       krs: [
         ...OKR_DEFS.theft.krs,
-        kr3,
+        ...(extra ? [extra] : []),
       ]
     },
   ];
@@ -102,7 +104,7 @@ const EMERGING_SIGNALS = {
   },
 };
 
-let currentDistrict = DISTRICTS[0];
+let currentDistrict = 'Northern';
 let editingId = null;             // id of the row being edited inline (only one at a time)
 let interventionsByDistrict = {};
 let aggregatesData = {};
@@ -110,13 +112,12 @@ let emergingSignalsCache = {};
 let savedInterventions = [];   // saved hypotheses fetched live from the Worker (see loadSaved)
 
 function initDistrict() {
-  const h = (location.hash || '').replace('#', '').toLowerCase();
-  const match = DISTRICTS.find(d => d.toLowerCase() === h);
+  const match = fromHash(location.hash);   // resolves #citywide too; null for unknown
   if (match) currentDistrict = match;
 }
 
 function syncUrlHash() {
-  const hash = '#' + currentDistrict.toLowerCase();
+  const hash = toHash(currentDistrict);
   if (location.hash !== hash) {
     history.replaceState(null, '', hash);
   }
@@ -283,8 +284,8 @@ function renderKRTicker(okr, district) {
 function renderDistrictTabs() {
   return `
     <div class="district-tabs" role="tablist" aria-label="Select district">
-      ${DISTRICTS.map(d => `
-        <button class="district-tab${d === currentDistrict ? ' is-active' : ''}"
+      ${PICKER.map(d => `
+        <button class="district-tab${isCitywide(d) ? ' district-tab--citywide' : ''}${d === currentDistrict ? ' is-active' : ''}"
                 role="tab"
                 aria-selected="${d === currentDistrict}"
                 data-district="${d}">
@@ -527,9 +528,13 @@ function savedToRow(s) {
 }
 
 function renderInterventions() {
-  const curated = interventionsByDistrict[currentDistrict] || [];
+  // Citywide is a scope, not a district: show every district's interventions.
+  const cw = isCitywide(currentDistrict);
+  const curated = cw
+    ? Object.values(interventionsByDistrict).flat()
+    : (interventionsByDistrict[currentDistrict] || []);
   const saved = savedInterventions
-    .filter(s => (s.district || 'Other') === currentDistrict)
+    .filter(s => cw || (s.district || 'Other') === currentDistrict)
     .map(savedToRow);
   const allRows = [...curated, ...saved];
 
@@ -541,12 +546,12 @@ function renderInterventions() {
   // Make it obvious the list is scoped to the district picked in the tabs at the top.
   const head = `<div class="interventions-scope">
     <span class="interventions-scope__dot" aria-hidden="true"></span>
-    <span class="interventions-scope__text">Showing <strong>${esc(currentDistrict)}</strong> district
+    <span class="interventions-scope__text">Showing ${cw ? '<strong>all districts</strong>' : `<strong>${esc(currentDistrict)}</strong> district`}
       <span class="interventions-scope__hint">· switch with the district tabs above</span></span>
   </div>`;
 
   if (rows.length === 0) {
-    return head + '<p class="intervention-empty">No interventions recorded for this district yet.</p>';
+    return head + `<p class="intervention-empty">No interventions recorded ${cw ? 'yet' : 'for this district yet'}.</p>`;
   }
 
   // Only show columns that have data in at least one row (plus the always-on ones).

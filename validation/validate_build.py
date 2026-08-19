@@ -23,6 +23,18 @@ def load(dash, *parts):
     return json.load(open(os.path.join(ROOT, dash, "data", *parts)))
 
 
+_JS_DISTRICTS = None
+def js_districts():
+    """Parse the canonical DISTRICTS array out of shared/districts.js so the baked
+    aggregates can't silently drift from the single source of truth the frontend uses."""
+    global _JS_DISTRICTS
+    if _JS_DISTRICTS is None:
+        src = open(os.path.join(ROOT, "shared", "districts.js")).read()
+        m = re.search(r"export\s+const\s+DISTRICTS\s*=\s*\[(.*?)\]", src, re.DOTALL)
+        _JS_DISTRICTS = set(re.findall(r"['\"]([^'\"]+)['\"]", m.group(1))) if m else set()
+    return _JS_DISTRICTS
+
+
 def month_seq_ok(months):
     """Contiguous, monotonic YYYY-MM with no gaps."""
     if not all(re.fullmatch(r"\d{4}-\d{2}", m) for m in months):
@@ -68,6 +80,11 @@ def check_aggregates(dash, errs):
                 errs.append(f"{dash}: aggregates.{key}={agg[key]} not in weeks")
 
     target = set(agg.get("districts", []))
+    # The baked district list must match shared/districts.js (the frontend's single source of truth),
+    # or a district pill would route to a dashboard with no data for it (or vice-versa).
+    if target and target != js_districts():
+        errs.append(f"{dash}: aggregates.districts {sorted(target)} != shared/districts.js "
+                    f"{sorted(js_districts())}")
     for sk, sig in agg.get("signals", {}).items():
         if not isinstance(sig, dict) or "series" not in sig:
             continue   # non-standard aggregate schema (e.g. the hypothesis/okr-map tools) — out of scope

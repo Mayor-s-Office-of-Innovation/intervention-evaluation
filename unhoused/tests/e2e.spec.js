@@ -26,6 +26,24 @@ test('four district pages: two success cards, one chart, HSOC response block, ma
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('#citywide opens a first-class citywide focus (cards, whole-city map, no recent-activity)', async ({ page }) => {
+  const errors = trackErrors(page);
+  await page.goto(url('citywide'), { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+
+  await expect(page.locator('.app-header__eyebrow')).toHaveText(/·\s*Citywide\s*·/);
+  await expect(page.locator('.scard')).toHaveCount(2);
+  await expect(page.locator('.scard__num').first()).not.toBeEmpty();
+  await expect(page.locator('#chart > svg')).toBeVisible();
+  await expect(page.locator('#map path.leaflet-interactive').first()).toBeVisible();
+
+  // Citywide isn't district-normalized — the map note says so, and the recent-activity map is hidden.
+  await expect(page.locator('#map-note')).toContainText(/its own district/i);
+  await expect(page.locator('#recent-activity')).toBeHidden();
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('chart selector switches focus; clicking a success card focuses it', async ({ page }) => {
   trackErrors(page);
   await page.goto(url('northern'), { waitUntil: 'networkidle' });

@@ -29,6 +29,7 @@ export function streetTokens(str) {
   String(str || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).forEach(w => {
     if (!w || w === 'and') return;
     w = w.replace(/^(\d+)(st|nd|rd|th)$/, '$1');   // 16th → 16
+    if (/^\d+$/.test(w)) w = String(Number(w));    // "06" → "6": DataSF zero-pads single-digit streets ("06TH ST"), users type "6th"
     if (STREET_SUFFIX.has(w)) return;
     t.add(w);
   });
