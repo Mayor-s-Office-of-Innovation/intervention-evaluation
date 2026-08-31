@@ -68,8 +68,17 @@ read-only GETs — no token, no `pip install`). To bring everything current:
    committing — don't auto-commit a partial refresh.
 
 `provenance.json`'s `generated` date and the partial/settled-month shading update themselves from
-`date.today()` at build time — no manual date edits. Refresh cadence is manual; a scheduled
-rebuild-and-commit Action is a noted later option.
+`date.today()` at build time — no manual date edits.
+
+**Automated weekly refresh.** [`.github/workflows/refresh-data.yml`](.github/workflows/refresh-data.yml)
+runs the four steps above every Monday (and on-demand via the Actions **Run workflow** button). It
+rebuilds all three, runs the validators as hard gates, and — only if they all pass — opens/updates a
+single rolling PR (`chore/data-refresh`) with a before→after headline-delta table
+([`validation/refresh_delta.py`](validation/refresh_delta.py)). Review the deltas and merge; the merge
+push triggers [`deploy.yml`](.github/workflows/deploy.yml)'s full gate + Pages deploy. A red gate fails
+the job and opens **no** PR — the stop-on-mismatch rule, enforced. Design notes:
+[docs/plan-data-refresh-automation.md](docs/plan-data-refresh-automation.md). (One-time repo setting:
+Settings → Actions → General → enable "Allow GitHub Actions to create and approve pull requests".)
 
 ## Checks
 
