@@ -18,9 +18,10 @@ from signals import SIGNALS, TARGET_DISTRICTS
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
 DATA = os.path.join(os.path.dirname(HERE), "data")
-# District boundaries live in the sibling emergent-map repo (dataset qgnn-b9vv).
+# District boundaries (dataset qgnn-b9vv) — a static administrative-boundary set committed
+# in-repo under shared/data so the build is self-contained (CI has no emergent-map checkout).
 GEOJSON_SRC = os.path.abspath(
-    os.path.join(HERE, "..", "..", "..", "emergent-map", "data", "sidecar", "police_districts.geojson")
+    os.path.join(HERE, "..", "..", "shared", "data", "police_districts.geojson")
 )
 
 

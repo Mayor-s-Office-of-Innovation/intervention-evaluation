@@ -154,3 +154,17 @@ a glance (the human half of the semantic-drift guard). Mirrors the run-log delta
 - [x] Note the automation in `README.md`'s "Refreshing the data" runbook.
 - [ ] **One-time repo setting** (Aaron): Settings → Actions → General → enable "Allow GitHub Actions to create and approve pull requests".
 - [ ] **Acceptance test** (Aaron, after merge to `main`): Actions → *Weekly data refresh* → **Run workflow**; confirm builds+gates pass, a PR appears on `chore/data-refresh` with a readable delta table, diff limited to `*/data/**`, and merging triggers `deploy.yml` + a live-site refresh.
+
+## Fix — CI FileNotFoundError on district polygons (2026-09-01)
+First `workflow_dispatch` run failed at **Rebuild drug** in `02_assign.py`: `GEOJSON_SRC` pointed at the
+sibling `emergent-map` repo (`../../../emergent-map/data/sidecar/police_districts.geojson`), which is
+only checked out on Aaron's dev machine — CI has no such directory. `unhoused` would have failed the same
+way. These are static administrative boundaries (dataset qgnn-b9vv), not refreshed data.
+- [x] Commit the full 10-district source to `shared/data/police_districts.geojson` (the emergent-map file
+  was byte-identical to what all three dashboards already emit → **zero data change**). `shared/` is the
+  established home for cross-dashboard build artifacts (`shared/data/sf-intersections.json`).
+- [x] Repoint `GEOJSON_SRC` in `drug`/`districts`/`unhoused` `build/02_assign.py` to that in-repo path.
+  Kept the *canonical full set* as source (not each dashboard's trimmed `data/police_districts.geojson`
+  output) so the point-in-polygon assignment stays correct if `TARGET_DISTRICTS` is ever narrowed again.
+- [x] Verified all three `load_polygons()` read 10 polygons from the new path and `write_target_geojson()`
+  reproduces the committed trimmed output byte-for-byte.
