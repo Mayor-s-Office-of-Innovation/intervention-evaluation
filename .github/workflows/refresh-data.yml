@@ -1,0 +1,95 @@
+# Weekly automated data refresh for the three OKR dashboards (drug · unhoused · theft).
+# Rebuilds each dashboard's baked JSON from live SF OpenData, runs the validation gates, and — only if
+# everything passes — opens/updates a single rolling PR for Aaron to review + merge. Merging pushes to
+# main (as Aaron), which triggers deploy.yml's full gate + Pages deploy. The homepage reads each
+# dashboard's data/aggregates.json live, so it auto-follows.
+#
+# Design + rationale: docs/plan-data-refresh-automation.md.
+#   - PR (not commit-to-main): a GITHUB_TOKEN push to main wouldn't trigger deploy.yml, and a human
+#     merge preserves the stop-on-mismatch + Aaron-runs-git conventions.
+#   - Gates fail closed: any red validator fails the job and opens NO PR (nothing to publish).
+#   - Lean: all validators are stdlib/node-builtins, so no `npm ci` and no Playwright image here;
+#     e2e still gates the actual deploy on merge via deploy.yml.
+#
+# One-time repo setting required: Settings → Actions → General → "Allow GitHub Actions to create and
+# approve pull requests" must be enabled, or the create-pull-request step is blocked.
+name: Weekly data refresh (auto-PR)
+
+on:
+  schedule:
+    - cron: "17 13 * * 1"   # Mondays 13:17 UTC (~06:17 PT). Off-:00 minute — GitHub delays on-the-hour crons.
+  workflow_dispatch:          # manual "refresh now" button (updates the same rolling PR)
+
+permissions:
+  contents: write            # push the refresh branch
+  pull-requests: write       # open/update the PR
+
+concurrency:                 # never let two refreshes overlap
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      # Third-party AND first-party actions are pinned to a full commit SHA (version in the trailing
+      # comment) — a mutable tag like @v6 could be retagged to malicious code that would run here with
+      # contents:write + pull-requests:write. Bump the SHA + comment together when upgrading.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with: { node-version: '24' }   # validators use only node built-ins — no npm ci
+
+      # --- Rebuild (retry the network-heavy pulls; anon stdlib GETs to data.sfgov.org, no token) ---
+      - name: Rebuild drug
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          timeout_minutes: 20
+          max_attempts: 3
+          command: cd drug/build && python3 01_pull.py && python3 02_assign.py && python3 03_rollup.py && python3 04_transitions.py && python3 05_markers.py
+      - name: Rebuild unhoused
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          timeout_minutes: 30    # heaviest pull (encampment)
+          max_attempts: 3
+          command: cd unhoused/build && python3 01_pull.py && python3 02_assign.py && python3 03_rollup.py && python3 04_transitions.py && python3 05_markers.py
+      - name: Rebuild theft
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          command: python3 theft/build/build.py
+
+      # --- Validate: ALL must pass, or the job fails here and NO PR opens (= stop-on-mismatch) ---
+      - name: V1+V3 · build invariants + axis alignment
+        run: python3 validation/validate_build.py
+      - name: V2 · classifier parity (drug + unhoused)
+        run: |
+          node validation/parity.mjs drug
+          node validation/parity.mjs unhoused
+      - name: Source↔baked trace (strong gate on freshly built data)
+        run: |
+          python3 validation/trace.py drug
+          python3 validation/trace.py unhoused
+
+      # --- Summarize the headline deltas for the PR body (always exits 0) ---
+      - name: Compute headline deltas
+        run: python3 validation/refresh_delta.py | tee /tmp/deltas.md
+
+      - name: Show diff scope (log only)
+        run: git status --porcelain && echo "---" && git diff --stat
+
+      # --- Open/update ONE rolling PR; commit only the baked JSON ---
+      - name: Open / update refresh PR
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
+        with:
+          branch: chore/data-refresh
+          base: main
+          title: "Weekly data refresh (drug · unhoused · theft)"
+          body-path: /tmp/deltas.md
+          commit-message: "chore: refresh dashboard data (drug/unhoused/theft)"
+          add-paths: |
+            drug/data/**
+            unhoused/data/**
+            theft/data/**
