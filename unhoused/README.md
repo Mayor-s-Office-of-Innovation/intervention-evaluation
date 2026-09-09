@@ -30,7 +30,7 @@ gitignored and regenerable.** Stdlib only — no `pip install`.
 
 ```bash
 cd unhoused/build
-python3 01_pull.py        # fetch full-history records from data.sfgov.org → build/cache/<signal>_raw.json
+python3 01_pull.py        # fetch full-history records from data.sf.gov → build/cache/<signal>_raw.json
 python3 02_assign.py      # point-in-polygon → police district (carries detail fields) → build/cache/<signal>_assigned.json
 python3 03_rollup.py      # emit ../data/{aggregates,provenance}.json + ../data/points/*.json
 python3 04_transitions.py # emit ../data/transitions/*.json (block hot/cold + monthly sparkline series)

@@ -788,7 +788,7 @@ async function fetchEmergingSignal(signalKey, district) {
   const prior2Start = daysBack(prior2End, 14);
 
   const fmt = d => d.toISOString().slice(0, 10);
-  const base = `https://data.sfgov.org/resource/wg3w-h783.json`;
+  const base = `https://data.sf.gov/resource/wg3w-h783.json`;
 
   const countQuery = (start, end) => {
     const where = `${sig.where} AND police_district='${district}' AND incident_date>='${fmt(start)}' AND incident_date<'${fmt(end)}'`;
@@ -856,7 +856,7 @@ function renderMethodology() {
   const host = document.getElementById('home-methodology');
   if (!host) return;
   const DS = 'wg3w-h783';
-  const q = soql => `https://data.sfgov.org/resource/${DS}.json?${new URLSearchParams({ '$query': soql })}`;
+  const q = soql => `https://data.sf.gov/resource/${DS}.json?${new URLSearchParams({ '$query': soql })}`;
   // Monthly counts for the signal in one district — the series both the 1-mo and 3-mo YoY badges derive from.
   const monthly = (where, district) => q(
     `SELECT date_trunc_ym(incident_date) AS month, count(*) AS n `
@@ -896,7 +896,7 @@ function renderMethodology() {
     + `buckets; the dashboards show the monthly view, so the fortnight isn't displayed there directly. `
     + `The one exception is the third KR on each `
     + `district's property-&amp;-crime card (an emerging local issue), computed live here from the SFPD `
-    + `incident dataset (<a href="https://data.sfgov.org/d/${DS}" target="_blank" rel="noopener">${DS}</a>):</p>`
+    + `incident dataset (<a href="https://data.sf.gov/d/${DS}" target="_blank" rel="noopener">${DS}</a>):</p>`
     + `<ul class="home-methodology__list">${rows}</ul>`;
 }
 

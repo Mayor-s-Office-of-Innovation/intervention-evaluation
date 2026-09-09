@@ -4,7 +4,7 @@ import datetime, urllib.parse, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build"))
 from httpget import get_json
 
-DOMAIN, DATASET = "data.sfgov.org", "wg3w-h783"
+DOMAIN, DATASET = "data.sf.gov", "wg3w-h783"
 RES = "Open or Active"
 TODAY = datetime.date.today()
 def fom(mb):

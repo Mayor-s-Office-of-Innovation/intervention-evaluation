@@ -1,7 +1,7 @@
 """Bake the authoritative SF cross-street index used by the map search fallback.
 
 Source: DataSF `jfxm-zeee` — "Intersections by Each Cross Street Permutation"
-(https://data.sfgov.org/resource/jfxm-zeee.json). ~21k permutation rows over ~9.4k intersection
+(https://data.sf.gov/resource/jfxm-zeee.json). ~21k permutation rows over ~9.4k intersection
 nodes; every real SF corner with lat/lng. This replaces the old Nominatim geocoder, which had no
 intersection index and returned [] for valid corners (e.g. Laguna & Ellis, Fillmore & Clay).
 
@@ -31,7 +31,7 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.join(os.path.dirname(HERE), "data")          # shared/data/
 OUT = os.path.join(OUT_DIR, "sf-intersections.json")
-DOMAIN = "data.sfgov.org"
+DOMAIN = "data.sf.gov"
 DATASET = "jfxm-zeee"
 COORD_SCALE = 100000                                            # 5 dp ≈ 1.1 m, matches marker files
 PAGE = 50000

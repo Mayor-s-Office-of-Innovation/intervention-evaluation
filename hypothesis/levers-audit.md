@@ -54,7 +54,7 @@ supplies the dataset + query:
 `getDataPoint` falls back to `DATAPOINTS[0]` (drug) when the key isn't a real
 data point. A label-only stub has **none** of `dataset/geoCol/dateCol/select/
 signalWhere`, so if it is ever passed to `fetchEvents`, `soda.js` requests
-`https://data.sfgov.org/resource/undefined.json?...` → HTTP 404 → the results
+`https://data.sf.gov/resource/undefined.json?...` → HTTP 404 → the results
 panel shows **"Couldn't load data: Socrata request failed (HTTP 404)"**
 ([`js/app.js:378-379`](hypothesis/js/app.js#L378-L379)).
 

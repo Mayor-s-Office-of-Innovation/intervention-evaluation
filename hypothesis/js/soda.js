@@ -6,7 +6,7 @@
 // is fetched, deduped within itself by record id, then concatenated.
 // ──────────────────────────────────────────────────────────────────────
 
-const SODA_BASE = 'https://data.sfgov.org/resource';
+const SODA_BASE = 'https://data.sf.gov/resource';
 
 // Max rows fetched per source. A source that returns exactly this many was
 // almost certainly truncated (ordered newest-first), so only the most recent
@@ -14,7 +14,7 @@ const SODA_BASE = 'https://data.sfgov.org/resource';
 export const ROW_CAP = 5000;
 
 const DATASET_LABEL = { '2zdj-bwza': '911 CFS', 'vw6y-z8j6': '311', 'wg3w-h783': 'SFPD incidents', 'nuek-vuh3': 'Fire/EMS' };
-export const datasetLabel = id => DATASET_LABEL[id] || 'data.sfgov.org';
+export const datasetLabel = id => DATASET_LABEL[id] || 'data.sf.gov';
 
 /** Build the live Socrata query URL for one source at a pin + radius. */
 export function buildQueryUrl(src, { lat, lng, radiusM = 250, startISO = '2023-01-01T00:00:00' }) {

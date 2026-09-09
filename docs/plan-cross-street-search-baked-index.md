@@ -17,7 +17,7 @@ pulled from DataSF at build time. Corners then resolve from a local file — ins
 runtime external dependency, same provenance ecosystem the dashboards already cite.
 
 ### Source (verified 2026-07-14)
-`data.sfgov.org` dataset **`jfxm-zeee` — "Intersections by Each Cross Street Permutation"**
+`data.sf.gov` dataset **`jfxm-zeee` — "Intersections by Each Cross Street Permutation"**
 - 21,051 permutation rows over **9,430 distinct intersection nodes (`cnn`)**, **0 null coords**.
 - Fields: `street_name_1`, `street_name_2`, `latitude`, `longitude`, `cnn`, `zip_code`.
 - Refreshed daily (matched the 2026-07-14 refresh of the sibling Street Nodes/Centerline sets).

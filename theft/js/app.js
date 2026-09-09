@@ -397,7 +397,7 @@ function renderReportingNote(agg) {
 // denominator query; the per-district query lives here (there's no single canonical district):
 //   districtQueryUrl → per-district reported+arrests (split by resolution)
 //   citywideQueryUrl → citywide denominator behind the "share of SF" tile
-const SODA = 'https://data.sfgov.org/resource/wg3w-h783.json';
+const SODA = 'https://data.sf.gov/resource/wg3w-h783.json';
 const HISTORY_START = '2021-01-01';   // build.py HISTORY_START
 const RES_REPORTED = 'Open or Active'; // build.py RES_REPORTED
 const queryUrl = soql => `${SODA}?${new URLSearchParams({ '$query': soql })}`;

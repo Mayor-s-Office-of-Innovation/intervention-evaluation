@@ -218,7 +218,7 @@ test('source footnotes render with rationale and runnable query links', async ({
   }
 
   // exact queries are runnable Socrata links
-  const links = await page.locator('#footnotes a[href*="data.sfgov.org/resource"]').count();
+  const links = await page.locator('#footnotes a[href*="data.sf.gov/resource"]').count();
   expect(links).toBeGreaterThanOrEqual(3);
 });
 

@@ -24,7 +24,7 @@ TWO co-headline cards, opposite desired directions (../plan.md D9):
   • dealer_arrests ↑ = good (supply disruption — elevated to a goal given the fentanyl crisis)
 """
 
-DOMAIN = "data.sfgov.org"
+DOMAIN = "data.sf.gov"
 # 2023 onward — matches the emergent-map drug-activity window; the fixed-Lurie split sits inside it.
 HISTORY_START = "2023-01-01T00:00:00"
 

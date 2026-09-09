@@ -51,7 +51,7 @@ misleading affordance.
 
 ## Reproduce
 
-Base endpoint `https://data.sfgov.org/resource/wg3w-h783.json?$query=<SoQL>`, window
+Base endpoint `https://data.sf.gov/resource/wg3w-h783.json?$query=<SoQL>`, window
 `incident_date >= '2025-06-01' AND incident_date < '2026-06-01'`:
 
 ```sql

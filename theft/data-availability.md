@@ -7,7 +7,7 @@ data as of build **2026-07-28** (provenance `generated`); today is 2026-07-31._
 
 | | |
 |---|---|
-| Dataset | **SFPD Incident Reports** `wg3w-h783` on `data.sfgov.org` |
+| Dataset | **SFPD Incident Reports** `wg3w-h783` on `data.sf.gov` |
 | District | **Northern** (native `police_district` field — no point-in-polygon) |
 | History window | **2021-01** → present (2018–2020 dropped: pandemic distortion, D13) |
 | Occurrence basis | `incident_date` (when it happened), not filing date |

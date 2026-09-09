@@ -1,7 +1,7 @@
 import urllib.parse, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),"..","build"))
 from httpget import get_json
-DOMAIN,DATASET="data.sfgov.org","wg3w-h783"
+DOMAIN,DATASET="data.sf.gov","wg3w-h783"
 def q(where,select,group=None,order=None):
     p={"$select":select,"$where":where,"$limit":"50000"}
     if group:p["$group"]=group

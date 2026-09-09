@@ -1,7 +1,7 @@
 import urllib.parse, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),"..","build"))
 from httpget import get_json
-DOMAIN,DATASET="data.sfgov.org","wg3w-h783"; RES="Open or Active"
+DOMAIN,DATASET="data.sf.gov","wg3w-h783"; RES="Open or Active"
 def monthly(where,district=None):
     w=f"({where}) AND resolution='{RES}' AND incident_date >= '2025-11-01'"
     if district: w+=f" AND police_district='{district}'"

@@ -1,7 +1,7 @@
 import urllib.parse, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),"..","build"))
 from httpget import get_json
-DOMAIN,DATASET="data.sfgov.org","wg3w-h783"
+DOMAIN,DATASET="data.sf.gov","wg3w-h783"
 def q(select,where,order=None,limit=200):
     p={"$select":select,"$where":where,"$limit":str(limit)}
     if order:p["$order"]=order

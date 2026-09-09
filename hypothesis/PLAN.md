@@ -60,7 +60,7 @@ Why this matters, from stakeholder conversations:
 
 | # | Decision | Rationale |
 |---|----------|-----------|
-| D1 | **No backend in v1.** Query `data.sfgov.org` directly from the browser. | Notebooks already do this with a `soda()` fetch + Socrata `within_circle()`. Static hosting, no key, no server. |
+| D1 | **No backend in v1.** Query `data.sf.gov` directly from the browser. | Notebooks already do this with a `soda()` fetch + Socrata `within_circle()`. Static hosting, no key, no server. |
 | D2 | **AI synthesis deferred to Stage 2.** | Build the data + visualization first; see how a no-AI version reads before investing in the AI verdict. |
 | D3 | **Verdict is lightweight in v1.** A descriptive line ("X before → Y after") in a slot that's the future home of the AI verdict. | Honest binary true/false is hard without AI and would be thrown away once AI lands. |
 | D4 | **Lives in `/hypothesis-tool/`** as a self-contained static app. | Its own Leaflet + Web Awesome frontend — not the emergent-map deck.gl stack. |
@@ -103,7 +103,7 @@ Browser (static files)
   └─ ES modules          (our code)
         │  fetch()
         ▼
-  data.sfgov.org Socrata SoDA API   (live, CORS-enabled, no key)
+  data.sf.gov Socrata SoDA API   (live, CORS-enabled, no key)
 ```
 
 - **No build step, no backend, no secrets.** Serve the folder statically.
@@ -307,9 +307,9 @@ A ~75% drop over a 6-week **tapered ramp** (full → half → quarter → floor)
 
 **Reproducible evidence (live SoDA, citywide count — verified 2026-06-05):**
 - Nov 2025 → `3540`:
-  `https://data.sfgov.org/resource/vw6y-z8j6.json?$select=count(*) as n&$where=service_name='Street and Sidewalk Cleaning' AND lower(service_details) like '%overflow%' AND requested_datetime >= '2025-11-01' AND requested_datetime < '2025-12-01'`
+  `https://data.sf.gov/resource/vw6y-z8j6.json?$select=count(*) as n&$where=service_name='Street and Sidewalk Cleaning' AND lower(service_details) like '%overflow%' AND requested_datetime >= '2025-11-01' AND requested_datetime < '2025-12-01'`
 - May 2026 → `1865`:
-  `https://data.sfgov.org/resource/vw6y-z8j6.json?$select=count(*) as n&$where=service_name='Street and Sidewalk Cleaning' AND lower(service_details) like '%overflow%' AND requested_datetime >= '2026-05-01' AND requested_datetime < '2026-06-01'`
+  `https://data.sf.gov/resource/vw6y-z8j6.json?$select=count(*) as n&$where=service_name='Street and Sidewalk Cleaning' AND lower(service_details) like '%overflow%' AND requested_datetime >= '2026-05-01' AND requested_datetime < '2026-06-01'`
 
 Drop `$select=count(*) as n` for the rows; add `AND within_circle(point, <lat>, <lng>, 250)` to match a pin.
 
@@ -380,7 +380,7 @@ status_notes data point, and a relabeled generic "sidewalk garbage" proxy.
 
 **External-source search — done (2026-06-05): no cardboard/commercial-recycling dataset on SF OpenData.**
 - **Discovery method that worked:** SF's own catalog endpoint
-  `https://data.sfgov.org/api/catalog/v1?domains=data.sfgov.org&search_context=data.sfgov.org&q=…`
+  `https://data.sf.gov/api/catalog/v1?domains=data.sf.gov&search_context=data.sf.gov&q=…`
   (the federated `api.us.socrata.com` endpoint returned 0 even for a `police` sanity check — wrong host;
   and the bare SF endpoint without `domains`/`search_context` federates across NYC/Austin/Cambridge, so
   filter to SF). Recorded for reuse.

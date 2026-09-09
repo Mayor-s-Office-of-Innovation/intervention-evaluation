@@ -4,7 +4,7 @@ Appearance lag ~= reporting lag + <1 day (dataset reloads daily; see appearance_
 import datetime, urllib.parse, sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),"..","build"))
 from httpget import get_json
-DOMAIN,DATASET="data.sfgov.org","wg3w-h783"; RES="Open or Active"
+DOMAIN,DATASET="data.sf.gov","wg3w-h783"; RES="Open or Active"
 TODAY=datetime.date.today()
 def fom(mb):
     t=TODAY.year*12+(TODAY.month-1)-mb; return datetime.date(t//12,t%12+1,1)

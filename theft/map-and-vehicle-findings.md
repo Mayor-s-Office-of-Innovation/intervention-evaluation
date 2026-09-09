@@ -7,7 +7,7 @@ day/night, scrubber) and a new **vehicle theft** category:
 1. Do our current theft categories have enough spatial density to justify clustering them on a map?
 2. How much auto/vehicle theft is actually happening — raw numbers, before we commit to the data?
 
-**Source.** SFPD Incident Reports `wg3w-h783` on `data.sfgov.org`. District from the native
+**Source.** SFPD Incident Reports `wg3w-h783` on `data.sf.gov`. District from the native
 `police_district` field (Title-case here — e.g. `Northern` — *not* the UPPERCASE convention of the 311
 dataset). Intersection from the native `intersection` field. Concentration figures below use the last 12
 settled months (incident_date **2025-06-01 → 2026-05-31**), all resolutions. Reproduce block at the end.
@@ -123,7 +123,7 @@ Feeds → [plan-property-crime-expansion.md](plan-property-crime-expansion.md).
 
 ## Reproduce
 
-Base endpoint: `https://data.sfgov.org/resource/wg3w-h783.json?$query=<SoQL>`. Window
+Base endpoint: `https://data.sf.gov/resource/wg3w-h783.json?$query=<SoQL>`. Window
 `incident_date >= '2025-06-01' AND incident_date < '2026-06-01'` unless noted.
 
 ```sql

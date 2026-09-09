@@ -30,7 +30,7 @@ Together they guard against the classic trap: a local win that is really just di
 
 ## Built responsibly
 
-- **Live public data.** Every signal comes from [data.sfgov.org](https://data.sfgov.org); the tool runs the query in your browser.
+- **Live public data.** Every signal comes from [data.sf.gov](https://data.sf.gov); the tool runs the query in your browser.
 - **Fully reproducible.** Each result shows the dataset and the exact runnable query, so anyone can verify the number.
 - **Honest by design.** The tool reports rates (not raw counts), flags short or unreliable windows.
 

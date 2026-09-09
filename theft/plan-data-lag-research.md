@@ -51,7 +51,7 @@ viable (high confidence) but optional. Do **not** move to −0 (too volatile at 
 
 ## Method
 
-Data source unchanged: SFPD Incident Reports `wg3w-h783` on `data.sfgov.org`, Northern, merchant
+Data source unchanged: SFPD Incident Reports `wg3w-h783` on `data.sf.gov`, Northern, merchant
 subcategories, 2021-01→present, dedup by `incident_id`. Reuse the stdlib HTTP pattern in
 [build/httpget.py](build/httpget.py); no new dependencies.
 

@@ -32,8 +32,8 @@ const HEXR = 13;                           // px hex radius (small = granular)
 const RAMP = ['#d8f3ea', '#a6e3d0', '#6bcbb0', '#2ba98a', '#158066', '#0c5a48'];
 
 const isDark = () => document.documentElement.classList.contains('wa-dark');
-const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
+const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
 const TILE_OPTS = { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' };
 
 // ── date helpers — floating timestamps are NAIVE Pacific local ("2026-07-14T18:14:30.000"),
@@ -48,7 +48,7 @@ const hourLabel = h => h === 0 ? '12a' : h === 12 ? '12p' : h < 12 ? h + 'a' : (
 const titleCase = s => s ? s[0] + s.slice(1).toLowerCase() : s;
 
 // ── per-signal Socrata shape (abstracts point-geo vs lat/long-column datasets) ──
-const sodaUrl = sig => `https://data.sfgov.org/resource/${sig.dataset}.json`;
+const sodaUrl = sig => `https://data.sf.gov/resource/${sig.dataset}.json`;
 function bboxClause(sig, b) {
   if (sig.geo.kind === 'point')
     return `within_box(${sig.geo.col}, ${b.maxY}, ${b.minX}, ${b.minY}, ${b.maxX})`;
@@ -237,7 +237,7 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     };
     const q = soqlLink();
     el.note.innerHTML =
-      `Live from DataSF (<a href="https://data.sfgov.org/d/${sig.dataset}" target="_blank" rel="noopener">${sig.dataset}</a>) · ` +
+      `Live from DataSF (<a href="https://data.sf.gov/d/${sig.dataset}" target="_blank" rel="noopener">${sig.dataset}</a>) · ` +
       `${sig.label} in ${titleCase(districtName)} · ` +
       `last ${weeks} week${weeks > 1 ? 's' : ''} through ${anchor.slice(0, 10)} · ${rows.length} reports` +
       brushLabel() +
