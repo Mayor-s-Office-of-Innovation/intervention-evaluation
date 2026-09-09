@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-01",
+  "generated": "2026-09-07",
   "lurie_inauguration": "2025-01-08",
   "pre_window": [
     "2023-01",
@@ -316,7 +316,7 @@
           1444,
           1290,
           1072,
-          1139
+          1141
         ],
         "Bayview": [
           123,
@@ -778,7 +778,7 @@
           1297,
           1110,
           931,
-          1024
+          1026
         ],
         "Bayview": [
           122,
@@ -2165,7 +2165,7 @@
             516,
             437,
             359,
-            411
+            413
           ],
           "Bayview": [
             47,
@@ -3324,12 +3324,12 @@
         }
       },
       "counts": {
-        "emerged": 332,
-        "cooled": 138,
-        "persistent": 88
+        "emerged": 333,
+        "cooled": 137,
+        "persistent": 89
       },
-      "cells": 3204,
-      "classified_fixed_preset": 558
+      "cells": 3213,
+      "classified_fixed_preset": 559
     },
     "cfs_presence": {
       "label": "911 calls about unhoused presence",
@@ -6591,7 +6591,7 @@
         "cooled": 72,
         "persistent": 63
       },
-      "cells": 1342,
+      "cells": 1344,
       "classified_fixed_preset": 259
     }
   }
