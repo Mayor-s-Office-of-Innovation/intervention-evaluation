@@ -16,8 +16,8 @@
 import { wireSearch, resolveIntersection, buildLocalIndex } from '../../shared/cross-street-search.js';
 import { isCitywide } from '../../shared/districts.js';
 
-const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
+const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
 const TILE_OPTS  = { subdomains: 'abcd', maxZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' };
 const TOP_N = 12;               // ranked side list length

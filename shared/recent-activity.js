@@ -32,8 +32,8 @@ const HEXR = 13;                           // px hex radius (small = granular)
 const RAMP = ['#d8f3ea', '#a6e3d0', '#6bcbb0', '#2ba98a', '#158066', '#0c5a48'];
 
 const isDark = () => document.documentElement.classList.contains('wa-dark');
-const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
+const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
 const TILE_OPTS = { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' };
 
 // ── date helpers — floating timestamps are NAIVE Pacific local ("2026-07-14T18:14:30.000"),
