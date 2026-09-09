@@ -1,10 +1,10 @@
 # What the "Encampment" headline number counts (311 explainer)
 
-**Dataset:** SF 311 Cases — `vw6y-z8j6` on `data.sfgov.org`
+**Dataset:** SF 311 Cases — `vw6y-z8j6` on `data.sf.gov`
 **Question this answers:** why the dashboard's Northern-district encampment number for June 2026 is **1,146**, not the ~560 you'd get from the 311 "Encampment" category alone.
 
 All queries below run as-is in the Socrata query editor, or against the REST endpoint:
-`https://data.sfgov.org/resource/vw6y-z8j6.json?$query=<SoQL>`
+`https://data.sf.gov/resource/vw6y-z8j6.json?$query=<SoQL>`
 
 Two gotchas up front:
 - **`police_district` values are UPPERCASE** — use `'NORTHERN'`, not `'Northern'` (title case silently returns 0).

@@ -550,10 +550,10 @@ function methodologySources(d, queries) {
   return sourcesOf(d).map((src, i) => {
     const q = queries && queries[i];
     const link = q
-      ? `<a href="${q.url}" target="_blank" rel="noopener">▶ Open this exact query on data.sfgov.org</a>`
+      ? `<a href="${q.url}" target="_blank" rel="noopener">▶ Open this exact query on data.sf.gov</a>`
       : `<span class="method-pending">Run the analysis to generate the live query link.</span>`;
     return `<div class="method-src">
-      <div class="method-src__head">${datasetLabel(src.dataset)} <a class="method-ds" href="https://data.sfgov.org/d/${src.dataset}" target="_blank" rel="noopener">${src.dataset}</a></div>
+      <div class="method-src__head">${datasetLabel(src.dataset)} <a class="method-ds" href="https://data.sf.gov/d/${src.dataset}" target="_blank" rel="noopener">${src.dataset}</a></div>
       <p class="method-src__desc">${src.filterDesc || ''}</p>
       <code class="method-src__filter">${escHtml(src.signalWhere || '')}</code>
       <p class="method-src__link">${link}</p>

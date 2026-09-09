@@ -33,7 +33,7 @@ districts-style dashboard is decided **after** we read the findings (§9, Open q
 ### 2.1 The source is `wg3w-h783`, and it's the right one
 
 **`Police Department Incident Reports: 2018 to Present`** (SFPD, dataset `wg3w-h783`, domain
-`data.sfgov.org`). Updated **automatically daily by 10:00 PT**. Reports are filed by officers or
+`data.sf.gov`). Updated **automatically daily by 10:00 PT**. Reports are filed by officers or
 self-reported by the public via SFPD's Coplogic online system, then approved by a supervising
 Sergeant/Lieutenant before appearing.
 

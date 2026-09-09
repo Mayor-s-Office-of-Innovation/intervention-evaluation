@@ -61,7 +61,7 @@ _CFS_DETAIL = [
 
 def _cfs(call_type):
     return {
-        "dataset": "2zdj-bwza", "domain": "data.sfgov.org",
+        "dataset": "2zdj-bwza", "domain": "data.sf.gov",
         "date_col": "received_datetime", "id_col": "cad_number",
         "geo_kind": "point", "geo_col": "intersection_point",
         "select": _CFS_SELECT,
@@ -72,7 +72,7 @@ def _cfs(call_type):
 
 def _311(where):
     return {
-        "dataset": "vw6y-z8j6", "domain": "data.sfgov.org",
+        "dataset": "vw6y-z8j6", "domain": "data.sf.gov",
         "date_col": "requested_datetime", "id_col": "service_request_id",
         "geo_kind": "latlong",
         "select": "service_request_id, requested_datetime, lat, long",
@@ -171,7 +171,7 @@ SIGNALS = {
 
     # ── TIER 3 · city-response / context signal (caveat-heavy; NOT a success metric, D8) ──
     "hsoc": {
-        "dataset": "2zdj-bwza", "domain": "data.sfgov.org",
+        "dataset": "2zdj-bwza", "domain": "data.sf.gov",
         "date_col": "received_datetime", "id_col": "cad_number",
         "geo_kind": "point", "geo_col": "intersection_point",
         "select": _CFS_SELECT,

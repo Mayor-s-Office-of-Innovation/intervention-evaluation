@@ -140,7 +140,7 @@ test('See details: popup stays open, widens, 5 tod chips, chips filter (no conso
 const RA_ROWS = JSON.parse(readFileSync(join(DRUG, 'tests', 'fixtures', 'recent-activity.json'), 'utf8'));
 
 async function stubDataSF(page, { fail = false } = {}) {
-  await page.route('**/data.sfgov.org/**', (route) => {
+  await page.route('**/data.sf.gov/**', (route) => {
     if (fail) return route.abort();
     const u = decodeURIComponent(route.request().url());
     if (u.includes('max(received_datetime)')) {

@@ -240,7 +240,7 @@ const RA_ENC = JSON.parse(readFileSync(join(UDIR, 'fixtures', 'recent-encampment
 const RA_PRES = JSON.parse(readFileSync(join(UDIR, 'fixtures', 'recent-presence.json'), 'utf8'));
 
 async function stubDataSF(page, { fail = false } = {}) {
-  await page.route('**/data.sfgov.org/**', (route) => {
+  await page.route('**/data.sf.gov/**', (route) => {
     if (fail) return route.abort();
     const u = decodeURIComponent(route.request().url());
     const rows = u.includes('vw6y-z8j6') ? RA_ENC : RA_PRES;    // dataset id picks the fixture

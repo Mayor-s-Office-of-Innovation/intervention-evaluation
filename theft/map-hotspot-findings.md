@@ -78,7 +78,7 @@ artifacts.
 
 ## Reproduce
 
-Base `https://data.sfgov.org/resource/wg3w-h783.json?$query=<SoQL>`, `incident_subcategory='Larceny Theft - Shoplifting'`:
+Base `https://data.sf.gov/resource/wg3w-h783.json?$query=<SoQL>`, `incident_subcategory='Larceny Theft - Shoplifting'`:
 
 ```sql
 -- Corner counts per district, a window at a time (swap dates: CY2024 vs 2025-06→2026-06)

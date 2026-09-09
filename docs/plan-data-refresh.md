@@ -25,7 +25,7 @@ Out of scope (not powered by these datasets / not stale): `districts/` geojson, 
 `hypothesis/`, `interventions-api/`, saved-interventions Worker.
 
 ## Key facts
-- All builds are **stdlib Python 3**, anonymous read-only GETs against `data.sfgov.org`.
+- All builds are **stdlib Python 3**, anonymous read-only GETs against `data.sf.gov`.
   No token, no `pip install`. `01_pull.py` already sleeps 0.3s between pages (polite).
 - `provenance.json` `generated` date and partial/settled-month shading are computed from
   `date.today()` at build time — **no manual date edits needed**.

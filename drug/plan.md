@@ -70,7 +70,7 @@ these are optional corroboration.
 
 ## 3. Why the two analyses are pending — the 2026-06-13 portal outage
 
-`data.sfgov.org` returned **HTTP 503 portal-wide** (Tyler "Site Currently Unavailable") on 2026-06-13,
+`data.sf.gov` returned **HTTP 503 portal-wide** (Tyler "Site Currently Unavailable") on 2026-06-13,
 across **every** access path (`/resource/` SoQL, `/api/views/`, `.csv` export) and the portal root,
 regardless of User-Agent or dataset. Origin-level nginx 503, no CDN, no `Retry-After` → the Socrata
 backend itself was down, not a throttle (a throttle is 429/403 on *our* requests, not a site-wide 503)
@@ -168,13 +168,13 @@ built. We also need to confirm the record is an **actual booking**, not a citati
 
 ```
 # subcategory × description counts, 2023+
-https://data.sfgov.org/resource/wg3w-h783.json?$select=incident_subcategory,incident_description,count(*) AS n
+https://data.sf.gov/resource/wg3w-h783.json?$select=incident_subcategory,incident_description,count(*) AS n
   &$where=incident_category='Drug Offense' AND report_type_description='Initial'
           AND resolution!='Unfounded' AND incident_datetime >= '2023-01-01T00:00:00'
   &$group=incident_subcategory,incident_description &$order=n DESC &$limit=200
 
 # how each description resolves (booked vs cited vs none) — cross-tab
-https://data.sfgov.org/resource/wg3w-h783.json?$select=incident_description,resolution,count(*) AS n
+https://data.sf.gov/resource/wg3w-h783.json?$select=incident_description,resolution,count(*) AS n
   &$where=incident_category='Drug Offense' AND report_type_description='Initial'
           AND resolution!='Unfounded' AND incident_datetime >= '2023-01-01T00:00:00'
   &$group=incident_description,resolution &$order=n DESC &$limit=400
@@ -267,7 +267,7 @@ labeled as route-specific, never summed into the headline) without distorting a 
 **Run when portal is up** (continuous combined-taxonomy series, monthly, 2022→now):
 
 ```
-https://data.sfgov.org/resource/vw6y-z8j6.json?$select=date_trunc_ym(requested_datetime) AS ym,count(*) AS n
+https://data.sf.gov/resource/vw6y-z8j6.json?$select=date_trunc_ym(requested_datetime) AS ym,count(*) AS n
   &$where=service_name='Street and Sidewalk Cleaning'
      AND ((service_subtype='garbage_and_debris' AND service_details IN ('needles_less_than_20','needles_20_or_more'))
           OR (service_subtype='Medical Waste' AND service_details='Needles'))
@@ -482,7 +482,7 @@ methodology sections). Not yet wired into the constellation index / deployed.
   pending the live values; paraphernalia & simple-possession explicitly excluded per the user — D3), and
   **(§5) revisit needles** at recent monthly resolution against a pre-registered stability rule (D5).
   Noted the **two-freshness-rules** subtlety (CFS none, incidents settle — D8). **Blocked on a
-  portal-wide `data.sfgov.org` 503 outage** (§3) — diagnosed as origin-level, not throttling/our request;
+  portal-wide `data.sf.gov` 503 outage** (§3) — diagnosed as origin-level, not throttling/our request;
   headline needs no live data, the two analyses do. Wrote this scaffold; live pulls deferred to next
   session at the user's request.
 - **2026-06-13** — **Inherit the unhoused chart legend.** `../unhoused/` added a legend under its

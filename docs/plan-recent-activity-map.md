@@ -62,7 +62,7 @@ browser** — the same no-backend/no-key pattern `./hypothesis` already uses ([h
 This makes it **evergreen** ("where issues are appearing *recently*" is always current) and it fits the
 operational purpose better than a baked snapshot.
 
-**Validated live (2026-07-15):** `GET https://data.sfgov.org/resource/2zdj-bwza.json` with the
+**Validated live (2026-07-15):** `GET https://data.sf.gov/resource/2zdj-bwza.json` with the
 dashboard's exact `cfs_drug` filter + `received_datetime >= <now-Nd>` + `police_district='TENDERLOIN'`
 → HTTP 200, **173 rows**, newest 2026-07-14 (a day newer than the baked build). Returns everything the
 two components need, server-scoped so the payload is only the district+window rows (~hundreds, not MB):

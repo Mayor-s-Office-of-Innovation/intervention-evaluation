@@ -15,7 +15,7 @@ Each is read on two axes (../plan.md §3.5 / D7):
 """
 
 DATASET = "wg3w-h783"
-DOMAIN = "data.sfgov.org"
+DOMAIN = "data.sf.gov"
 DISTRICTS = ["Northern", "Central", "Mission", "Tenderloin",
              "Southern", "Bayview", "Park", "Richmond", "Ingleside", "Taraval"]
 DATE_COL = "incident_date"

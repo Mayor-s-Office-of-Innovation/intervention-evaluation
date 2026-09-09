@@ -2,7 +2,7 @@
 
 Python.org builds on macOS ship without system CA certs, so verified TLS fails. We try
 a verified context first and fall back to an unverified one — acceptable here because every
-request is a read-only GET against the public data.sfgov.org open-data portal (no secrets,
+request is a read-only GET against the public data.sf.gov open-data portal (no secrets,
 no writes, no auth).
 """
 import json

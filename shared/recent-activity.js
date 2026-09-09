@@ -48,7 +48,7 @@ const hourLabel = h => h === 0 ? '12a' : h === 12 ? '12p' : h < 12 ? h + 'a' : (
 const titleCase = s => s ? s[0] + s.slice(1).toLowerCase() : s;
 
 // ── per-signal Socrata shape (abstracts point-geo vs lat/long-column datasets) ──
-const sodaUrl = sig => `https://data.sfgov.org/resource/${sig.dataset}.json`;
+const sodaUrl = sig => `https://data.sf.gov/resource/${sig.dataset}.json`;
 function bboxClause(sig, b) {
   if (sig.geo.kind === 'point')
     return `within_box(${sig.geo.col}, ${b.maxY}, ${b.minX}, ${b.minY}, ${b.maxX})`;
@@ -237,7 +237,7 @@ export function initRecentActivity({ districtName, districtFeature, signals }) {
     };
     const q = soqlLink();
     el.note.innerHTML =
-      `Live from DataSF (<a href="https://data.sfgov.org/d/${sig.dataset}" target="_blank" rel="noopener">${sig.dataset}</a>) · ` +
+      `Live from DataSF (<a href="https://data.sf.gov/d/${sig.dataset}" target="_blank" rel="noopener">${sig.dataset}</a>) · ` +
       `${sig.label} in ${titleCase(districtName)} · ` +
       `last ${weeks} week${weeks > 1 ? 's' : ''} through ${anchor.slice(0, 10)} · ${rows.length} reports` +
       brushLabel() +

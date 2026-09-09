@@ -38,7 +38,7 @@ no `pip install` needed.
 
 ```bash
 cd districts/build
-python3 01_pull.py     # fetch full-history 311 records from data.sfgov.org (~172k rows, a few min)
+python3 01_pull.py     # fetch full-history 311 records from data.sf.gov (~172k rows, a few min)
 python3 02_assign.py   # tag each record with a police district (point-in-polygon)
 python3 03_rollup.py   # emit ../data/aggregates.json, ../data/points/*.json, ../data/provenance.json
 ```

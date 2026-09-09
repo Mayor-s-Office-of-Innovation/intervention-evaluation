@@ -45,7 +45,7 @@ note on the dashboard reports the _combined_ 48-day p90 — which is really the 
 what justified holding the headline 2 months back.** For the reported metric, that buffer is bigger than
 it needs to be.
 
-Verify: [reported rows, incident→report, recent settled window](https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+incident_date%2C+report_datetime+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272024-07-01%27+AND+incident_date+%3C+%272025-07-01%27+ORDER+BY+incident_date)
+Verify: [reported rows, incident→report, recent settled window](https://data.sf.gov/resource/wg3w-h783.json?%24query=SELECT+incident_date%2C+report_datetime+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272024-07-01%27+AND+incident_date+%3C+%272025-07-01%27+ORDER+BY+incident_date)
 (compute `report_datetime − incident_date`; compare to the same query with `resolution='Cite or Arrest Adult'`).
 
 ## 2. How complete is a recent month? (the completion curve)
@@ -78,7 +78,7 @@ month close
   k=3   99.4%   ████████████████████ 97.1–100%      ×1.01  (+1%)
 ```
 
-Source series: [Northern merchant monthly reported counts](https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272021-01-01%27+GROUP+BY+month+ORDER+BY+month).
+Source series: [Northern merchant monthly reported counts](https://data.sf.gov/resource/wg3w-h783.json?%24query=SELECT+date_trunc_ym%28incident_date%29+AS+month%2C+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272021-01-01%27+GROUP+BY+month+ORDER+BY+month).
 
 ## 3. The reporting triangle (recent months filling in)
 
@@ -97,8 +97,8 @@ cohort   final  +0d  +7d  +14d  +30d  +60d
 2026-01    45   100% 100%  100%  100%  100%
 ```
 
-Hand spot-check for **Jan 2025**: [eventual total](https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272025-01-01%27+AND+incident_date+%3C+%272025-02-01%27)
-= **32**, and [filed within +30 days](https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272025-01-01%27+AND+incident_date+%3C+%272025-02-01%27+AND+report_datetime+%3C%3D+%272025-03-02%27)
+Hand spot-check for **Jan 2025**: [eventual total](https://data.sf.gov/resource/wg3w-h783.json?%24query=SELECT+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272025-01-01%27+AND+incident_date+%3C+%272025-02-01%27)
+= **32**, and [filed within +30 days](https://data.sf.gov/resource/wg3w-h783.json?%24query=SELECT+count%28%2A%29+AS+n+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+resolution%3D%27Open+or+Active%27+AND+incident_date+%3E%3D+%272025-01-01%27+AND+incident_date+%3C+%272025-02-01%27+AND+report_datetime+%3C%3D+%272025-03-02%27)
 = **32** → 100% settled within a month. ✔
 
 ## 4. Is the lag stable enough to bake a fixed caveat? (yes)
@@ -151,7 +151,7 @@ caps at 100%) → **high confidence · projected range band viable.**
 - **Publication delta.** For rows loaded _after_ the last full reload (a faithful window, n=4,855), the
   gap from `report_datetime` to `data_loaded_at` is **median 2 days** (83% within 7). So "filed" ≈ "in
   the portal" within a couple of days — the filing triangle is a sound proxy for true settling.
-  Verify: [faithful load-lag window](https://data.sfgov.org/resource/wg3w-h783.json?%24query=SELECT+incident_date%2C+report_datetime%2C+data_loaded_at+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+data_loaded_at+%3E+%272025-06-14%27+ORDER+BY+data_loaded_at+DESC).
+  Verify: [faithful load-lag window](https://data.sf.gov/resource/wg3w-h783.json?%24query=SELECT+incident_date%2C+report_datetime%2C+data_loaded_at+WHERE+%28incident_subcategory+in%28%27Larceny+Theft+-+Shoplifting%27%2C%27Burglary+-+Commercial%27%2C%27Robbery+-+Commercial%27%29%29+AND+police_district%3D%27Northern%27+AND+data_loaded_at+%3E+%272025-06-14%27+ORDER+BY+data_loaded_at+DESC).
 
 **Verification performed**
 - Reproduced the dashboard's baked lag exactly: all-resolutions p90 = **48 d**, 88% ≤30d, n=656. ✔

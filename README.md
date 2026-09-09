@@ -3,7 +3,7 @@
 A set of static, data-backed **OKR dashboards** for San Francisco neighborhood-safety interventions,
 plus a self-serve hypothesis-checking tool. The goal: track whether the city's neighborhood
 interventions are actually moving the numbers that matter, using public SF OpenData. Every number ties
-back to a runnable [Socrata](https://data.sfgov.org) query; the dashboards are pre-baked JSON (no live
+back to a runnable [Socrata](https://data.sf.gov) query; the dashboards are pre-baked JSON (no live
 calls at view time), built offline from Python.
 
 ## Run it locally

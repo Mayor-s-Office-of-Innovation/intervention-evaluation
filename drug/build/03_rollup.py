@@ -31,7 +31,7 @@ CACHE = os.path.join(HERE, "cache")
 DATA = os.path.join(os.path.dirname(HERE), "data")
 EPOCH = datetime.date(2023, 1, 1)
 TODAY = datetime.date.today()
-DOMAIN_INC = "data.sfgov.org"
+DOMAIN_INC = "data.sf.gov"
 
 DISTRICT_LABELS = [DISTRICT_LABEL[d] for d in TARGET_DISTRICTS]
 
