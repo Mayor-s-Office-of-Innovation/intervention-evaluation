@@ -9,6 +9,11 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '
 const SIG_COLOR = { encampment: '#f97316', shelter_maint: '#0d9488', cfs_presence: '#8b5cf6', cfs_drug: '#ef4444' };
 const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const pretty = ym => `${MONTH_ABBR[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+// Exclusive upper bound for the 12-month window: the first day of the month after it ends.
+const t12End = () => {
+  const [y, m] = META.t12_window[1].split('-').map(Number);
+  return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
+};
 
 const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
 const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=cb1_345x_1_c35f447893a720bcee1599fe';
@@ -151,12 +156,10 @@ function drawHalo() {
   const s = selectedId && byId.get(selectedId);
   if (!s) return;
   const base = markerStyle(s).radius;
-  const ink = isDark() ? '#f8fafc' : '#0f172a';
   halo = L.circleMarker([s.lat, s.lng], { pane: 'selected', radius: base + 10, color: '#2563eb', weight: 3,
     dashArray: '6 4', fill: true, fillColor: '#2563eb', fillOpacity: .08, interactive: false }).addTo(map);
   haloLabel = L.tooltip({ pane: 'selected', permanent: true, direction: 'top', offset: [0, -(base + 12)], className: 'halo-label' })
     .setLatLng([s.lat, s.lng]).setContent(`${esc(s.name)} · #${s.code}`).addTo(map);
-  void ink;
 }
 
 // ── search ──
@@ -200,7 +203,7 @@ function wireSearch() {
 // ── stop card ──
 async function showStop(id, { pan = true, push = true } = {}) {
   const s = byId.get(id); if (!s) return;
-  if (push) history.replaceState(null, '', `?stop=${id}`);
+  if (push) history.pushState(null, '', `?stop=${id}`); else history.replaceState(null, '', `?stop=${id}`);
   if (pan) map.setView([s.lat, s.lng], Math.max(map.getZoom(), 16));
   selectedId = id; drawHalo();
   const card = $('#stop-card'); card.hidden = false;
@@ -210,8 +213,13 @@ async function showStop(id, { pan = true, push = true } = {}) {
   const n = META.months.length, partialIdx = n - 1;
   const t12lo = META.months.indexOf(META.t12_window[0]), t12hi = META.months.indexOf(META.t12_window[1]);
   const sum = (arr, lo, hi) => arr == null ? null : arr.slice(lo, hi + 1).reduce((a, b) => a + b, 0);
+  // Returns the mean series and records the count it averaged over — that count varies (144 stops have
+  // fewer than 3 neighbours within 400 m, and 911 signals drop mid-block neighbours), so the label must
+  // state it rather than always claiming 3 (stops-review.md F4).
+  const nbCount = {};
   const nbMean = key => {
     const arrs = nbSer.map(x => x?.[key]?.stop).filter(Boolean);
+    nbCount[key] = arrs.length;
     if (!arrs.length) return null;
     return META.months.map((_, i) => arrs.reduce((a, x) => a + x[i], 0) / arrs.length);
   };
@@ -228,6 +236,12 @@ async function showStop(id, { pan = true, push = true } = {}) {
     const nb12 = nb ? sum(nb, t12lo, t12hi) : null;
     const ring12 = sum(ring, t12lo, t12hi);
     const months = stop ? stop.filter(Boolean).length : 0;
+    const fill = tpl => tpl
+      .replace('{lat}', s.lat).replace('{lng}', s.lng)
+      .replace('{intersection}', (s.intersection || '').replace(/'/g, "''"))
+      .replace('{from}', META.t12_window[0] + '-01').replace('{to}', t12End())
+      .replace(/\$query=(.*)$/, (_, soql) => '$query=' + encodeURIComponent(soql));
+    const qTotal = p.stop_total_template ? fill(p.stop_total_template) : null;
     const q = p.stop_query_template
       .replace('{lat}', s.lat).replace('{lng}', s.lng)
       .replace('{intersection}', (s.intersection || '').replace(/'/g, "''"))
@@ -239,13 +253,15 @@ async function showStop(id, { pan = true, push = true } = {}) {
     return `<div class="sig">
       <p class="sig__t"><span class="sig__sw" style="background:${SIG_COLOR[key]}"></span>${esc(p.label)}</p>
       ${na ? `<p class="sig__na">Not attributable</p>` : `
-      <div class="sig__nums"><span><span class="sig__n">${fmt(t12)}</span> <span class="sig__s">last 12 mo</span></span>
+      <div class="sig__nums"><span>${qTotal
+          ? `<a class="sig__n" href="${qTotal}" target="_blank" rel="noopener" title="Runs on DataSF and returns this number">${fmt(t12)}</a>`
+          : `<span class="sig__n">${fmt(t12)}</span>`} <span class="sig__s">last 12 mo</span></span>
         <span><span class="sig__n">${fmt(all)}</span> <span class="sig__s">since ${META.months[0].slice(0, 4)}</span></span>
         <span class="sig__s">${months} of ${n} months active</span></div>
       ${sparkline(stop, nb, ring, key)}
-      <p class="sig__cmp">Neighbours (3 nearest unsheltered): <b>${fmt(nb12 == null ? null : Math.round(nb12))}</b> · surrounding 25–250 m: <b>${fmt(ring12)}</b> (12 mo)</p>`}
+      <p class="sig__cmp">${nbCount[key] ? `Neighbours (nearest ${nbCount[key]} unsheltered): <b>${fmt(nb12 == null ? null : Math.round(nb12))}</b> · ` : 'No unsheltered neighbour within 400 m · '}surrounding 25–250 m: <b>${fmt(ring12)}</b> (12 mo)</p>`}
       <p class="sig__cmp">${geoNote}</p>
-      <p class="sig__q"><a href="${q}" target="_blank" rel="noopener">Run this query on DataSF ↗</a></p>
+      <p class="sig__q">${qTotal ? 'The 12-month figure links to a DataSF query that returns exactly that number. ' : ''}<a href="${q}" target="_blank" rel="noopener">Monthly series on DataSF ↗</a></p>
     </div>`;
   }).join('');
 
@@ -265,7 +281,7 @@ async function showStop(id, { pan = true, push = true } = {}) {
     </div>
     <div class="facts">
       <div class="fact"><div class="fact__k">Routes</div><div class="fact__v">${s.routes.length ? esc(s.routes.join(' · ')) : '—'}</div>${s.in_gtfs ? '' : '<div class="fact__s">not in current GTFS</div>'}</div>
-      <div class="fact ${boardings ? '' : 'fact--na'}"><div class="fact__k">Boardings / day</div><div class="fact__v">${boardings ? esc(boardings) : 'not available'}</div><div class="fact__s">${boardings ? 'SFMTA figure, average daily; date unverified' : 'stop-level ridership not yet available'}</div></div>
+      <div class="fact ${boardings ? '' : 'fact--na'}"><div class="fact__k">Boardings / day</div><div class="fact__v">${boardings ? esc(boardings) : 'not available'}</div><div class="fact__s">${boardings ? 'Average daily, from the leadership list — no published source to link yet' : 'only available for concern-list stops'}</div></div>
       <div class="fact"><div class="fact__k">Accessible</div><div class="fact__v">${s.accessible ? 'Yes' : 'No'}</div><div class="fact__s">DataSF accessibility flag</div></div>
       <div class="fact"><div class="fact__k">Nearest alternative stop, by route</div>${alts ? `<ul class="alts">${alts}</ul>` : '<div class="fact__v fact--na">—</div>'}<div class="fact__s">straight-line; the walk is a little longer</div></div>
       ${CONCERN.detail ? `<div class="fact fact--na"><div class="fact__k">Contractor missed-servicing</div><div class="fact__v">${c?.missed_servicing_rank ? `rank ${esc(c.missed_servicing_rank)} (Jan–Jun)` : 'not available'}</div><div class="fact__s">per-stop monthly log requested from SFMTA</div></div>` : ''}
@@ -279,11 +295,12 @@ async function showStop(id, { pan = true, push = true } = {}) {
     ${photo}
     ${c && !CONCERN.detail && c.alts_on_list.length ? `<p class="field-hint">Nearest alternative stop(s) also on the concern list: ${c.alts_on_list.map(a => `<a href="?stop=${a}" data-stop="${a}">${esc(byId.get(a)?.name || a)}</a>`).join(', ')}.</p>` : ''}
     <div class="signals">${sigCards}</div>
-    <div class="cmp-legend"><span><i style="background:#64748b"></i>this stop (bars)</span><span><i style="background:#0ea5e9"></i>neighbours, mean</span><span><i style="background:#94a3b8;height:1px;border-top:2px dashed #94a3b8"></i>surrounding 25–250 m, scaled to fit</span><span>faint bar = current partial month</span></div>
+    <div class="cmp-legend"><span><i style="background:#64748b"></i>this stop (bars)</span><span><i style="background:#0ea5e9"></i>neighbours, mean</span><span><i style="background:#94a3b8;height:1px;border-top:2px dashed #94a3b8"></i>surrounding 25–250 m (separate strip, its own scale)</span><span>faint bar = current partial month</span></div>
     <div class="links">
       <a href="${sv}" target="_blank" rel="noopener">Street View at this stop ↗</a>
       <a href="${gm}" target="_blank" rel="noopener">Google Maps ↗</a>
       <a href="${PROV.stops_dataset.url}" target="_blank" rel="noopener">Muni Stops dataset ↗</a>
+      <a href="${PROV.gtfs.url}" target="_blank" rel="noopener">Routes &amp; next stop: SFMTA GTFS${META.gtfs_as_of ? ` (as of ${META.gtfs_as_of})` : ''} ↗</a>
       <a href="?stop=${id}" data-copy>Link to this card</a>
     </div>`;
   card.querySelectorAll('a[data-stop]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); showStop(a.dataset.stop, { pan: true }); }));
@@ -292,8 +309,14 @@ async function showStop(id, { pan = true, push = true } = {}) {
 }
 
 function sparkline(stop, nb, ring, key) {
-  const W = 320, H = 84, pad = { t: 6, b: 14, l: 4, r: 4 };
-  const n = stop.length, iw = W - pad.l - pad.r, ih = H - pad.t - pad.b, bw = iw / n;
+  // Two stacked frames, not one. The stop's bars and the neighbour mean share a scale and can be
+  // compared by height. The ring (25–250 m) counts a much larger area, so it gets its own strip with
+  // its own baseline and its own maximum — separated rather than overlaid, because a second scale
+  // inside the same frame invites a height comparison that isn't valid (stops-review.md F6).
+  const W = 320, H = 106, pad = { t: 6, l: 4, r: 4 };
+  const AXIS_H = 14, RING_H = 20, GAP = 8;
+  const n = stop.length, iw = W - pad.l - pad.r, bw = iw / n;
+  const ih = H - pad.t - AXIS_H - RING_H - GAP;
   const max = Math.max(1, ...stop, ...(nb || []));
   const y = v => pad.t + ih - (v / max) * ih;
   let bars = '';
@@ -301,12 +324,14 @@ function sparkline(stop, nb, ring, key) {
     const h = (v / max) * ih;
     bars += `<rect x="${(pad.l + i * bw).toFixed(1)}" y="${y(v).toFixed(1)}" width="${Math.max(1, bw - 1).toFixed(1)}" height="${h.toFixed(1)}" fill="${SIG_COLOR[key]}" opacity="${i === n - 1 ? .35 : .85}"><title>${pretty(META.months[i])}: ${v}</title></rect>`;
   });
-  const line = (arr, mx) => arr.map((v, i) => `${i ? 'L' : 'M'}${(pad.l + i * bw + bw / 2).toFixed(1)} ${(pad.t + ih - (v / mx) * ih).toFixed(1)}`).join(' ');
-  const nbPath = nb ? `<path d="${line(nb, max)}" fill="none" stroke="#0ea5e9" stroke-width="1.6"/>` : '';
-  const ringMax = Math.max(1, ...ring);
-  const ringPath = `<path d="${line(ring, ringMax)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2" opacity=".8"/>`;
+  const line = (arr, mx, top, hgt) => arr.map((v, i) => `${i ? 'L' : 'M'}${(pad.l + i * bw + bw / 2).toFixed(1)} ${(top + hgt - (v / mx) * hgt).toFixed(1)}`).join(' ');
+  const nbPath = nb ? `<path d="${line(nb, max, pad.t, ih)}" fill="none" stroke="#0ea5e9" stroke-width="1.6"/>` : '';
+  const ringTop = pad.t + ih + GAP, ringMax = Math.max(1, ...ring);
+  const ringPath = `<path d="${line(ring, ringMax, ringTop, RING_H)}" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 2" opacity=".9"/>`;
+  const ringBase = `<line x1="${pad.l}" y1="${ringTop + RING_H}" x2="${W - pad.r}" y2="${ringTop + RING_H}" stroke="#cbd5e1" stroke-width="1"/>`;
+  const ringTag = `<text x="${pad.l}" y="${ringTop - 1}" font-size="8" fill="#94a3b8">surrounding 25–250 m · own scale, peak ${ringMax}</text>`;
   const years = META.months.map((m, i) => m.endsWith('-01') ? `<text x="${(pad.l + i * bw).toFixed(1)}" y="${H - 3}" font-size="9" fill="#94a3b8">${m.slice(0, 4)}</text>` : '').join('');
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="monthly series">${bars}${ringPath}${nbPath}${years}</svg>`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="monthly series for this stop and its neighbours, with the surrounding ring on a separate scale below">${bars}${nbPath}${ringTag}${ringBase}${ringPath}${years}</svg>`;
 }
 
 // ── concern table ──
@@ -337,7 +362,7 @@ function renderConcern() {
 }
 function renderCitywide() {
   $('#citywide-meta').textContent = `311 encampment & unhoused reports within 25 m of a sheltered stop, ${pretty(CITY.window[0])}–${pretty(CITY.window[1])}. ` +
-    `${CITY.sheltered_stops} sheltered stops; ${CITY.sheltered_with_zero} have never had a report. Red rows are on the concern list.`;
+    `${CITY.sheltered_stops} sheltered stops; ${CITY.sheltered_with_zero} have had none since ${META.months[0].slice(0, 4)}. Stops on the concern list are tagged.`;
   $('#citywide-curve').innerHTML = CITY.concentration.map(c => `<div>top <b>${c.top}</b> stops = <b>${Math.round(c.share * 100)}%</b> of reports</div>`).join('');
   const cols = [
     ['#', (r, i) => i + 1, (r, i) => i],
@@ -370,6 +395,7 @@ function renderMethodology() {
     <a href="../unhoused/">unhoused</a> and <a href="../drug/">drug</a> dashboards, so a count here equals the same
     count there for the same place and month.</p>
     ${META.signals.map(k => `<h3>${esc(PROV.signals[k].label)}</h3><p>${esc(PROV.signals[k].caveat)} <span class="tag">${esc(PROV.signals[k].dataset_name)} · ${PROV.signals[k].dataset_id}</span></p>`).join('')}
+    <p>311 records are occasionally re-geocoded after the fact, so counts for past months can shift slightly between weekly refreshes.</p>
     <h3>Geometry</h3>
     <p>311 cases attach to the nearest stop within ${g.stop_radius_m} m. 911 calls are geocoded to the intersection, so each stop is
     assigned to its parent intersection (nearest within ${g.intersection_snap_m} m) and the calls are shared by every stop there;
@@ -377,6 +403,7 @@ function renderMethodology() {
     three nearest unsheltered stops within ${g.neighbour_m} m — the baseline for “is it the shelter or the corner?”.</p>
     <h3>Cost side</h3>
     <p>Routes and the nearest alternative stop come from the SFMTA GTFS feed (straight-line metres). Boardings are the leadership
-    list's own figures where present; stop-level ridership is not yet available. The shelter flag is a DataSF snapshot
+    list's own average-daily figures and exist only for stops on that list — there is no published dataset to link them to yet,
+    so they can't be checked here; citywide stop-level ridership is not available. The shelter flag is a DataSF snapshot
     (as of ${PROV.stops_dataset.shelter_as_of || '?'}) with no history — changes to stops are only recorded once they're logged here.</p>`;
 }

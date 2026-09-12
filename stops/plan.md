@@ -226,7 +226,8 @@ helpers, chart rendering, cross-street search) is the shared library as-is.
 
 - **D15 — Concern-list details are private until cleared (2026-09-12, Aaron).** Permission to publish
   the list's notes and removal requests is unconfirmed, so the repo carries only stop identities and
-  boardings (`concern_list.public.tsv`), the build is public-by-default (`--full` opts in), and the per-stop findings
+  boardings (`concern_list.public.tsv`) — **boardings were explicitly cleared for publication
+  (2026-09-12, Aaron); the notes and removal requests were not** — the build is public-by-default (`--full` opts in), and the per-stop findings
   tables live in gitignored `stops/private/`. Restoring is a rebuild with `--full` plus moving the private
   sections back into this plan.
 - **D14 — Map usability (2026-09-12, Aaron).** (a) Canvas renderer with an 8 px click tolerance so a

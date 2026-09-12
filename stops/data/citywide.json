@@ -5,7 +5,7 @@
   "2026-08"
  ],
  "sheltered_stops": 991,
- "sheltered_with_zero": 188,
+ "sheltered_with_zero": 189,
  "total_t12": 5249,
  "concentration": [
   {
@@ -39,8 +39,8 @@
    "name": "Market St&Castro St E-NS/SB",
    "supe": "8",
    "t12": 363,
-   "all": 756,
-   "months_active": 42,
+   "all": 746,
+   "months_active": 41,
    "on_list": false
   },
   {
@@ -48,8 +48,8 @@
    "name": "Mission St&7th St W-FS/BZ",
    "supe": "6",
    "t12": 157,
-   "all": 425,
-   "months_active": 34,
+   "all": 422,
+   "months_active": 33,
    "on_list": false
   },
   {
@@ -57,8 +57,8 @@
    "name": "O'Farrell St&Taylor St S-MB/BB",
    "supe": "5",
    "t12": 133,
-   "all": 193,
-   "months_active": 32,
+   "all": 188,
+   "months_active": 31,
    "on_list": true
   },
   {
@@ -66,8 +66,8 @@
    "name": "18th St&Castro St NW-FS/BZ",
    "supe": "8",
    "t12": 83,
-   "all": 394,
-   "months_active": 39,
+   "all": 392,
+   "months_active": 38,
    "on_list": false
   },
   {
@@ -75,8 +75,8 @@
    "name": "Leavenworth St&O'Farrell St SE-NS",
    "supe": "5",
    "t12": 82,
-   "all": 253,
-   "months_active": 41,
+   "all": 248,
+   "months_active": 40,
    "on_list": true
   },
   {
@@ -93,8 +93,8 @@
    "name": "Grove St&Gough St SW-NS/BZ",
    "supe": "5",
    "t12": 68,
-   "all": 113,
-   "months_active": 29,
+   "all": 109,
+   "months_active": 28,
    "on_list": false
   },
   {
@@ -111,8 +111,8 @@
    "name": "La Playa St&Cabrillo St SW-FS/BZ",
    "supe": "1",
    "t12": 63,
-   "all": 72,
-   "months_active": 17,
+   "all": 68,
+   "months_active": 16,
    "on_list": false
   },
   {
@@ -129,8 +129,8 @@
    "name": "Castro St&Market St SW-FS/BB",
    "supe": "8",
    "t12": 60,
-   "all": 229,
-   "months_active": 37,
+   "all": 223,
+   "months_active": 36,
    "on_list": false
   },
   {
@@ -147,8 +147,8 @@
    "name": "Mission St&8th St W-FS/BZ",
    "supe": "6",
    "t12": 58,
-   "all": 142,
-   "months_active": 28,
+   "all": 140,
+   "months_active": 27,
    "on_list": false
   },
   {
@@ -156,8 +156,8 @@
    "name": "Sutter St&Polk St NW-FS/BZ",
    "supe": "3",
    "t12": 57,
-   "all": 105,
-   "months_active": 34,
+   "all": 104,
+   "months_active": 33,
    "on_list": false
   },
   {
@@ -165,8 +165,8 @@
    "name": "Laguna St&Hayes St NE-FS/BZ",
    "supe": "5",
    "t12": 53,
-   "all": 85,
-   "months_active": 27,
+   "all": 84,
+   "months_active": 26,
    "on_list": false
   },
   {
@@ -183,8 +183,8 @@
    "name": "O'Farrell St&Larkin St SE-FS/BZ",
    "supe": "5",
    "t12": 46,
-   "all": 56,
-   "months_active": 19,
+   "all": 54,
+   "months_active": 18,
    "on_list": false
   },
   {
@@ -192,8 +192,8 @@
    "name": "7th St&Market St S-NS/SI",
    "supe": "6",
    "t12": 44,
-   "all": 77,
-   "months_active": 27,
+   "all": 74,
+   "months_active": 26,
    "on_list": true
   },
   {
@@ -201,8 +201,8 @@
    "name": "16th St&Valencia St NE-NS/BZ",
    "supe": "9",
    "t12": 40,
-   "all": 60,
-   "months_active": 21,
+   "all": 59,
+   "months_active": 20,
    "on_list": false
   },
   {
@@ -237,8 +237,8 @@
    "name": "Otis & McCoppin St SW-FS/BZ",
    "supe": "6",
    "t12": 37,
-   "all": 61,
-   "months_active": 24,
+   "all": 59,
+   "months_active": 23,
    "on_list": false
   },
   {
@@ -246,8 +246,8 @@
    "name": "Polk St&Pine St SW-FS/BB",
    "supe": "3",
    "t12": 36,
-   "all": 64,
-   "months_active": 27,
+   "all": 62,
+   "months_active": 26,
    "on_list": false
   },
   {
@@ -264,8 +264,8 @@
    "name": "Leavenworth St&Geary St SE-NS/BZ",
    "supe": "5",
    "t12": 33,
-   "all": 102,
-   "months_active": 34,
+   "all": 101,
+   "months_active": 33,
    "on_list": false
   },
   {
@@ -273,8 +273,8 @@
    "name": "Mission St&9th St W-FS/BZ",
    "supe": "6",
    "t12": 32,
-   "all": 77,
-   "months_active": 33,
+   "all": 76,
+   "months_active": 32,
    "on_list": false
   },
   {
@@ -282,8 +282,8 @@
    "name": "8th St&Howard St S-FS/BZ",
    "supe": "6",
    "t12": 32,
-   "all": 103,
-   "months_active": 31,
+   "all": 102,
+   "months_active": 30,
    "on_list": false
   },
   {
@@ -345,8 +345,8 @@
    "name": "Mission St&9th St E-FS/BZ",
    "supe": "6",
    "t12": 28,
-   "all": 75,
-   "months_active": 25,
+   "all": 72,
+   "months_active": 24,
    "on_list": true
   },
   {
@@ -363,8 +363,8 @@
    "name": "Hayes St&Laguna St NE-NS/BZ",
    "supe": "5",
    "t12": 27,
-   "all": 53,
-   "months_active": 20,
+   "all": 52,
+   "months_active": 19,
    "on_list": false
   },
   {
@@ -381,8 +381,8 @@
    "name": "Polk St&Sutter St SW-FS/BB",
    "supe": "3",
    "t12": 27,
-   "all": 89,
-   "months_active": 30,
+   "all": 87,
+   "months_active": 29,
    "on_list": false
   },
   {
@@ -390,8 +390,8 @@
    "name": "16th St&Valencia St SW-NS/BZ",
    "supe": "9",
    "t12": 26,
-   "all": 63,
-   "months_active": 22,
+   "all": 62,
+   "months_active": 21,
    "on_list": false
   },
   {
@@ -399,8 +399,8 @@
    "name": "Grove St&Laguna St SE-FS/PS",
    "supe": "5",
    "t12": 26,
-   "all": 53,
-   "months_active": 24,
+   "all": 51,
+   "months_active": 23,
    "on_list": false
   },
   {
@@ -426,8 +426,8 @@
    "name": "Larkin St&O'Farrell St SE-NS/BZ",
    "supe": "5",
    "t12": 24,
-   "all": 83,
-   "months_active": 28,
+   "all": 82,
+   "months_active": 27,
    "on_list": false
   },
   {
@@ -435,8 +435,8 @@
    "name": "Market St&Drumm St N-NS/BZ",
    "supe": "3",
    "t12": 24,
-   "all": 31,
-   "months_active": 15,
+   "all": 30,
+   "months_active": 14,
    "on_list": false
   },
   {
@@ -471,8 +471,8 @@
    "name": "8th St & Market St S-FS/BZ",
    "supe": "6",
    "t12": 22,
-   "all": 43,
-   "months_active": 19,
+   "all": 42,
+   "months_active": 18,
    "on_list": false
   },
   {
