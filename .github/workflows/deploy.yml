@@ -42,6 +42,8 @@ jobs:
       - run: npx playwright install chromium
       - name: V1+V3 · build invariants + axis alignment
         run: python3 validation/validate_build.py
+      - name: Stops · build invariants + filter parity
+        run: python3 validation/validate_stops.py
       - name: V2 · classifier parity (drug + unhoused)
         run: |
           node validation/parity.mjs drug
@@ -49,7 +51,7 @@ jobs:
       - name: e2e suites (V5 + V7 included)
         # One root playwright.config.js with a project per dashboard (plan-test-harness-consolidation.md).
         # Baked suites only here — hypothesis hits the live Socrata API, a poor deploy gate, so it stays out.
-        run: npx playwright test --project=homepage --project=drug --project=unhoused --project=theft
+        run: npx playwright test --project=homepage --project=drug --project=unhoused --project=theft --project=stops
 
   deploy:
     needs: test
@@ -95,7 +97,7 @@ jobs:
           #   offline Python and is intentionally not shipped). Add a project here
           #   when it gains an index.html. `hypothesis` is the self-serve tool that
           #   used to live at the repo root.
-          for project in theft unhoused drug okr-map hypothesis; do
+          for project in theft unhoused drug stops okr-map hypothesis; do
             if [ ! -f "$project/index.html" ]; then
               echo "Skipping $project (no index.html yet)"
               continue

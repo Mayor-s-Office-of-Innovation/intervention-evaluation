@@ -1,0 +1,326 @@
+{
+ "list_date": "2026-09-12",
+ "source": "concern_list.public.tsv",
+ "detail": false,
+ "note": "Leadership concern list, PUBLIC form: stop identities + the list's boardings figure. Rebuild with --full and the gitignored build/concern_list.tsv to restore notes, rank and removal requests.",
+ "rows": [
+  {
+   "code": "16719",
+   "id": "6719",
+   "list_location": "Turk & Jones NW",
+   "boardings": "38",
+   "matched": true,
+   "name": "Turk St&Jones St NW-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "17301",
+   "id": "7301",
+   "list_location": "O'Farrell & Taylor",
+   "boardings": "212",
+   "matched": true,
+   "name": "O'Farrell St&Taylor St S-MB/BB",
+   "shelter": true,
+   "alts_on_list": [
+    "5814"
+   ]
+  },
+  {
+   "code": "TBD",
+   "id": null,
+   "list_location": "Larkin / Leavenworth?? Not a stop",
+   "boardings": "Not a stop",
+   "matched": false
+  },
+  {
+   "code": "14867",
+   "id": "4867",
+   "list_location": "Leavenworth & O'Farrell SE",
+   "boardings": "138",
+   "matched": true,
+   "name": "Leavenworth St&O'Farrell St SE-NS",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15814",
+   "id": "5814",
+   "list_location": "O'Farrell & Leavenworth SE",
+   "boardings": "65",
+   "matched": true,
+   "name": "O'Farrell St&Leavenworth St SE-NS",
+   "shelter": true,
+   "alts_on_list": [
+    "7301"
+   ]
+  },
+  {
+   "code": "16718",
+   "id": "6718",
+   "list_location": "Turk & Hyde",
+   "boardings": "50",
+   "matched": true,
+   "name": "Turk St&Hyde St NW-FS/BZ",
+   "shelter": false,
+   "alts_on_list": [
+    "6720"
+   ]
+  },
+  {
+   "code": "15087",
+   "id": "5087",
+   "list_location": "Hyde st &Turk St NW-NS/BZ",
+   "boardings": "138",
+   "matched": true,
+   "name": "Hyde St&Turk St NW-NS/BZ",
+   "shelter": false,
+   "alts_on_list": []
+  },
+  {
+   "code": "16720",
+   "id": "6720",
+   "list_location": "Turk st &Levenworth NW-FS/BZ",
+   "boardings": "51",
+   "matched": true,
+   "name": "Turk St&Larkin St NE-NS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "14490",
+   "id": "4490",
+   "list_location": "Eddy & Polk SE",
+   "boardings": "56",
+   "matched": true,
+   "name": "Eddy St&Polk St SE-FS/BZ",
+   "shelter": false,
+   "alts_on_list": []
+  },
+  {
+   "code": "13612",
+   "id": "3612",
+   "list_location": "5th St WS 61ft S/O Eddy St F/N - 1 (Cyril Magnin St & Market St)",
+   "boardings": "10",
+   "matched": true,
+   "name": "Cyril Magnin St(5th St N)&Market St NW-NS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "13611",
+   "id": "3611",
+   "list_location": "5th St ES 109ft N/O Market St F/S - 1",
+   "boardings": "Unused stop",
+   "matched": false
+  },
+  {
+   "code": "15694",
+   "id": "5694",
+   "list_location": "Market St NS 20ft E/O Stockton St F/ - 1",
+   "boardings": "5 (non-acc. stop)",
+   "matched": true,
+   "name": "Market St&Stockton St N-NS/SI",
+   "shelter": false,
+   "alts_on_list": []
+  },
+  {
+   "code": "15542",
+   "id": "5542",
+   "list_location": "Mission St SS 90ft E/O 9th St F/W - 1",
+   "boardings": "215",
+   "matched": true,
+   "name": "Mission St&9th St E-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15683",
+   "id": "5683",
+   "list_location": "Market St NS 20ft E/O Taylor St F/E - 1 9Market St & Mason St)",
+   "boardings": "57",
+   "matched": true,
+   "name": "Market St&Mason St W-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15648",
+   "id": "5648",
+   "list_location": "Market St SS 450ft W/O 6th St F/W - 1 (Market St, between 7th & 6th sts)",
+   "boardings": "49",
+   "matched": true,
+   "name": "Market between 6th & 7th SE-MB/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15656",
+   "id": "5656",
+   "list_location": "Market St NS 20ft E/O 7th St F/ - 1",
+   "boardings": "26 (non-acc. stop)",
+   "matched": true,
+   "name": "Market St&7th St North N-NS/SI",
+   "shelter": false,
+   "alts_on_list": [
+    "5676"
+   ]
+  },
+  {
+   "code": "15676",
+   "id": "5676",
+   "list_location": "Market St NS 20ft E/O Hyde St F/ - 1",
+   "boardings": "9",
+   "matched": true,
+   "name": "Market St&Hyde St N-NS/SI",
+   "shelter": false,
+   "alts_on_list": [
+    "5656"
+   ]
+  },
+  {
+   "code": "15536",
+   "id": "5536",
+   "list_location": "Mission St NS 135ft W/O 5th St F/E - 1",
+   "boardings": "294",
+   "matched": true,
+   "name": "Mission St&5th St W-FS/BZ",
+   "shelter": true,
+   "alts_on_list": [
+    "5534"
+   ]
+  },
+  {
+   "code": "15534",
+   "id": "5534",
+   "list_location": "Mission St NS 75ft W/O 4th St F/E - 1",
+   "boardings": "303",
+   "matched": true,
+   "name": "Mission St&4th St W-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15641",
+   "id": "5641",
+   "list_location": "Market St SS 186ft E/O 3rd St F/W - 1",
+   "boardings": "224",
+   "matched": true,
+   "name": "Market St&3rd St E-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "13245",
+   "id": "3245",
+   "list_location": "11th St WS 117ft S/O Market St F/N - 1",
+   "boardings": "36",
+   "matched": true,
+   "name": "11th St&Market St S-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15528",
+   "id": "5528",
+   "list_location": "Mission St NS 27ft E/O 1st St F/E - 1",
+   "boardings": "99",
+   "matched": true,
+   "name": "Mission St&1st St N-NS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "13196",
+   "id": "3196",
+   "list_location": "Charles P. Brennan Pl ES 20ft N/O Market St F/S - 1 (7th and Market)",
+   "boardings": "184",
+   "matched": true,
+   "name": "7th St&Market St S-NS/SI",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15535",
+   "id": "5535",
+   "list_location": "Mission St SS 26ft W/O 5th St F/W - 1",
+   "boardings": "No data avail.",
+   "matched": true,
+   "name": "Mission St&5th St S-NS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15682",
+   "id": "5682",
+   "list_location": "Market St SS 20ft W/O Main St F/ - 1",
+   "boardings": "2",
+   "matched": true,
+   "name": "Market St&Main St S-NS/SI",
+   "shelter": false,
+   "alts_on_list": []
+  },
+  {
+   "code": "15695",
+   "id": "5695",
+   "list_location": "Market St NS 20ft E/O Taylor St F/ - 1",
+   "boardings": "22 (non-acc. stop)",
+   "matched": true,
+   "name": "Market St&Taylor St N-NS/SI",
+   "shelter": false,
+   "alts_on_list": [
+    "5656"
+   ]
+  },
+  {
+   "code": "15674",
+   "id": "5674",
+   "list_location": "Market St NS 148ft W/O Grant St F/E - 1",
+   "boardings": "38",
+   "matched": true,
+   "name": "Market St&Grant Ave W-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "15696",
+   "id": "5696",
+   "list_location": "Market St NS 20ft E/O Van Ness Ave F/ - 1",
+   "boardings": "78",
+   "matched": true,
+   "name": "Market St&Van Ness Ave N-NS/SI",
+   "shelter": false,
+   "alts_on_list": []
+  },
+  {
+   "code": "15397",
+   "id": "5397",
+   "list_location": "McAllister St & Larkin St",
+   "boardings": "34",
+   "matched": true,
+   "name": "McAllister St&Larkin St NW-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "17287",
+   "id": "7287",
+   "list_location": "Larkin St & McAllister St",
+   "boardings": "35",
+   "matched": true,
+   "name": "Larkin St & Mcallister St",
+   "shelter": true,
+   "alts_on_list": []
+  },
+  {
+   "code": "13160",
+   "id": "3160",
+   "list_location": "4th St & Mission St",
+   "boardings": "6",
+   "matched": true,
+   "name": "4th St&Mission St OB S-FS/BZ",
+   "shelter": true,
+   "alts_on_list": []
+  }
+ ]
+}

@@ -128,6 +128,41 @@ def dashboard_section(name, rel):
     return "\n".join(out)
 
 
+def stops_section():
+    """Stops tool: concern-list totals per signal over the trailing-12-month window, committed → rebuilt,
+    plus coverage counts. Reads stops/data/{stops,concern,provenance,mapillary}.json."""
+    out = ["### Muni stops & shelters"]
+    new_s, new_c, new_p = load_new("stops/data/stops.json"), load_new("stops/data/concern.json"), load_new("stops/data/provenance.json")
+    old_s, old_c = load_old("stops/data/stops.json"), load_old("stops/data/concern.json")
+    out.append(f"- `generated`: {(old_s or {}).get('generated', '—')} → **{new_s.get('generated', '?')}**")
+    out.append(f"- data through: {(old_s or {}).get('latest_complete_month', '—')} → **{new_s.get('latest_complete_month', '?')}** · "
+               f"routes (GTFS) as of **{new_s.get('gtfs_as_of') or 'n/a'}** · shelter flag as of **{new_p.get('stops_dataset', {}).get('shelter_as_of') or 'n/a'}**")
+    n_sh = sum(1 for x in new_s["stops"] if x.get("shelter"))
+    o_sh = sum(1 for x in old_s["stops"] if x.get("shelter")) if old_s else None
+    out.append(f"- stops: {len(old_s['stops']) if old_s else '—'} → **{len(new_s['stops'])}** · sheltered: {o_sh if o_sh is not None else '—'} → **{n_sh}**")
+    try:
+        m = load_new("stops/data/mapillary.json")["stops"]
+        out.append(f"- Mapillary images: **{sum(1 for v in m.values() if v)}** of {len(m)} resolved stops")
+    except Exception:
+        pass
+    if old_s is None:
+        out.append("\n_(no committed version at HEAD — first build; all values are new.)_")
+        return "\n".join(out)
+
+    def totals(S, C):
+        listed = {r["id"] for r in C["rows"] if r.get("matched")}
+        by = {x["id"]: x for x in S["stops"]}
+        return {k: sum((by[i]["t12"].get(k) or 0) for i in listed if i in by) for k in S["signals"]}, len(listed)
+    tn, ln = totals(new_s, new_c)
+    to, lo = totals(old_s, old_c) if old_c else ({}, 0)
+    w = new_s.get("t12_window", ["?", "?"])
+    out += ["", f"Concern list ({lo} → **{ln}** stops), reports within the trailing 12 months ({w[0]}…{w[1]}), summed over listed stops:", "",
+            "| Signal | committed → rebuilt |", "|---|---|"]
+    for k in new_s["signals"]:
+        out.append(f"| {new_p['signals'][k]['label']} | {fmt_cell(to.get(k), tn.get(k))} |")
+    return "\n".join(out)
+
+
 def main():
     parts = [
         "## Weekly data refresh",
@@ -143,7 +178,12 @@ def main():
         except Exception as e:  # never fail the step — report inline
             parts.append(f"### {name}\n\n⚠️ _delta summary failed: {e!r}_")
         parts.append("")
-    parts.append("---\n_Diff should be limited to `*/data/**`. Merge to deploy; a ⚠️ or an unexplained "
+    try:
+        parts.append(stops_section())
+    except Exception as e:
+        parts.append(f"### Muni stops & shelters\n\n⚠️ _delta summary failed: {e!r}_")
+    parts.append("")
+    parts.append("---\n_Diff should be limited to `*/data/**` (incl. `stops/data/**`). Merge to deploy; a ⚠️ or an unexplained "
                  "move is a reason to investigate, not merge._")
     print("\n".join(parts))
 

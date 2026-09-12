@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Muni stops — complaints, use, and what a change would cost</title>
+
+  <!-- Light/dark: follow the OS by default; a small toggle (bottom-right) overrides it for QA. -->
+  <script>
+    (function () {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var KEY = 'theme-override';
+      function override() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+      function isDark() { var o = override(); return o ? o === 'dark' : mq.matches; }
+      function syncBtn(dark) {
+        var b = document.getElementById('theme-toggle');
+        if (!b) return;
+        b.textContent = dark ? '☀' : '☾';
+        var lbl = (dark ? 'Switch to light mode' : 'Switch to dark mode') + (override() ? '' : ' (following OS)');
+        b.title = lbl; b.setAttribute('aria-label', lbl);
+      }
+      function apply() {
+        var dark = isDark(), el = document.documentElement;
+        el.classList.toggle('wa-dark', dark);
+        el.classList.toggle('wa-light', !dark);
+        syncBtn(dark);
+        window.dispatchEvent(new CustomEvent('themechange'));
+      }
+      window.__toggleTheme = function () {
+        try { localStorage.setItem(KEY, isDark() ? 'light' : 'dark'); } catch (e) {}
+        apply();
+      };
+      apply();
+      mq.addEventListener('change', function () { if (!override()) apply(); });
+      document.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('button');
+        b.id = 'theme-toggle'; b.className = 'theme-toggle'; b.type = 'button';
+        b.addEventListener('click', window.__toggleTheme);
+        document.body.appendChild(b);
+        syncBtn(isDark());
+      });
+    })();
+  </script>
+
+  <link rel="stylesheet" href="https://ka-f.webawesome.com/webawesome@3.7.0/styles/webawesome.css" />
+  <script type="module" src="https://ka-f.webawesome.com/webawesome@3.7.0/webawesome.loader.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="breadcrumb-row">
+        <a class="back-home" href="../"><wa-icon name="arrow-left"></wa-icon> All dashboards</a>
+        <span class="app-header__eyebrow">San Francisco · Muni stops &amp; shelters</span>
+      </div>
+      <h1>Bus stops — who complains, who rides, what a change would cost</h1>
+      <p class="app-header__sub">Look up any Muni stop. Four community-reported signals at the stop, the same
+        signals at its neighbours and the surrounding block, and the cost side — routes, boardings, and the walk
+        to the next stop — side by side. Complaints measure who reports, not harm; removal is one option among
+        several reversible ones.</p>
+    </div>
+  </header>
+
+  <main class="app-main wa-stack wa-gap-l">
+    <small id="data-asof" class="field-hint"></small>
+
+    <section class="finder" aria-label="Find a stop">
+      <div class="finder__row">
+        <label class="finder__label" for="stop-search">Find a stop</label>
+        <input id="stop-search" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Stop ID (4 or 5 digits) or street names, e.g. Turk Jones" />
+        <fieldset class="finder__colour" id="colour-by">
+          <legend>Colour dots by</legend>
+        </fieldset>
+        <label class="finder__pin"><input type="checkbox" id="show-concern" checked /><span class="pin-sw"></span>Outline concern-list stops</label>
+        <label class="finder__pin"><input type="checkbox" id="streets-first" /><span class="street-sw"></span>Streets first</label>
+      </div>
+      <ul id="search-results" class="finder__results" hidden></ul>
+    </section>
+
+    <section class="map-block" aria-label="Map of stops">
+      <div id="map" class="map"></div>
+      <div class="map-legend">
+        <span class="lg lg--shelter">● sheltered stop</span>
+        <span class="lg lg--open">○ no shelter</span>
+        <span class="lg lg--pinned">◎ on the concern list (thick dark ring)</span>
+        <span class="lg lg--hint">Dot colour = the checked signal with the most reports there (each scaled to its own citywide spread) · size = the total · Click a dot (or just next to it) for its card · “Streets first” switches to a street-map base and fades the dots</span>
+      </div>
+    </section>
+
+    <section id="stop-card" class="card stop-card" hidden aria-live="polite"></section>
+
+    <section class="card concern-block" id="concern-block">
+      <div class="card__head">
+        <h2>The concern list</h2>
+        <p class="field-hint" id="concern-meta"></p>
+      </div>
+      <div class="table-wrap"><table class="tbl" id="concern-table"></table></div>
+      <p class="field-hint concern-foot--detail">Counts are the last 12 complete months. <em>Basis</em> is where the concern came from:
+        <b>contractor</b> = shelter-cleaning crew found the shelter occupied (missed servicing);
+        <b>cbd</b> = flagged by a community benefit district; <b>state</b> = a State agency complaint.
+        Where the data shows little, the card says so — a request can still be stakeholder-driven.</p>
+      <p class="field-hint concern-foot--public">Counts are the last 12 complete months. This public view shows which stops are on the
+        list and the public data at each; the list's own notes are not published.</p>
+    </section>
+
+    <section class="card citywide-block" id="citywide-block">
+      <div class="card__head">
+        <h2>Citywide context — where encampment reports at sheltered stops concentrate</h2>
+        <p class="field-hint" id="citywide-meta"></p>
+      </div>
+      <div id="citywide-curve" class="curve"></div>
+      <div class="table-wrap"><table class="tbl" id="citywide-table"></table></div>
+    </section>
+
+    <section id="methodology" class="methodology">
+      <h2 class="methodology__title">How to read this</h2>
+      <div id="methodology-body"></div>
+    </section>
+  </main>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

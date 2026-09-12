@@ -1,4 +1,4 @@
-# Weekly automated data refresh for the three OKR dashboards (drug · unhoused · theft).
+# Weekly automated data refresh for the three OKR dashboards (drug · unhoused · theft) and the stops tool.
 # Rebuilds each dashboard's baked JSON from live SF OpenData, runs the validation gates, and — only if
 # everything passes — opens/updates a single rolling PR for Aaron to review + merge. Merging pushes to
 # main (as Aaron), which triggers deploy.yml's full gate + Pages deploy. The homepage reads each
@@ -61,6 +61,37 @@ jobs:
           max_attempts: 3
           command: python3 theft/build/build.py
 
+      # --- Stops tool (stops/plan.md D12). GTFS is best-effort: gtfs.sfmta.com refuses some clients, and
+      # routes only change at SFMTA sign-ups, so on failure 03_join carries the committed routes forward and
+      # the page shows the older "routes as of" date. Mapillary runs only if the secret is set (new stops
+      # only; existing image ids are kept). ---
+      - name: Fetch GTFS (best-effort)
+        run: |
+          mkdir -p stops/build/cache
+          if curl -fsSL --max-time 120 -A "Mozilla/5.0 (intervention-evaluation refresh)" \
+               -o stops/build/cache/gtfs.zip https://gtfs.sfmta.com/transitdata/google_transit.zip \
+             && python3 -c "import zipfile;zipfile.ZipFile('stops/build/cache/gtfs.zip').testzip()"; then
+            echo "GTFS downloaded"
+          else
+            echo "::warning::GTFS download failed — carrying committed routes forward"
+            rm -f stops/build/cache/gtfs.zip
+          fi
+      - name: Rebuild stops
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          timeout_minutes: 30
+          max_attempts: 3
+          command: |
+            cd stops/build
+            python3 01_pull.py
+            if [ -f cache/gtfs.zip ]; then python3 02_gtfs.py; fi
+            python3 03_join.py
+            python3 04_rollup.py
+      - name: Resolve Mapillary images for new stops (skips without the secret)
+        env:
+          MAPILLARY_TOKEN: ${{ secrets.MAPILLARY_TOKEN }}
+        run: cd stops/build && python3 05_mapillary.py
+
       # --- Validate: ALL must pass, or the job fails here and NO PR opens (= stop-on-mismatch) ---
       - name: V1+V3 · build invariants + axis alignment
         run: python3 validation/validate_build.py
@@ -72,6 +103,8 @@ jobs:
         run: |
           python3 validation/trace.py drug
           python3 validation/trace.py unhoused
+      - name: Stops · build invariants + filter parity
+        run: python3 validation/validate_stops.py
 
       # --- Summarize the headline deltas for the PR body (always exits 0) ---
       - name: Compute headline deltas
@@ -86,10 +119,11 @@ jobs:
         with:
           branch: chore/data-refresh
           base: main
-          title: "Weekly data refresh (drug · unhoused · theft)"
+          title: "Weekly data refresh (drug · unhoused · theft · stops)"
           body-path: /tmp/deltas.md
-          commit-message: "chore: refresh dashboard data (drug/unhoused/theft)"
+          commit-message: "chore: refresh dashboard data (drug/unhoused/theft/stops)"
           add-paths: |
             drug/data/**
             unhoused/data/**
             theft/data/**
+            stops/data/**

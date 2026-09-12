@@ -1,0 +1,488 @@
+{
+ "signal": "encampment",
+ "window": [
+  "2025-09",
+  "2026-08"
+ ],
+ "sheltered_stops": 991,
+ "sheltered_with_zero": 188,
+ "total_t12": 5249,
+ "concentration": [
+  {
+   "top": 5,
+   "share": 0.156
+  },
+  {
+   "top": 10,
+   "share": 0.22
+  },
+  {
+   "top": 25,
+   "share": 0.351
+  },
+  {
+   "top": 50,
+   "share": 0.48
+  },
+  {
+   "top": 100,
+   "share": 0.641
+  },
+  {
+   "top": 200,
+   "share": 0.812
+  }
+ ],
+ "top": [
+  {
+   "id": "5667",
+   "name": "Market St&Castro St E-NS/SB",
+   "supe": "8",
+   "t12": 363,
+   "all": 756,
+   "months_active": 42,
+   "on_list": false
+  },
+  {
+   "id": "5539",
+   "name": "Mission St&7th St W-FS/BZ",
+   "supe": "6",
+   "t12": 157,
+   "all": 425,
+   "months_active": 34,
+   "on_list": false
+  },
+  {
+   "id": "7301",
+   "name": "O'Farrell St&Taylor St S-MB/BB",
+   "supe": "5",
+   "t12": 133,
+   "all": 193,
+   "months_active": 32,
+   "on_list": true
+  },
+  {
+   "id": "3325",
+   "name": "18th St&Castro St NW-FS/BZ",
+   "supe": "8",
+   "t12": 83,
+   "all": 394,
+   "months_active": 39,
+   "on_list": false
+  },
+  {
+   "id": "4867",
+   "name": "Leavenworth St&O'Farrell St SE-NS",
+   "supe": "5",
+   "t12": 82,
+   "all": 253,
+   "months_active": 41,
+   "on_list": true
+  },
+  {
+   "id": "5683",
+   "name": "Market St&Mason St W-FS/BZ",
+   "supe": "5",
+   "t12": 81,
+   "all": 164,
+   "months_active": 30,
+   "on_list": true
+  },
+  {
+   "id": "4920",
+   "name": "Grove St&Gough St SW-NS/BZ",
+   "supe": "5",
+   "t12": 68,
+   "all": 113,
+   "months_active": 29,
+   "on_list": false
+  },
+  {
+   "id": "3311",
+   "name": "17th St&Castro St NE-NS/SI",
+   "supe": "8",
+   "t12": 63,
+   "all": 87,
+   "months_active": 25,
+   "on_list": false
+  },
+  {
+   "id": "4843",
+   "name": "La Playa St&Cabrillo St SW-FS/BZ",
+   "supe": "1",
+   "t12": 63,
+   "all": 72,
+   "months_active": 17,
+   "on_list": false
+  },
+  {
+   "id": "3194",
+   "name": "7th St&Howard St E-NS/SI",
+   "supe": "6",
+   "t12": 61,
+   "all": 110,
+   "months_active": 27,
+   "on_list": false
+  },
+  {
+   "id": "4334",
+   "name": "Castro St&Market St SW-FS/BB",
+   "supe": "8",
+   "t12": 60,
+   "all": 229,
+   "months_active": 37,
+   "on_list": false
+  },
+  {
+   "id": "4300",
+   "name": "Geary St&Jones St NW-FS/BZ",
+   "supe": "3",
+   "t12": 58,
+   "all": 102,
+   "months_active": 31,
+   "on_list": false
+  },
+  {
+   "id": "5540",
+   "name": "Mission St&8th St W-FS/BZ",
+   "supe": "6",
+   "t12": 58,
+   "all": 142,
+   "months_active": 28,
+   "on_list": false
+  },
+  {
+   "id": "6603",
+   "name": "Sutter St&Polk St NW-FS/BZ",
+   "supe": "3",
+   "t12": 57,
+   "all": 105,
+   "months_active": 34,
+   "on_list": false
+  },
+  {
+   "id": "5260",
+   "name": "Laguna St&Hayes St NE-FS/BZ",
+   "supe": "5",
+   "t12": 53,
+   "all": 85,
+   "months_active": 27,
+   "on_list": false
+  },
+  {
+   "id": "6612",
+   "name": "Sutter St&Taylor St NW-FS/BZ",
+   "supe": "3",
+   "t12": 53,
+   "all": 70,
+   "months_active": 24,
+   "on_list": false
+  },
+  {
+   "id": "5813",
+   "name": "O'Farrell St&Larkin St SE-FS/BZ",
+   "supe": "5",
+   "t12": 46,
+   "all": 56,
+   "months_active": 19,
+   "on_list": false
+  },
+  {
+   "id": "3196",
+   "name": "7th St&Market St S-NS/SI",
+   "supe": "6",
+   "t12": 44,
+   "all": 77,
+   "months_active": 27,
+   "on_list": true
+  },
+  {
+   "id": "3300",
+   "name": "16th St&Valencia St NE-NS/BZ",
+   "supe": "9",
+   "t12": 40,
+   "all": 60,
+   "months_active": 21,
+   "on_list": false
+  },
+  {
+   "id": "4756",
+   "name": "Geary Blvd&Park Presidio Blvd SE-FS",
+   "supe": "1",
+   "t12": 39,
+   "all": 56,
+   "months_active": 18,
+   "on_list": false
+  },
+  {
+   "id": "5541",
+   "name": "Mission St&8th St E-FS/BZ",
+   "supe": "6",
+   "t12": 38,
+   "all": 89,
+   "months_active": 24,
+   "on_list": false
+  },
+  {
+   "id": "4314",
+   "name": "Castro St&18TH St SE-NS/BB",
+   "supe": "8",
+   "t12": 37,
+   "all": 51,
+   "months_active": 21,
+   "on_list": false
+  },
+  {
+   "id": "7870",
+   "name": "Otis & McCoppin St SW-FS/BZ",
+   "supe": "6",
+   "t12": 37,
+   "all": 61,
+   "months_active": 24,
+   "on_list": false
+  },
+  {
+   "id": "5996",
+   "name": "Polk St&Pine St SW-FS/BB",
+   "supe": "3",
+   "t12": 36,
+   "all": 64,
+   "months_active": 27,
+   "on_list": false
+  },
+  {
+   "id": "5646",
+   "name": "Market between 5th & 6th St SE-MB/BZ",
+   "supe": "6",
+   "t12": 34,
+   "all": 80,
+   "months_active": 25,
+   "on_list": false
+  },
+  {
+   "id": "4865",
+   "name": "Leavenworth St&Geary St SE-NS/BZ",
+   "supe": "5",
+   "t12": 33,
+   "all": 102,
+   "months_active": 34,
+   "on_list": false
+  },
+  {
+   "id": "5543",
+   "name": "Mission St&9th St W-FS/BZ",
+   "supe": "6",
+   "t12": 32,
+   "all": 77,
+   "months_active": 33,
+   "on_list": false
+  },
+  {
+   "id": "7677",
+   "name": "8th St&Howard St S-FS/BZ",
+   "supe": "6",
+   "t12": 32,
+   "all": 103,
+   "months_active": 31,
+   "on_list": false
+  },
+  {
+   "id": "5648",
+   "name": "Market between 6th & 7th SE-MB/BZ",
+   "supe": "6",
+   "t12": 31,
+   "all": 132,
+   "months_active": 26,
+   "on_list": true
+  },
+  {
+   "id": "3477",
+   "name": "24th St&Mission St SW-NS/BZ",
+   "supe": "9",
+   "t12": 30,
+   "all": 51,
+   "months_active": 18,
+   "on_list": false
+  },
+  {
+   "id": "4315",
+   "name": "Castro St&18TH St SW-FS/BB",
+   "supe": "8",
+   "t12": 29,
+   "all": 103,
+   "months_active": 31,
+   "on_list": false
+  },
+  {
+   "id": "5684",
+   "name": "Market St&Montgomery St W-FS/BZ",
+   "supe": "3",
+   "t12": 29,
+   "all": 67,
+   "months_active": 19,
+   "on_list": false
+  },
+  {
+   "id": "6611",
+   "name": "Sutter St&Stockton St NW-FS/BZ",
+   "supe": "3",
+   "t12": 29,
+   "all": 50,
+   "months_active": 25,
+   "on_list": false
+  },
+  {
+   "id": "3329",
+   "name": "18th St&Diamond St SW-NS/BZ",
+   "supe": "8",
+   "t12": 28,
+   "all": 89,
+   "months_active": 34,
+   "on_list": false
+  },
+  {
+   "id": "5542",
+   "name": "Mission St&9th St E-FS/BZ",
+   "supe": "6",
+   "t12": 28,
+   "all": 75,
+   "months_active": 25,
+   "on_list": true
+  },
+  {
+   "id": "5674",
+   "name": "Market St&Grant Ave W-FS/BZ",
+   "supe": "6",
+   "t12": 28,
+   "all": 87,
+   "months_active": 24,
+   "on_list": true
+  },
+  {
+   "id": "4998",
+   "name": "Hayes St&Laguna St NE-NS/BZ",
+   "supe": "5",
+   "t12": 27,
+   "all": 53,
+   "months_active": 20,
+   "on_list": false
+  },
+  {
+   "id": "5654",
+   "name": "Market St&16th St W-FS/BZ",
+   "supe": "8",
+   "t12": 27,
+   "all": 80,
+   "months_active": 32,
+   "on_list": false
+  },
+  {
+   "id": "6002",
+   "name": "Polk St&Sutter St SW-FS/BB",
+   "supe": "3",
+   "t12": 27,
+   "all": 89,
+   "months_active": 30,
+   "on_list": false
+  },
+  {
+   "id": "3301",
+   "name": "16th St&Valencia St SW-NS/BZ",
+   "supe": "9",
+   "t12": 26,
+   "all": 63,
+   "months_active": 22,
+   "on_list": false
+  },
+  {
+   "id": "4921",
+   "name": "Grove St&Laguna St SE-FS/PS",
+   "supe": "5",
+   "t12": 26,
+   "all": 53,
+   "months_active": 24,
+   "on_list": false
+  },
+  {
+   "id": "5554",
+   "name": "Mission St&18th St SW-FS/BZ",
+   "supe": "9",
+   "t12": 25,
+   "all": 31,
+   "months_active": 13,
+   "on_list": false
+  },
+  {
+   "id": "5953",
+   "name": "Park Presidio&Geary Blvd NE-FS/SB",
+   "supe": "1",
+   "t12": 25,
+   "all": 43,
+   "months_active": 20,
+   "on_list": false
+  },
+  {
+   "id": "4851",
+   "name": "Larkin St&O'Farrell St SE-NS/BZ",
+   "supe": "5",
+   "t12": 24,
+   "all": 83,
+   "months_active": 28,
+   "on_list": false
+  },
+  {
+   "id": "5669",
+   "name": "Market St&Drumm St N-NS/BZ",
+   "supe": "3",
+   "t12": 24,
+   "all": 31,
+   "months_active": 15,
+   "on_list": false
+  },
+  {
+   "id": "6719",
+   "name": "Turk St&Jones St NW-FS/BZ",
+   "supe": "5",
+   "t12": 24,
+   "all": 29,
+   "months_active": 11,
+   "on_list": true
+  },
+  {
+   "id": "3476",
+   "name": "24th St&Mission St NE-NS/BZ",
+   "supe": "9",
+   "t12": 23,
+   "all": 37,
+   "months_active": 21,
+   "on_list": false
+  },
+  {
+   "id": "3936",
+   "name": "Cesar Chavez St&South Van Ness Ave NE-NS/BB",
+   "supe": "9",
+   "t12": 23,
+   "all": 88,
+   "months_active": 30,
+   "on_list": false
+  },
+  {
+   "id": "3209",
+   "name": "8th St & Market St S-FS/BZ",
+   "supe": "6",
+   "t12": 22,
+   "all": 43,
+   "months_active": 19,
+   "on_list": false
+  },
+  {
+   "id": "5546",
+   "name": "Mission St&13th St NE-FS/BZ",
+   "supe": "6",
+   "t12": 22,
+   "all": 73,
+   "months_active": 30,
+   "on_list": false
+  }
+ ]
+}
