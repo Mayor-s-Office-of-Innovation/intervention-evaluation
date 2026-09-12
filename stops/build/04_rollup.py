@@ -20,7 +20,8 @@ import sys
 from collections import defaultdict
 
 from signals import (SIGNALS, DATASET_NAME, HISTORY_START, STOP_RADIUS_M, RING_M, NEIGHBOUR_M,
-                     INTERSECTION_SNAP_M, query_url, stop_query_template)
+                     INTERSECTION_SNAP_M, query_url, stop_query_template,
+                     stop_total_template)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, "cache")
@@ -53,6 +54,10 @@ def read_concern(path, detail):
         code = g(r, "Stop ID")
         sid = code[1:] if re.fullmatch(r"1\d{4}", code) else None
         rec = {"code": code, "id": sid, "list_location": g(r, "Location"),
+               # The list's own "Boardings" column is empty in every row; the figures sit under a column
+               # headed "Lift deployments: Aver/day". Confirmed with the list owner (2026-09-12) that these
+               # are daily boardings and the heading is legacy — the value distribution agrees (median 56,
+               # max 303, implausible as lift cycles). No citable SFMTA source yet; the card says so.
                "boardings": g(r, "Boardings") or g(r, "Lift deployments: Aver/day")}   # public: shown on the card
         if detail:
             rec.update({
@@ -149,14 +154,16 @@ def main(concern_path, detail):
         run += sum(s["series"][enc]["stop"][i] for i in t12_idx)
         if k in (5, 10, 25, 50, 100, 200):
             curve.append({"top": k, "share": round(run / total, 3) if total else None})
+    # "all"/"months_active" stop at the last complete month — the stop card does the same, and a
+    # label reading "Since 2023" must mean the same span in both places (stops-review.md F2).
     top = [{"id": s["id"], "name": s["name"], "supe": s["supe"],
             "t12": sum(s["series"][enc]["stop"][i] for i in t12_idx),
-            "all": sum(s["series"][enc]["stop"]),
-            "months_active": sum(1 for v in s["series"][enc]["stop"] if v),
+            "all": sum(s["series"][enc]["stop"][:-1]),
+            "months_active": sum(1 for v in s["series"][enc]["stop"][:-1] if v),
             "on_list": s["id"] in listed} for s in ranked[:50]]
     with open(os.path.join(DATA, "citywide.json"), "w") as f:
         json.dump({"signal": enc, "window": [t12[0], t12[-1]], "sheltered_stops": len(sheltered),
-                   "sheltered_with_zero": sum(1 for s in sheltered if not any(s["series"][enc]["stop"])),
+                   "sheltered_with_zero": sum(1 for s in sheltered if not any(s["series"][enc]["stop"][:-1])),
                    "total_t12": total, "concentration": curve, "top": top}, f, indent=1)
     print(f"citywide.json: top sheltered stop {top[0]['name']} ({top[0]['t12']} in 12 mo); "
           f"top 10 = {curve[1]['share']:.0%}")
@@ -179,6 +186,7 @@ def main(concern_path, detail):
             "verbatim_from": sig["source"], "caveat": sig["caveat"],
             "geo": "311 point → nearest stop ≤25 m" if sig["geo_kind"] == "latlong" else "911 intersection → all stops at it",
             "query_url": query_url(sig), "stop_query_template": stop_query_template(sig),
+            "stop_total_template": stop_total_template(sig),
         }
     with open(os.path.join(DATA, "provenance.json"), "w") as f:
         json.dump(prov, f, indent=1)

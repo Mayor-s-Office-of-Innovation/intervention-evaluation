@@ -110,9 +110,13 @@ html.wa-dark .leaflet-popup-content-wrapper, html.wa-dark .leaflet-popup-tip { b
 .sig__sw { width: .7rem; height: .7rem; border-radius: 3px; display: inline-block; }
 .sig__nums { display: flex; gap: 1rem; margin: .35rem 0 .2rem; align-items: baseline; }
 .sig__n { font-size: 1.4rem; font-weight: 700; }
+/* The 12-month total is a link to a query that returns exactly it (stops-review.md F10). Keep it
+   reading as a number — inherit the text colour, hint with a dotted underline, confirm on hover. */
+a.sig__n { color: inherit; text-decoration: underline dotted var(--muted); text-underline-offset: 3px; cursor: pointer; }
+a.sig__n:hover, a.sig__n:focus-visible { text-decoration: underline solid currentColor; }
 .sig__s { font-size: .75rem; color: var(--muted); }
 .sig__na { color: var(--muted); font-size: .85rem; margin: .3rem 0; }
-.spark { width: 100%; height: 84px; display: block; }
+.spark { width: 100%; height: 106px; display: block; }
 .sig__cmp { font-size: .78rem; color: var(--muted); margin: .25rem 0 0; }
 .sig__cmp b { color: var(--text); }
 .sig__q { font-size: .75rem; margin: .3rem 0 0; }

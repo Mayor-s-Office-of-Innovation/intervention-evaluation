@@ -57,7 +57,13 @@ test('?stop=<id> deep link opens the card with four signals, alternatives, and t
   if (!detail) await expect(card.locator('.pill--pin')).not.toContainText('removal requested');
   await expect(card.locator('.alts li').first()).toContainText('38');
   await expect(page.locator('#concern-block')).toBeVisible({ visible: detail });
-  await expect(card.locator('a[href*="data.sf.gov/resource"]')).toHaveCount(4);
+  // Each signal exposes two runnable links: the 12-month total (on the number itself, a query that
+  // returns exactly that number) and the monthly series behind the sparkline (stops-review.md F10).
+  await expect(card.locator('a[href*="data.sf.gov/resource"]')).toHaveCount(8);
+  await expect(card.locator('.sig a.sig__n')).toHaveCount(4);
+  const totalHref = await card.locator('.sig a.sig__n').first().getAttribute('href');
+  expect(decodeURIComponent(totalHref)).toContain('SELECT count(*) AS reports');
+  expect(decodeURIComponent(totalHref)).not.toContain('GROUP BY');
   await expect(card.locator('.photo__frame')).toHaveCount(1);          // Mapillary embed present for a resolved stop (stubbed)
   await expect(page.locator('#map .halo-label')).toContainText("O'Farrell");   // selection halo + name label on the map
   expect(errors.filter(e => !/webawesome|favicon/i.test(e)), errors.join('\n')).toEqual([]);

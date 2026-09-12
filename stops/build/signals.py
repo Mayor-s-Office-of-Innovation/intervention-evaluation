@@ -139,3 +139,16 @@ def stop_query_template(sig):
                 f"GROUP BY month ORDER BY month")
     # Leave placeholders unencoded so the page can substitute, then encode.
     return f"https://{sig['domain']}/resource/{sig['dataset']}.json?$query=" + soql
+
+
+def stop_total_template(sig):
+    """Per-stop query returning ONE number: the count over a closed [{from}, {to}) window, so the
+    link under a displayed total returns exactly that total rather than a series the reader must sum
+    (stops-review.md F10). The page fills {from}/{to} from META.t12_window."""
+    geo = (f"AND within_circle({sig['point_col']}, {{lat}}, {{lng}}, {STOP_RADIUS_M}) "
+           if sig["geo_kind"] == "latlong" else "AND intersection_name = '{intersection}' ")
+    soql = (f"SELECT count(*) AS reports "
+            f"WHERE {sig['where']} "
+            f"AND {sig['date_col']} >= '{{from}}T00:00:00' AND {sig['date_col']} < '{{to}}T00:00:00' "
+            + geo)
+    return f"https://{sig['domain']}/resource/{sig['dataset']}.json?$query=" + soql
