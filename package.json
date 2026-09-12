@@ -7,12 +7,13 @@
   "scripts": {
     "dev": "http-server . -p 8090 -c-1",
     "serve": "http-server . -p 8090 -c-1 -o /index.html",
-    "test": "playwright test && python3 validation/validate_build.py && node validation/parity.mjs",
+    "test": "playwright test && python3 validation/validate_build.py && python3 validation/validate_stops.py && node validation/parity.mjs",
     "test:e2e": "playwright test",
     "test:homepage": "playwright test --project=homepage",
     "test:theft": "playwright test --project=theft",
     "test:drug": "playwright test --project=drug",
     "test:unhoused": "playwright test --project=unhoused",
+    "test:stops": "playwright test --project=stops",
     "test:hypothesis": "playwright test --project=hypothesis",
     "test:all": "npm test"
   },

@@ -571,7 +571,8 @@ function renderInterventions() {
 // Carry the district the user is viewing into the "Add intervention" tool so the
 // form's (required) District field pre-populates. The card is static in index.html.
 function updateAddLink() {
-  const card = document.querySelector('.tool-card');
+  // Target the hypothesis card explicitly — other tool cards (e.g. ./stops/) must keep their own href.
+  const card = document.querySelector('.tool-card[href^="./hypothesis/"]');
   if (card) card.href = `./hypothesis/?district=${encodeURIComponent(currentDistrict)}`;
 }
 

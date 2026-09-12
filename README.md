@@ -29,6 +29,7 @@ Safety Pod — OKR Dashboards"* — at `http://localhost:8090/`. It links the li
 | **Drug activity** | [`/drug/`](drug/) | Drug activity by district — community 911 reports (↓) + dealer arrests (↑), arrest-composition, displacement map, **time scrubber** | [drug/plan.md](drug/plan.md) · [plan-scrubber.md](drug/plan-scrubber.md) |
 | **Unhoused presence** | [`/unhoused/`](unhoused/) | Encampment (311) + 911 unhoused calls by district, HSOC response, displacement map, **time scrubber** | [unhoused/plan.md](unhoused/plan.md) |
 | **Theft** | [`/theft/`](theft/) | Theft reported by merchants (victim-reported), arrests as context | [theft/plan.md](theft/plan.md) |
+| **Muni stops & shelters** | [`/stops/`](stops/) | Any Muni stop: 311 encampment, 311 shelter maintenance, 911 unhoused, 911 drug at the stop vs. neighbours + routes/boardings/walk-to-next-stop; leadership concern-list overlay | [stops/plan.md](stops/plan.md) |
 | **OKR map** | [`/okr-map/`](okr-map/) | Draft mapping of the OKR spreadsheet → dashboards | — |
 | **Hypothesis tool** | [`/hypothesis/`](hypothesis/) | Self-serve "does the data support my hypothesis?" intervention check (live 911 dispatch data) | [hypothesis/PLAN.md](hypothesis/PLAN.md) |
 
@@ -72,7 +73,7 @@ read-only GETs — no token, no `pip install`). To bring everything current:
 
 **Automated weekly refresh.** [`.github/workflows/refresh-data.yml`](.github/workflows/refresh-data.yml)
 runs the four steps above every Monday (and on-demand via the Actions **Run workflow** button). It
-rebuilds all three, runs the validators as hard gates, and — only if they all pass — opens/updates a
+rebuilds all three plus the stops tool ([stops/README.md](stops/README.md)), runs the validators as hard gates, and — only if they all pass — opens/updates a
 single rolling PR (`chore/data-refresh`) with a before→after headline-delta table
 ([`validation/refresh_delta.py`](validation/refresh_delta.py)). Review the deltas and merge; the merge
 push triggers [`deploy.yml`](.github/workflows/deploy.yml)'s full gate + Pages deploy. A red gate fails

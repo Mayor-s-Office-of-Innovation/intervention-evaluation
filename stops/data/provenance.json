@@ -1,0 +1,70 @@
+{
+ "generated": "2026-09-12",
+ "history_start": "2023-01-01",
+ "stops_dataset": {
+  "id": "i28k-bkz6",
+  "name": "Muni Stops",
+  "shelter_as_of": "2026-04-08",
+  "url": "https://data.sf.gov/Transportation/Muni-Stops/i28k-bkz6"
+ },
+ "gtfs": {
+  "url": "https://gtfs.sfmta.com/transitdata/google_transit.zip",
+  "note": "stop_id = DataSF stopid; routes served + nearest same-route alternative stop (straight-line metres, slight understatement of the walk)."
+ },
+ "geometry": {
+  "stop_radius_m": 25,
+  "ring_m": 250,
+  "neighbour_m": 400,
+  "intersection_snap_m": 100
+ },
+ "signals": {
+  "encampment": {
+   "label": "311 encampment & unhoused reports",
+   "short": "311 encampment",
+   "dataset_id": "vw6y-z8j6",
+   "dataset_name": "SF 311 Cases",
+   "filter": "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",
+   "verbatim_from": "unhoused/build/signals.py \u00b7 encampment",
+   "caveat": "Community 311 reports of encampments (tents/structures) unioned with the unhoused-individual requests SF split out in mid-2025. Counts who reports, not harm; a burst can be one neighbour. Attached to the nearest stop within 25 m of the geocoded point \u2014 311 points snap to the intersection, so part of a stop's count is the corner's count.",
+   "geo": "311 point \u2192 nearest stop \u226425 m",
+   "query_url": "https://data.sf.gov/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+%28service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+OR+%28service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27%29%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+   "stop_query_template": "https://data.sf.gov/resource/vw6y-z8j6.json?$query=SELECT date_trunc_ym(requested_datetime) AS month, count(*) AS reports WHERE (service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%')) AND requested_datetime >= '2023-01-01T00:00:00' AND within_circle(point, {lat}, {lng}, 25) GROUP BY month ORDER BY month"
+  },
+  "shelter_maint": {
+   "label": "311 shelter maintenance (cleaning \u00b7 graffiti \u00b7 damage \u00b7 litter)",
+   "short": "311 shelter-tagged",
+   "dataset_id": "vw6y-z8j6",
+   "dataset_name": "SF 311 Cases",
+   "filter": "(upper(service_subtype) LIKE '%TRANSIT_SHELTER%' OR upper(service_subtype) LIKE '%TRANSIT SHELTER%' OR upper(service_details) LIKE '%TRANSIT_SHELTER%' OR upper(service_details) LIKE '%TRANSIT SHELTER%')",
+   "verbatim_from": "stops/build/signals.py (this tool)",
+   "caveat": "311 cases whose subtype/details are explicitly tagged to a transit shelter or platform: Street & Sidewalk Cleaning, Graffiti, Damaged Property, Litter Receptacle. About the structure itself \u2014 the public maintenance load, not presence.",
+   "geo": "311 point \u2192 nearest stop \u226425 m",
+   "query_url": "https://data.sf.gov/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+%28upper%28service_subtype%29+LIKE+%27%25TRANSIT_SHELTER%25%27+OR+upper%28service_subtype%29+LIKE+%27%25TRANSIT+SHELTER%25%27+OR+upper%28service_details%29+LIKE+%27%25TRANSIT_SHELTER%25%27+OR+upper%28service_details%29+LIKE+%27%25TRANSIT+SHELTER%25%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+   "stop_query_template": "https://data.sf.gov/resource/vw6y-z8j6.json?$query=SELECT date_trunc_ym(requested_datetime) AS month, count(*) AS reports WHERE (upper(service_subtype) LIKE '%TRANSIT_SHELTER%' OR upper(service_subtype) LIKE '%TRANSIT SHELTER%' OR upper(service_details) LIKE '%TRANSIT_SHELTER%' OR upper(service_details) LIKE '%TRANSIT SHELTER%') AND requested_datetime >= '2023-01-01T00:00:00' AND within_circle(point, {lat}, {lng}, 25) GROUP BY month ORDER BY month"
+  },
+  "cfs_presence": {
+   "label": "911 unhoused-presence calls (Sit/Lie + Homeless Complaint)",
+   "short": "911 unhoused",
+   "dataset_id": "2zdj-bwza",
+   "dataset_name": "SFPD Calls for Service (Dispatched)",
+   "filter": "call_type_final_desc IN ('SIT/LIE ENFORCEMENT','HOMELESS COMPLAINT') AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL",
+   "verbatim_from": "unhoused/build/signals.py \u00b7 cfs_sitlie + cfs_homeless",
+   "caveat": "Community-reported SFPD calls (onview N or HSOC, SF-flagged dups dropped). 911 points are intersection centroids, so calls attach to every stop at the same intersection and are labelled 'at this intersection', never 'at this stop'. Mid-block stops get none.",
+   "geo": "911 intersection \u2192 all stops at it",
+   "query_url": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+IN+%28%27SIT%2FLIE+ENFORCEMENT%27%2C%27HOMELESS+COMPLAINT%27%29+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+   "stop_query_template": "https://data.sf.gov/resource/2zdj-bwza.json?$query=SELECT date_trunc_ym(received_datetime) AS month, count(*) AS reports WHERE call_type_final_desc IN ('SIT/LIE ENFORCEMENT','HOMELESS COMPLAINT') AND onview_flag IN ('N','HSOC') AND dup_cad_number IS NULL AND received_datetime >= '2023-01-01T00:00:00' AND intersection_name = '{intersection}' GROUP BY month ORDER BY month"
+  },
+  "cfs_drug": {
+   "label": "911 drug-activity reports (Suspicious Person, drug-noted)",
+   "short": "911 drug",
+   "dataset_id": "2zdj-bwza",
+   "dataset_name": "SFPD Calls for Service (Dispatched)",
+   "filter": "call_type_final_desc = 'SUSPICIOUS PERSON' AND onview_flag IN ('N','HSOC') AND (upper(call_type_original_notes) LIKE '%DRUG%' OR upper(call_type_final_notes) LIKE '%DRUG%' OR upper(call_type_original_notes) LIKE '%DEALER%' OR upper(call_type_final_notes) LIKE '%DEALER%' OR upper(call_type_original_notes) LIKE '%SALES%' OR upper(call_type_final_notes) LIKE '%SALES%' OR upper(call_type_original_notes) LIKE '%METH%' OR upper(call_type_final_notes) LIKE '%METH%')",
+   "verbatim_from": "drug/build/signals.py \u00b7 cfs_drug",
+   "caveat": "Community 'Suspicious Person' calls whose notes mention drugs/dealing/meth \u2014 the drug dashboard's headline channel (~95% drug-related). Intersection-resolution like the other 911 signal.",
+   "geo": "911 intersection \u2192 all stops at it",
+   "query_url": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27SUSPICIOUS+PERSON%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+%28upper%28call_type_original_notes%29+LIKE+%27%25DRUG%25%27+OR+upper%28call_type_final_notes%29+LIKE+%27%25DRUG%25%27+OR+upper%28call_type_original_notes%29+LIKE+%27%25DEALER%25%27+OR+upper%28call_type_final_notes%29+LIKE+%27%25DEALER%25%27+OR+upper%28call_type_original_notes%29+LIKE+%27%25SALES%25%27+OR+upper%28call_type_final_notes%29+LIKE+%27%25SALES%25%27+OR+upper%28call_type_original_notes%29+LIKE+%27%25METH%25%27+OR+upper%28call_type_final_notes%29+LIKE+%27%25METH%25%27%29+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+GROUP+BY+month+ORDER+BY+month",
+   "stop_query_template": "https://data.sf.gov/resource/2zdj-bwza.json?$query=SELECT date_trunc_ym(received_datetime) AS month, count(*) AS reports WHERE call_type_final_desc = 'SUSPICIOUS PERSON' AND onview_flag IN ('N','HSOC') AND (upper(call_type_original_notes) LIKE '%DRUG%' OR upper(call_type_final_notes) LIKE '%DRUG%' OR upper(call_type_original_notes) LIKE '%DEALER%' OR upper(call_type_final_notes) LIKE '%DEALER%' OR upper(call_type_original_notes) LIKE '%SALES%' OR upper(call_type_final_notes) LIKE '%SALES%' OR upper(call_type_original_notes) LIKE '%METH%' OR upper(call_type_final_notes) LIKE '%METH%') AND received_datetime >= '2023-01-01T00:00:00' AND intersection_name = '{intersection}' GROUP BY month ORDER BY month"
+  }
+ }
+}

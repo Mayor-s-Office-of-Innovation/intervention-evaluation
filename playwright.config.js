@@ -29,6 +29,7 @@ export default defineConfig({
     { name: 'theft',      testDir: './theft/tests' },
     { name: 'drug',       testDir: './drug/tests' },
     { name: 'unhoused',   testDir: './unhoused/tests' },
+    { name: 'stops',      testDir: './stops/tests' },
     // hypothesis serves at /hypothesis/ and uses goto('./') + query-relative links,
     // so it needs the subpath baseURL; everything else uses absolute /<dash>/… paths.
     { name: 'hypothesis', testDir: './hypothesis/tests', use: { baseURL: `${BASE}/hypothesis/` } },
