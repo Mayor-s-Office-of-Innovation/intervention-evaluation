@@ -238,7 +238,7 @@ function renderChartView() {
     noun: 'report',
   });
 
-  const note = [`Shaded band = the active time window (cards & map summarise it). Bars outside it are dimmed.`];
+  const note = [`Shaded band = the active time window (cards & map summarize it). Bars outside it are dimmed.`];
   if (state.overlays.citywide && state.focus !== 'Citywide') note.push('Citywide line is scaled to this district’s axis to compare shape, not level.');
   const brk = (sig().breaks || [])[0];
   if (brk) note.push(`Amber marker (${prettyMonth(brk.month)}): ${brk.label}.`);

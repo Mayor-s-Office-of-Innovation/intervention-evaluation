@@ -261,7 +261,7 @@ async function showStop(id, { pan = true, push = true } = {}) {
       ${sparkline(stop, nb, ring, key)}
       <dl class="sig__leg">
         <div class="sig__leg-row"><dt><i class="sig__leg-bar" style="background:${SIG_COLOR[key]}"></i>this stop (bars)</dt><dd><b>${fmt(t12)}</b> <span class="sig__leg-u">12-mo total</span></dd></div>
-        <div class="sig__leg-row"><dt><i class="sig__leg-line"></i>${nbCount[key] ? `neighbours, mean (nearest ${nbCount[key]} stops with no shelter)` : 'no stop without a shelter within 400 m'}</dt><dd>${nbCount[key] ? `<b>${fmt(nb12 == null ? null : Math.round(nb12))}</b> <span class="sig__leg-u">12-mo total</span>` : '—'}</dd></div>
+        <div class="sig__leg-row"><dt><i class="sig__leg-line"></i>${nbCount[key] ? `neighbors, mean (nearest ${nbCount[key]} stops with no shelter)` : 'no stop without a shelter within 400 m'}</dt><dd>${nbCount[key] ? `<b>${fmt(nb12 == null ? null : Math.round(nb12))}</b> <span class="sig__leg-u">12-mo total</span>` : '—'}</dd></div>
         <div class="sig__leg-row"><dt><i class="sig__leg-ring"></i>surrounding block (25–250 m)</dt><dd><b>${fmt(ring12)}</b> <span class="sig__leg-u">12-mo total</span></dd></div>
       </dl>`}
       <p class="sig__cmp">${geoNote}</p>
@@ -335,7 +335,7 @@ function sparkline(stop, nb, ring, key) {
   const ringBase = `<line x1="${pad.l}" y1="${ringTop + RING_H}" x2="${W - pad.r}" y2="${ringTop + RING_H}" stroke="#cbd5e1" stroke-width="1"/>`;
   const ringTag = `<text x="${pad.l}" y="${ringTop - 1}" font-size="8" fill="#94a3b8">surrounding 25–250 m · own scale, peak ${ringMax}</text>`;
   const years = META.months.map((m, i) => m.endsWith('-01') ? `<text x="${(pad.l + i * bw).toFixed(1)}" y="${H - 3}" font-size="9" fill="#94a3b8">${m.slice(0, 4)}</text>` : '').join('');
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="monthly series for this stop and its neighbours, with the surrounding ring on a separate scale below">${bars}${nbPath}${ringTag}${ringBase}${ringPath}${years}</svg>`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="monthly series for this stop and its neighbors, with the surrounding ring on a separate scale below">${bars}${nbPath}${ringTag}${ringBase}${ringPath}${years}</svg>`;
 }
 
 // ── concern table ──
@@ -403,10 +403,10 @@ function renderMethodology() {
     <h3>Geometry</h3>
     <p>311 cases attach to the nearest stop within ${g.stop_radius_m} m. 911 calls are geocoded to the intersection, so each stop is
     assigned to its parent intersection (nearest within ${g.intersection_snap_m} m) and the calls are shared by every stop there;
-    mid-block stops get “not attributable”, never zero. The surrounding ring is ${g.stop_radius_m}–${g.ring_m} m. Neighbours are the
+    mid-block stops get “not attributable”, never zero. The surrounding ring is ${g.stop_radius_m}–${g.ring_m} m. Neighbors are the
     three nearest stops with no shelter within ${g.neighbour_m} m — the baseline for “is it the shelter or the corner?”.</p>
     <h3>Cost side</h3>
-    <p>Routes and the nearest alternative stop come from the SFMTA GTFS feed (straight-line metres). Boardings are the leadership
+    <p>Routes and the nearest alternative stop come from the SFMTA GTFS feed (straight-line meters). Boardings are the leadership
     list's own average-daily figures and exist only for stops on that list — there is no published dataset to link them to yet,
     so they can't be checked here; citywide stop-level ridership is not available. The shelter flag is a DataSF snapshot
     (as of ${PROV.stops_dataset.shelter_as_of || '?'}) with no history — changes to stops are only recorded once they're logged here.</p>`;
