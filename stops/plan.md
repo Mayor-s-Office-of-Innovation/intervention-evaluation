@@ -344,6 +344,15 @@ panels beside it.
 
 ## 13. Changelog
 
+- **2026-09-14** — Per-chart legend (Aaron). Replaced the single shared bottom legend (one slate swatch that
+  matched none of the four differently-coloured charts) with a stacked 3-row legend under each sparkline,
+  keyed to that signal's own bar colour. Each row now carries its own 12-mo total inline with the unit —
+  this stop / neighbours mean / surrounding block — so the neighbours **number** is visibly the blue line.
+  Wording de-jargoned: "nearest N unsheltered" → "nearest N stops with no shelter" (was misreadable as
+  *unsheltered people* on an encampment card); "surrounding 25–250 m (own scale)" → "surrounding block
+  (25–250 m)" (the own-scale/peak caveat still lives on the in-chart strip label, its correct home).
+  Methodology paragraph aligned to the same "no shelter" wording. `.cmp-legend` CSS retired; `.sig__leg*`
+  added. Tests green.
 - **2026-09-12 (later still)** — D15: concern-list details withheld from the repo/page pending permission;
   public-by-default build, `--full` opt-in, private notes moved to `stops/private/`.
 - **2026-09-12 (later)** — Weekly refresh wired (Stage 3, D12): workflow steps, GTFS carry-forward,

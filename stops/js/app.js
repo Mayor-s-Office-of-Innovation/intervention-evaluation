@@ -259,7 +259,11 @@ async function showStop(id, { pan = true, push = true } = {}) {
         <span><span class="sig__n">${fmt(all)}</span> <span class="sig__s">since ${META.months[0].slice(0, 4)}</span></span>
         <span class="sig__s">${months} of ${n} months active</span></div>
       ${sparkline(stop, nb, ring, key)}
-      <p class="sig__cmp">${nbCount[key] ? `Neighbours (nearest ${nbCount[key]} unsheltered): <b>${fmt(nb12 == null ? null : Math.round(nb12))}</b> · ` : 'No unsheltered neighbour within 400 m · '}surrounding 25–250 m: <b>${fmt(ring12)}</b> (12 mo)</p>`}
+      <dl class="sig__leg">
+        <div class="sig__leg-row"><dt><i class="sig__leg-bar" style="background:${SIG_COLOR[key]}"></i>this stop (bars)</dt><dd><b>${fmt(t12)}</b> <span class="sig__leg-u">12-mo total</span></dd></div>
+        <div class="sig__leg-row"><dt><i class="sig__leg-line"></i>${nbCount[key] ? `neighbours, mean (nearest ${nbCount[key]} stops with no shelter)` : 'no stop without a shelter within 400 m'}</dt><dd>${nbCount[key] ? `<b>${fmt(nb12 == null ? null : Math.round(nb12))}</b> <span class="sig__leg-u">12-mo total</span>` : '—'}</dd></div>
+        <div class="sig__leg-row"><dt><i class="sig__leg-ring"></i>surrounding block (25–250 m)</dt><dd><b>${fmt(ring12)}</b> <span class="sig__leg-u">12-mo total</span></dd></div>
+      </dl>`}
       <p class="sig__cmp">${geoNote}</p>
       <p class="sig__q">${qTotal ? 'The 12-month figure links to a DataSF query that returns exactly that number. ' : ''}<a href="${q}" target="_blank" rel="noopener">Monthly series on DataSF ↗</a></p>
     </div>`;
@@ -295,7 +299,7 @@ async function showStop(id, { pan = true, push = true } = {}) {
     ${photo}
     ${c && !CONCERN.detail && c.alts_on_list.length ? `<p class="field-hint">Nearest alternative stop(s) also on the concern list: ${c.alts_on_list.map(a => `<a href="?stop=${a}" data-stop="${a}">${esc(byId.get(a)?.name || a)}</a>`).join(', ')}.</p>` : ''}
     <div class="signals">${sigCards}</div>
-    <div class="cmp-legend"><span><i style="background:#64748b"></i>this stop (bars)</span><span><i style="background:#0ea5e9"></i>neighbours, mean</span><span><i style="background:#94a3b8;height:1px;border-top:2px dashed #94a3b8"></i>surrounding 25–250 m (separate strip, its own scale)</span><span>faint bar = current partial month</span></div>
+    <p class="signals__note">Faint final bar in each chart = current partial month.</p>
     <div class="links">
       <a href="${sv}" target="_blank" rel="noopener">Street View at this stop ↗</a>
       <a href="${gm}" target="_blank" rel="noopener">Google Maps ↗</a>
@@ -400,7 +404,7 @@ function renderMethodology() {
     <p>311 cases attach to the nearest stop within ${g.stop_radius_m} m. 911 calls are geocoded to the intersection, so each stop is
     assigned to its parent intersection (nearest within ${g.intersection_snap_m} m) and the calls are shared by every stop there;
     mid-block stops get “not attributable”, never zero. The surrounding ring is ${g.stop_radius_m}–${g.ring_m} m. Neighbours are the
-    three nearest unsheltered stops within ${g.neighbour_m} m — the baseline for “is it the shelter or the corner?”.</p>
+    three nearest stops with no shelter within ${g.neighbour_m} m — the baseline for “is it the shelter or the corner?”.</p>
     <h3>Cost side</h3>
     <p>Routes and the nearest alternative stop come from the SFMTA GTFS feed (straight-line metres). Boardings are the leadership
     list's own average-daily figures and exist only for stops on that list — there is no published dataset to link them to yet,

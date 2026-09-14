@@ -120,8 +120,18 @@ a.sig__n:hover, a.sig__n:focus-visible { text-decoration: underline solid curren
 .sig__cmp { font-size: .78rem; color: var(--muted); margin: .25rem 0 0; }
 .sig__cmp b { color: var(--text); }
 .sig__q { font-size: .75rem; margin: .3rem 0 0; }
-.cmp-legend { display: flex; gap: 1rem; font-size: .75rem; color: var(--muted); margin: .5rem 0 0; flex-wrap: wrap; }
-.cmp-legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: .3rem; }
+.sig__leg { font-size: .75rem; color: var(--muted); margin: .3rem 0 0; display: grid; gap: .12rem; }
+.sig__leg-row { display: flex; align-items: baseline; gap: .5rem; }
+.sig__leg-row dt { display: flex; align-items: center; gap: .35rem; margin: 0; min-width: 0; flex: 1; }
+.sig__leg-row dd { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sig__leg-row dd b { color: var(--text); }
+.sig__leg-u { font-size: .68rem; opacity: .8; }
+.sig__leg-bar { width: .7rem; height: .7rem; border-radius: 2px; flex: none; }
+.sig__leg-line, .sig__leg-ring { width: 16px; height: 0; flex: none; }
+.sig__leg-line { border-top: 2px solid #0ea5e9; }
+.sig__leg-ring { border-top: 2px dashed #94a3b8; }
+.sig__leg i { display: inline-block; }
+.signals__note { font-size: .72rem; color: var(--muted); margin: .5rem 0 0; }
 .links { display: flex; flex-wrap: wrap; gap: .6rem 1.2rem; margin-top: .8rem; font-size: .85rem; }
 
 .concern-block .concern-foot--public { display: none; }
