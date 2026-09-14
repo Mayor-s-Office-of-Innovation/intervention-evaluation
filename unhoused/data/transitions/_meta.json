@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-07",
+  "generated": "2026-09-14",
   "lurie_inauguration": "2025-01-08",
   "pre_window": [
     "2023-01",
@@ -3324,12 +3324,12 @@
         }
       },
       "counts": {
-        "emerged": 333,
+        "emerged": 332,
         "cooled": 137,
         "persistent": 89
       },
-      "cells": 3213,
-      "classified_fixed_preset": 559
+      "cells": 3223,
+      "classified_fixed_preset": 558
     },
     "cfs_presence": {
       "label": "911 calls about unhoused presence",
@@ -6591,7 +6591,7 @@
         "cooled": 72,
         "persistent": 63
       },
-      "cells": 1344,
+      "cells": 1348,
       "classified_fixed_preset": 259
     }
   }
