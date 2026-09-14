@@ -58,6 +58,7 @@ async function series(id) {
   buildMap();
   wireSearch();
   renderConcern();
+  buildCitywidePicker();
   renderCitywide();
   renderMethodology();
 
@@ -364,19 +365,78 @@ function renderConcern() {
   ];
   sortableTable($('#concern-table'), cols, rows.filter(r => r.matched), detail ? 2 : 4);
 }
+// Citywide concentration: the curve + top-stops table recompute in-browser for any subset of the
+// four signals. CITY.stops carries per-signal [t12, all, active] index-aligned to CITY.signals for
+// every active sheltered stop, so no series-shard load is needed. See plan-citywide-toggle.md.
+let citySignals = new Set();     // checked signal keys for the citywide section (default: encampment)
+function buildCitywidePicker() {
+  citySignals = new Set(['encampment']);
+  const box = $('#citywide-signals');
+  box.insertAdjacentHTML('beforeend', CITY.signals.map(k =>
+    `<label><input type="checkbox" value="${k}" ${k === 'encampment' ? 'checked' : ''} /><span class="sw" style="background:${SIG_COLOR[k]}"></span>${esc(PROV.signals[k].short)}</label>`).join(''));
+  box.addEventListener('change', e => {
+    if (e.target.checked) citySignals.add(e.target.value); else citySignals.delete(e.target.value);
+    renderCitywide();
+  });
+}
 function renderCitywide() {
-  $('#citywide-meta').textContent = `311 encampment & unhoused reports within 25 m of a sheltered stop, ${pretty(CITY.window[0])}–${pretty(CITY.window[1])}. ` +
-    `${CITY.sheltered_stops} sheltered stops; ${CITY.sheltered_with_zero} have had none since ${META.months[0].slice(0, 4)}. Stops on the concern list are tagged.`;
-  $('#citywide-curve').innerHTML = CITY.concentration.map(c => `<div>top <b>${c.top}</b> stops = <b>${Math.round(c.share * 100)}%</b> of reports</div>`).join('');
+  const keys = CITY.signals.filter(k => citySignals.has(k));   // preserve canonical order
+  const idx = keys.map(k => CITY.signals.indexOf(k));
+  const sum = (arr) => idx.reduce((a, i) => a + (arr[i] || 0), 0);
+  // Months active for the checked set = popcount of the OR of the per-signal month bitmasks, so it is
+  // the exact union of active months, not a sum (double-counts) or max (undercounts). Masks span >32
+  // bits, so OR/count in BigInt.
+  const activeMonths = (v) => {
+    let m = 0n;
+    for (const i of idx) m |= BigInt(v.mask[i] || 0);
+    let c = 0;
+    while (m) { c += Number(m & 1n); m >>= 1n; }
+    return c;
+  };
+  // Per-stop combined totals for the checked set.
+  const rows = Object.entries(CITY.stops).map(([id, v]) => ({
+    id, name: v.name, supe: v.supe, on_list: v.on_list,
+    t12: sum(v.t12), all: sum(v.all), active: activeMonths(v),
+  })).filter(r => r.all > 0);   // a stop with no activity in ANY checked signal drops out
+  const total = rows.reduce((a, r) => a + r.t12, 0);
+
+  // Concentration curve over the checked set.
+  const ranked = rows.slice().sort((a, b) => b.t12 - a.t12);
+  let run = 0;
+  const curve = [];
+  ranked.forEach((r, k) => {
+    run += r.t12;
+    if ([5, 10, 25, 50, 100, 200].includes(k + 1)) curve.push({ top: k + 1, share: total ? run / total : null });
+  });
+
+  // Meta line: name the checked signals, and warn when a 911 (intersection-resolved) signal is mixed in.
+  const has911 = keys.some(k => PROV.signals[k].geo && PROV.signals[k].geo.startsWith('911'));
+  const names = keys.map(k => PROV.signals[k].short);
+  const onlyEnc = keys.length === 1 && keys[0] === 'encampment';
+  const withZero = CITY.sheltered_stops - rows.length;
+  $('#citywide-meta').textContent =
+    (onlyEnc
+      ? `Encampment signal only — 311 encampment & unhoused reports within 25 m of a sheltered stop`
+      : keys.length
+        ? `Counting ${names.join(' + ')} within reach of a sheltered stop`
+        : `No signal selected — pick at least one above`) +
+    `, ${pretty(CITY.window[0])}–${pretty(CITY.window[1])}. ` +
+    (has911 ? `911 signals attach to a stop's whole intersection, so those counts are shared by every stop at the corner — coarser than the 311 point match. ` : ``) +
+    `${CITY.sheltered_stops} sheltered stops; ${withZero} have had none of the selected signals since ${META.months[0].slice(0, 4)}. Stops on the concern list are tagged.`;
+
+  $('#citywide-curve').innerHTML = keys.length
+    ? curve.map(c => `<div>top <b>${c.top}</b> stops = <b>${Math.round(c.share * 100)}%</b> of selected reports</div>`).join('')
+    : '';
+
   const cols = [
     ['#', (r, i) => i + 1, (r, i) => i],
     ['Stop', r => `<a href="?stop=${r.id}" data-stop="${r.id}">${esc(r.name)}</a>${r.on_list ? ' <span class="tag" style="color:#dc2626">on list</span>' : ''}`, r => r.name],
     ['District', r => r.supe ? 'D' + r.supe : '—', r => +r.supe || 0],
     ['12 mo', r => fmt(r.t12), r => r.t12, 'num'],
     ['Since 2023', r => fmt(r.all), r => r.all, 'num'],
-    ['Months active', r => r.months_active, r => r.months_active, 'num'],
+    ['Months active', r => r.active, r => r.active, 'num'],
   ];
-  sortableTable($('#citywide-table'), cols, CITY.top.slice(0, 25), 3);
+  sortableTable($('#citywide-table'), cols, ranked.slice(0, 25), 3);
 }
 function sortableTable(tbl, cols, rows, defaultCol) {
   let sortCol = defaultCol, desc = true;
@@ -405,6 +465,11 @@ function renderMethodology() {
     assigned to its parent intersection (nearest within ${g.intersection_snap_m} m) and the calls are shared by every stop there;
     mid-block stops get “not attributable”, never zero. The surrounding ring is ${g.stop_radius_m}–${g.ring_m} m. Neighbors are the
     three nearest stops with no shelter within ${g.neighbour_m} m — the baseline for “is it the shelter or the corner?”.</p>
+    <h3>Citywide concentration</h3>
+    <p>The concentration section counts whichever signals you check, over every sheltered stop. “Top N stops = X%” is the share of
+    all selected reports that fall at the N most-active sheltered stops, so it rises with concentration. When a 911 signal is
+    included the figures mix two attribution models — 311 points snap to the nearest stop, 911 calls are shared across a whole
+    intersection — so a combined count is coarser than either signal alone; the per-stop cards keep them separate.</p>
     <h3>Cost side</h3>
     <p>Routes and the nearest alternative stop come from the SFMTA GTFS feed (straight-line meters). Boardings are the leadership
     list's own average-daily figures and exist only for stops on that list — there is no published dataset to link them to yet,
