@@ -365,9 +365,10 @@ function renderConcern() {
   sortableTable($('#concern-table'), cols, rows.filter(r => r.matched), detail ? 2 : 4);
 }
 function renderCitywide() {
-  $('#citywide-meta').textContent = `311 encampment & unhoused reports within 25 m of a sheltered stop, ${pretty(CITY.window[0])}–${pretty(CITY.window[1])}. ` +
+  $('#citywide-meta').textContent = `Encampment signal only — 311 encampment & unhoused reports within 25 m of a sheltered stop, ${pretty(CITY.window[0])}–${pretty(CITY.window[1])}. ` +
+    `Not the shelter-maintenance, 911-presence, or 911-drug signals shown on the stop cards. ` +
     `${CITY.sheltered_stops} sheltered stops; ${CITY.sheltered_with_zero} have had none since ${META.months[0].slice(0, 4)}. Stops on the concern list are tagged.`;
-  $('#citywide-curve').innerHTML = CITY.concentration.map(c => `<div>top <b>${c.top}</b> stops = <b>${Math.round(c.share * 100)}%</b> of reports</div>`).join('');
+  $('#citywide-curve').innerHTML = CITY.concentration.map(c => `<div>top <b>${c.top}</b> stops = <b>${Math.round(c.share * 100)}%</b> of encampment reports</div>`).join('');
   const cols = [
     ['#', (r, i) => i + 1, (r, i) => i],
     ['Stop', r => `<a href="?stop=${r.id}" data-stop="${r.id}">${esc(r.name)}</a>${r.on_list ? ' <span class="tag" style="color:#dc2626">on list</span>' : ''}`, r => r.name],
