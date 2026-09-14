@@ -151,6 +151,11 @@ a.sig__n:hover, a.sig__n:focus-visible { text-decoration: underline solid curren
 .curve { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: .8rem; }
 .curve div { background: var(--surface-2); border-radius: 8px; padding: .4rem .7rem; font-size: .85rem; }
 .curve b { font-size: 1.05rem; }
+.citywide-signals { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; font-size: .85rem; color: var(--muted); border: 0; padding: 0; margin: .2rem 0 .9rem; }
+.citywide-signals legend { float: left; padding: 0; margin-right: .2rem; }
+.citywide-signals label { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; color: var(--text); }
+.citywide-signals input { accent-color: var(--c-blue); margin: 0; }
+.citywide-signals .sw { width: .7rem; height: .7rem; border-radius: 3px; display: inline-block; }
 
 .methodology { margin-top: 1rem; padding-top: 1.25rem; border-top: 1px solid var(--c-line); }
 .methodology__title { font-size: 1.1rem; font-weight: 700; margin: 0 0 .5rem; }

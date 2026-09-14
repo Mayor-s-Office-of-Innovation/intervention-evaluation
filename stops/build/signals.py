@@ -73,7 +73,7 @@ SIGNALS = {
     "encampment": _311(
         _ENCAMPMENT_WHERE,
         label="311 encampment & unhoused reports",
-        short="311 encampment",
+        short="311 encampment + unhoused",
         source="unhoused/build/signals.py · encampment",
         caveat="Community 311 reports of encampments (tents/structures) unioned with the unhoused-individual "
                "requests SF split out in mid-2025. Counts who reports, not harm; a burst can be one neighbour. "

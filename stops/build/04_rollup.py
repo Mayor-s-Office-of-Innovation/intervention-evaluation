@@ -144,29 +144,64 @@ def main(concern_path, detail):
     print(f"concern.json ({'FULL' if detail else 'public'}): {len(rows)} rows, {matched} matched"
           + (f", {sum(1 for r in rows if r.get('removal_requested'))} removal requests" if detail else ""))
 
-    # ── citywide context (D9) ──
-    enc = "encampment"
+    # ── citywide context (D9) ── multi-signal: the client recomputes the concentration curve and
+    # top-stops table for any checked subset of signals, so we bake per-signal totals for EVERY
+    # sheltered stop with any activity (not just the encampment top 50 — a stop ranked low on
+    # encampment can be top-5 on 911-drug). See plan-citywide-toggle.md.
+    sig_keys = list(SIGNALS.keys())
     sheltered = [s for s in stops.values() if s["shelter"]]
-    ranked = sorted(sheltered, key=lambda s: -sum(s["series"][enc]["stop"][i] for i in t12_idx))
-    total = sum(sum(s["series"][enc]["stop"][i] for i in t12_idx) for s in sheltered)
-    curve, run = [], 0
-    for k, s in enumerate(ranked, 1):
-        run += sum(s["series"][enc]["stop"][i] for i in t12_idx)
-        if k in (5, 10, 25, 50, 100, 200):
-            curve.append({"top": k, "share": round(run / total, 3) if total else None})
-    # "all"/"months_active" stop at the last complete month — the stop card does the same, and a
+
+    def _ser(s, key):
+        # A None series (signal never applies to this stop) reads as all-zero here.
+        return s["series"][key]["stop"] or [0] * len(months)
+
+    def _t12(s, key):
+        return sum(_ser(s, key)[i] for i in t12_idx)
+
+    # "all"/"active" stop at the last complete month — the stop card does the same, and a
     # label reading "Since 2023" must mean the same span in both places (stops-review.md F2).
-    top = [{"id": s["id"], "name": s["name"], "supe": s["supe"],
-            "t12": sum(s["series"][enc]["stop"][i] for i in t12_idx),
-            "all": sum(s["series"][enc]["stop"][:-1]),
-            "months_active": sum(1 for v in s["series"][enc]["stop"][:-1] if v),
-            "on_list": s["id"] in listed} for s in ranked[:50]]
+    def _mask(s, key):
+        # Bitmask of active (nonzero) months over complete months only ([:-1] drops the partial month,
+        # matching how "all"/"active" are counted). The client ORs the checked signals' masks and counts
+        # the bits, so combined "months active" is the exact union, not a per-signal sum or max.
+        m = 0
+        for i, v in enumerate(_ser(s, key)[:-1]):
+            if v:
+                m |= 1 << i
+        return m
+
+    per_stop = {}
+    for s in sheltered:
+        t12v = [_t12(s, k) for k in sig_keys]
+        allv = [sum(_ser(s, k)[:-1]) for k in sig_keys]
+        maskv = [_mask(s, k) for k in sig_keys]
+        if not any(allv):
+            continue  # no activity in any signal since HISTORY_START — omit to keep the file small
+        per_stop[s["id"]] = {"name": s["name"], "supe": s["supe"], "on_list": s["id"] in listed,
+                             "t12": t12v, "all": allv, "mask": maskv}
+
+    # Encampment-only fallback so a no-JS / legacy reader still sees the original headline.
+    enc_i = sig_keys.index("encampment")
+    total_enc = sum(v["t12"][enc_i] for v in per_stop.values())
+    ranked = sorted(per_stop.values(), key=lambda v: -v["t12"][enc_i])
+    curve, run = [], 0
+    for k, v in enumerate(ranked, 1):
+        run += v["t12"][enc_i]
+        if k in (5, 10, 25, 50, 100, 200):
+            curve.append({"top": k, "share": round(run / total_enc, 3) if total_enc else None})
+
+    # sheltered_with_zero is the encampment-only fallback (matches "signal": "encampment"); the client
+    # recomputes it for whatever signal set is checked. Omitted stops are zero in every signal, so they
+    # count as zero for any set — the client only needs sheltered_stops + the per-stop "all" it has here.
+    enc_zero = sum(1 for s in sheltered if not any(_ser(s, "encampment")[:-1]))
     with open(os.path.join(DATA, "citywide.json"), "w") as f:
-        json.dump({"signal": enc, "window": [t12[0], t12[-1]], "sheltered_stops": len(sheltered),
-                   "sheltered_with_zero": sum(1 for s in sheltered if not any(s["series"][enc]["stop"][:-1])),
-                   "total_t12": total, "concentration": curve, "top": top}, f, indent=1)
-    print(f"citywide.json: top sheltered stop {top[0]['name']} ({top[0]['t12']} in 12 mo); "
-          f"top 10 = {curve[1]['share']:.0%}")
+        json.dump({"signals": sig_keys, "signal": "encampment", "window": [t12[0], t12[-1]],
+                   "sheltered_stops": len(sheltered),
+                   "sheltered_with_zero": enc_zero,
+                   "total_t12": total_enc, "concentration": curve,
+                   "stops": per_stop}, f, indent=1)
+    print(f"citywide.json: {len(per_stop)} active sheltered stops × {len(sig_keys)} signals; "
+          f"encampment top 10 = {curve[1]['share']:.0%}")
 
     # ── provenance ──
     prov = {"generated": TODAY.isoformat(), "history_start": HISTORY_START,

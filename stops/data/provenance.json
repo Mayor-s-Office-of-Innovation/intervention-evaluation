@@ -20,7 +20,7 @@
  "signals": {
   "encampment": {
    "label": "311 encampment & unhoused reports",
-   "short": "311 encampment",
+   "short": "311 encampment + unhoused",
    "dataset_id": "vw6y-z8j6",
    "dataset_name": "SF 311 Cases",
    "filter": "(service_name IN ('Encampment','Encampments') OR (service_name='General Request' AND lower(service_subtype) LIKE '%homeless%'))",

@@ -37,6 +37,24 @@ test('landing: map, concern table, citywide table render (no console errors)', a
   await expect(page.locator('#map .osm-tiles')).toBeAttached();          // OSM base swapped in
   await page.locator('#streets-first').uncheck();
   await expect(page.locator('#map .osm-tiles')).toHaveCount(0);
+
+  // Citywide concentration toggle: defaults to encampment only, recomputes curve + table on change.
+  await expect(page.locator('#citywide-signals input[type=checkbox]')).toHaveCount(4);
+  await expect(page.locator('#citywide-signals input[type=checkbox]:checked')).toHaveCount(1);
+  await expect(page.locator('#citywide-signals input[value=encampment]')).toBeChecked();
+  await expect(page.locator('#citywide-meta')).toContainText('Encampment signal only');
+  await expect(page.locator('#citywide-curve')).toContainText('of selected reports');
+  const encBody = await page.locator('#citywide-table tbody').textContent();
+  // Adding a 911 signal recomputes the ranking and surfaces the intersection-attribution caveat.
+  await page.locator('#citywide-signals input[value=cfs_drug]').check();
+  await expect(page.locator('#citywide-signals input[type=checkbox]:checked')).toHaveCount(2);
+  await expect(page.locator('#citywide-meta')).toContainText('intersection');
+  await expect(page.locator('#citywide-table tbody')).not.toHaveText(encBody);
+  // Unchecking everything shows the prompt and empties the curve.
+  await page.locator('#citywide-signals input[value=encampment]').uncheck();
+  await page.locator('#citywide-signals input[value=cfs_drug]').uncheck();
+  await expect(page.locator('#citywide-meta')).toContainText('No signal selected');
+  await page.locator('#citywide-signals input[value=encampment]').check();
   expect(errors.filter(e => !/webawesome|favicon/i.test(e)), errors.join('\n')).toEqual([]);
 });
 
