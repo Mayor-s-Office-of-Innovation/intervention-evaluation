@@ -53,6 +53,11 @@ a { color: var(--c-blue); }
 .finder__colour label { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; color: var(--text); }
 .finder__colour input { accent-color: var(--c-blue); margin: 0; }
 .finder__colour .sw { width: .7rem; height: .7rem; border-radius: 3px; display: inline-block; }
+/* quadrant swatches: the signal's wedge of the map glyph (top-left, top-right, bottom-left, bottom-right) */
+.sw--q0 { border-radius: 100% 0 0 0; } .sw--q1 { border-radius: 0 100% 0 0; }
+.sw--q2 { border-radius: 0 0 0 100%; } .sw--q3 { border-radius: 0 0 100% 0; }
+.lg-glyph { display: inline-grid; grid-template-columns: .55rem .55rem; gap: 1px; vertical-align: -.2rem; margin-right: .35rem; }
+.lg-glyph .sw { width: .55rem; height: .55rem; display: block; }
 .finder__pin { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; cursor: pointer; }
 .finder__pin input { accent-color: var(--c-blue); margin: 0; }
 .pin-sw { width: .8rem; height: .8rem; border-radius: 999px; border: 3px solid var(--c-ink); display: inline-block; }
