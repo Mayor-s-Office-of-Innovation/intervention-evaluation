@@ -22,6 +22,8 @@ const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
 const TILE_OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const TILE_OPTS = { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>' };
 const isDark = () => document.documentElement.classList.contains('wa-dark');
+const GLYPH_ZOOM = 14;           // at/above this zoom a dot is a wedge glyph (one fixed quadrant per signal)
+const PRESENT = 0.25;            // a signal below this share of its citywide p95 is "not here" — no wedge
 
 let META, PROV, CONCERN, CITY, MLY = null;   // MLY: optional data/mapillary.json (image ids only)
 let byId = new Map(), pinned = new Map();
@@ -79,8 +81,15 @@ function buildColourPicker() {
     sigScale[k] = Math.max(3, vals[Math.floor(vals.length * 0.95)] || 1);
     colourBy.add(k);
   }
-  box.insertAdjacentHTML('beforeend', META.signals.map(k =>
-    `<label><input type="checkbox" value="${k}" checked /><span class="sw" style="background:${SIG_COLOR[k]}"></span>${esc(PROV.signals[k].short)}</label>`).join(''));
+  // The swatch is the signal's quadrant of the glyph (top-left, top-right, bottom-left, bottom-right in
+  // signal order), so the picker doubles as the key for reading the wedges on the map.
+  box.insertAdjacentHTML('beforeend', META.signals.map((k, i) =>
+    `<label><input type="checkbox" value="${k}" checked /><span class="sw sw--q${i}" style="background:${SIG_COLOR[k]}"></span>${esc(PROV.signals[k].short)}</label>`).join(''));
+  $('#glyph-key').innerHTML = `<i class="lg-glyph" aria-hidden="true">${META.signals.map((k, i) => `<b class="sw sw--q${i}" style="background:${SIG_COLOR[k]}"></b>`).join('')}</i>` +
+    `Zoomed in, each dot splits into up to four wedges, one fixed quadrant per checked signal (` +
+    META.signals.map((k, i) => `${['↖', '↗', '↙', '↘'][i]} ${esc(PROV.signals[k].short)}`).join(' · ') +
+    `); wedge size = how far that signal stands out against its own citywide spread, a missing wedge = little or nothing of it here. ` +
+    `Filled disc under the wedges = sheltered stop, open ring = no shelter.`;
   box.addEventListener('change', e => {
     if (e.target.checked) colourBy.add(e.target.value); else colourBy.delete(e.target.value);
     restyleMarkers();
@@ -93,9 +102,39 @@ function buildColourPicker() {
   });
   window.addEventListener('themechange', () => { restyleMarkers(); drawHalo(); });
 }
+// Canvas renderer that draws a circle marker carrying `wedges` as a fixed-quadrant glyph: quadrant i
+// (top-left, top-right, bottom-left, bottom-right) belongs to signal i, is filled only when that signal
+// is checked and present, and its radius scales with intensity. Fixed positions mean a reader learns the
+// layout once and can count issues at a glance without decoding hue. The disc under the wedges is the
+// shelter flag (filled = sheltered, open = no shelter). Markers without `wedges` draw as plain circles,
+// so tooltips, click tolerance and the concern-list ring are untouched.
+const QUAD = [[Math.PI, 1.5 * Math.PI], [1.5 * Math.PI, 2 * Math.PI], [0.5 * Math.PI, Math.PI], [0, 0.5 * Math.PI]];
+const GlyphCanvas = L.Canvas.extend({
+  _updateCircle(layer) {
+    const w = layer.options.wedges;
+    if (!w) return L.Canvas.prototype._updateCircle.call(this, layer);
+    if (!this._drawing || layer._empty()) return;
+    const p = layer._point, ctx = this._ctx, o = layer.options, r = Math.max(Math.round(layer._radius), 1);
+    ctx.save();
+    ctx.globalAlpha = o.fillOpacity;
+    // Shelter flag lives in the disc, matching the legend's ● / ○: a sheltered stop is a filled disc under its
+    // wedges (absent quadrants read as gaps), an unsheltered stop is an open ring with wedges floating in it.
+    if (o.discColor) { ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 2 * Math.PI); ctx.fillStyle = o.discColor; ctx.fill(); }
+    w.forEach((t, i) => {
+      if (!t) return;
+      const [a0, a1] = QUAD[i], wr = r * (0.55 + 0.45 * t);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, wr, a0, a1); ctx.closePath();
+      ctx.fillStyle = o.wedgeColors[i]; ctx.fill();
+    });
+    ctx.globalAlpha = o.opacity;
+    ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 2 * Math.PI);
+    ctx.lineWidth = o.weight; ctx.strokeStyle = o.color; ctx.stroke();
+    ctx.restore();
+  },
+});
 function buildMap() {
-  // Canvas renderer with an 8 px click tolerance: a click just beside a small dot still opens it.
-  const renderer = L.canvas({ tolerance: 8 });
+  // Glyph-capable canvas renderer with an 8 px click tolerance: a click just beside a small dot still opens it.
+  const renderer = new GlyphCanvas({ tolerance: 8 });
   map = L.map('map', { preferCanvas: true, renderer });
   tile = L.tileLayer(isDark() ? TILE_DARK : TILE_LIGHT, TILE_OPTS).addTo(map);
   osm = L.tileLayer(TILE_OSM, { maxZoom: 19, className: 'osm-tiles',
@@ -115,21 +154,29 @@ function buildMap() {
   map.on('zoomend', () => { restyleMarkers(); drawHalo(); });
   window.__stopsMap = map;   // QA hook (screenshots, console)
 }
-// Dot = the checked signal that dominates at this stop (each signal's 12-month count normalised by its
-// own citywide p95, so a "hot" shelter-maintenance stop can compete with a "hot" encampment stop);
-// lightness and radius follow the summed normalised intensity. Unchecking a signal visibly removes its
-// colour from the map, which is the "see the change" the picker is for.
+// Each checked signal's 12-month count is normalised by its own citywide p95, so a "hot"
+// shelter-maintenance stop can compete with a "hot" encampment stop. Radius follows the summed
+// intensity. Zoomed out (dots of 3 px) the dot takes the colour of the signal that stands out most;
+// from GLYPH_ZOOM up it becomes a wedge glyph showing every present signal in its own quadrant, so a
+// stop with two or three elevated signals no longer looks like a stop with one. Unchecking a signal
+// visibly removes its colour (or wedge) from the map, which is the "see the change" the picker is for.
 function dotPaint(s) {
   let best = null, bestT = 0, total = 0;
-  for (const k of colourBy) {
+  const wedges = META.signals.map(k => {
+    if (!colourBy.has(k)) return 0;
     const t = Math.min(1.5, (s.t12[k] ?? 0) / sigScale[k]);
     total += t;
     if (t > bestT) { bestT = t; best = k; }
-  }
+    return t >= PRESENT ? Math.min(1, t) : 0;
+  });
   if (!colourBy.size) return { fill: s.shelter ? '#3b82f6' : '#94a3b8', boost: 0, quiet: false };
   if (!best) return { fill: isDark() ? '#334155' : '#cbd5e1', boost: 0, quiet: true };
   const i = Math.min(1, total / 1.5);
-  return { fill: mix(SIG_COLOR[best], isDark() ? '#0f172a' : '#ffffff', 0.15 + 0.55 * (1 - i)), boost: Math.round(3 * i), quiet: false };
+  // Zoomed in, every non-quiet dot is a glyph — a disc with no wedge means "some reports, none standing
+  // out" — so the vocabulary is one thing at a time, not glyphs beside pale solid dots.
+  const glyph = map && map.getZoom() >= GLYPH_ZOOM;
+  return { fill: mix(SIG_COLOR[best], isDark() ? '#0f172a' : '#ffffff', 0.15 + 0.55 * (1 - i)), boost: Math.round(3 * i), quiet: false,
+           wedges: glyph ? wedges : null };
 }
 function mix(hex, toHex, t) {          // blend hex → toHex by t (0 = hex)
   const a = hex.match(/\w\w/g).map(x => parseInt(x, 16)), b = toHex.match(/\w\w/g).map(x => parseInt(x, 16));
@@ -145,7 +192,10 @@ function markerStyle(s) {
   const fade = streetsFirst ? 0.45 : 1;     // "Streets first": smaller, translucent dots so street lines show through
   return { radius: Math.max(2, (r + p.boost) * (streetsFirst ? 0.75 : 1)) + (pin ? 2 : 0),
            color: pin ? (isDark() ? '#f8fafc' : '#0f172a') : (s.shelter ? '#1d4ed8' : '#64748b'),
-           weight: pin ? 3 : 1, fillColor: p.fill, fillOpacity: (p.quiet ? .35 : (s.shelter ? .9 : .6)) * fade, opacity: (pin ? 1 : .9) * fade };
+           weight: pin ? 3 : (p.wedges && s.shelter ? 2 : 1),     // glyph mode: sheltered = heavier blue ring
+           fillColor: p.fill, fillOpacity: (p.quiet ? .35 : (s.shelter ? .9 : .6)) * fade, opacity: (pin ? 1 : .9) * fade,
+           wedges: p.wedges, wedgeColors: META.signals.map(k => SIG_COLOR[k]),
+           discColor: s.shelter ? (isDark() ? '#334155' : '#cbd5e1') : null };
 }
 function restyleMarkers() { for (const s of META.stops) markers.get(s.id).setStyle(markerStyle(s)); }
 
@@ -153,7 +203,9 @@ function restyleMarkers() { for (const s of META.stops) markers.get(s.id).setSty
 // after a search or a click, at any zoom, whatever the dots are coloured.
 function drawHalo() {
   if (halo) { halo.remove(); halo = null; }
-  if (haloLabel) { haloLabel.remove(); haloLabel = null; }
+  // Leaflet fades a removed tooltip out over 200 ms, so a redraw inside that window (zoomend right after a
+  // selection) briefly shows two labels; drop the old node at once.
+  if (haloLabel) { const el = haloLabel.getElement(); haloLabel.remove(); if (el) el.remove(); haloLabel = null; }
   const s = selectedId && byId.get(selectedId);
   if (!s) return;
   const base = markerStyle(s).radius;

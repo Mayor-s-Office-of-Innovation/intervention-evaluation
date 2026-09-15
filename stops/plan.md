@@ -221,6 +221,13 @@ helpers, chart rendering, cross-street search) is the shared library as-is.
   its own citywide 95th percentile so a "hot" maintenance stop can compete with a "hot" encampment stop),
   and its size follows the summed intensity. Unchecking a signal visibly removes its colour, which is
   how a reader sees what each signal contributes.
+  **Amended 2026-09-14 — wedge glyphs.** A single hue hid combinations: a stop with encampment *and*
+  drug both elevated looked like an encampment-only stop. From zoom 14 up each dot is now a glyph with
+  one fixed quadrant per signal (↖ encampment, ↗ shelter-tagged, ↙ 911 unhoused, ↘ 911 drug); a wedge
+  is drawn only when its signal is checked and at least 25% of its citywide p95, and its radius grows
+  with intensity. Fixed positions (not a proportional pie) so the layout is learned once and issues
+  can be counted without decoding hue. Below zoom 14 dots are 3 px and keep the dominant-hue rule.
+  The picker swatches are the quadrant shapes, so the picker is the key.
 
 ---
 

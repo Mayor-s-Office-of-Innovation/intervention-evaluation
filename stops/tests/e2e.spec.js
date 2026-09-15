@@ -28,8 +28,25 @@ test('landing: map, concern table, citywide table render (no console errors)', a
   await expect(page.locator('#stop-card')).toBeHidden();
   await expect(page.locator('#colour-by input[type=checkbox]')).toHaveCount(4);
   await expect(page.locator('#colour-by input[type=checkbox]:checked')).toHaveCount(4);
+  // Wedge glyphs: zoomed in, a dot carries one wedge per present signal (fixed quadrant), so stops with
+  // several elevated signals are visibly different from single-signal stops; zoomed out, plain dots.
+  const wedgeCounts = (minWedges, quadrant) => page.evaluate(([n, q]) => {
+    let hits = 0;
+    window.__stopsMap.eachLayer(l => {
+      const w = l.options.wedges; if (!w) return;
+      if (q != null ? w[q] > 0 : w.filter(x => x > 0).length >= n) hits++;
+    });
+    return hits;
+  }, [minWedges, quadrant]);
+  await page.evaluate(() => { window.__stopsMap.setView([37.783, -122.415], 15, { animate: false }); });
+  expect(await wedgeCounts(2)).toBeGreaterThan(0);          // some multi-issue stops render ≥2 wedges
+  expect(await wedgeCounts(0, 0)).toBeGreaterThan(0);       // encampment quadrant in use
+  await expect(page.locator('#glyph-key')).toContainText('one fixed quadrant');
   await page.locator('#colour-by input[value=encampment]').uncheck();
   await expect(page.locator('#colour-by input[type=checkbox]:checked')).toHaveCount(3);
+  expect(await wedgeCounts(0, 0)).toBe(0);                  // unchecking a signal empties its quadrant
+  await page.evaluate(() => { window.__stopsMap.setZoom(12, { animate: false }); });
+  expect(await wedgeCounts(1)).toBe(0);                     // below the glyph zoom, no wedges at all
   await expect(page.locator('#show-concern')).toBeChecked();
   await page.locator('#show-concern').uncheck();
   await expect(page.locator('#show-concern')).not.toBeChecked();
