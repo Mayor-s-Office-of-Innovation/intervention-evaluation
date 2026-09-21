@@ -1,5 +1,5 @@
 {
- "list_date": "2026-09-12",
+ "list_date": "2026-09-21",
  "source": "concern_list.public.tsv",
  "detail": false,
  "note": "Leadership concern list, PUBLIC form: stop identities + the list's boardings figure. Rebuild with --full and the gitignored build/concern_list.tsv to restore notes, rank and removal requests.",
