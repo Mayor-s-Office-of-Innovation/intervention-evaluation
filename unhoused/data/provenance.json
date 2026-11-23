@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-16",
+  "generated": "2026-11-23",
   "districts_geojson": "qgnn-b9vv",
   "history_start": "2023-01-01",
   "note": "Each signal (and each component of a combined one) lists its dataset and a runnable Socrata query so every number on the page ties back to source data (plan D7).",
@@ -21,7 +21,7 @@
         "Ingleside": "https://data.sf.gov/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+%28service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+OR+%28service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27%29%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%279%27+GROUP+BY+month+ORDER+BY+month",
         "Taraval": "https://data.sf.gov/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+%28service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+OR+%28service_name%3D%27General+Request%27+AND+lower%28service_subtype%29+LIKE+%27%25homeless%25%27%29%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%2710%27+GROUP+BY+month+ORDER+BY+month"
       },
-      "records_pulled": 204235,
+      "records_pulled": 205560,
       "dedup_note": "Deduped on service_request_id across both parts of the union.",
       "components": {
         "encampment_only": {
@@ -105,7 +105,7 @@
           "2026-08": 3696,
           "2026-09": 3463,
           "2026-10": 3719,
-          "2026-11": 1779
+          "2026-11": 2561
         },
         "unhoused_individual": {
           "2024-06": 34,
@@ -137,7 +137,7 @@
           "2026-08": 2691,
           "2026-09": 2660,
           "2026-10": 2821,
-          "2026-11": 1263
+          "2026-11": 1806
         },
         "union": {
           "2023-01": 2386,
@@ -186,7 +186,7 @@
           "2026-08": 6387,
           "2026-09": 6123,
           "2026-10": 6540,
-          "2026-11": 3042
+          "2026-11": 4367
         }
       }
     },
@@ -207,7 +207,7 @@
         "Ingleside": "https://data.sf.gov/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%279%27+GROUP+BY+month+ORDER+BY+month",
         "Taraval": "https://data.sf.gov/resource/vw6y-z8j6.json?%24query=SELECT+date_trunc_ym%28requested_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+service_name+IN+%28%27Encampment%27%2C%27Encampments%27%29+AND+requested_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%2710%27+GROUP+BY+month+ORDER+BY+month"
       },
-      "records_pulled": 164226
+      "records_pulled": 165008
     },
     "cfs_sitlie": {
       "dataset_id": "2zdj-bwza",
@@ -226,7 +226,7 @@
         "Ingleside": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27SIT%2FLIE+ENFORCEMENT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%279%27+GROUP+BY+month+ORDER+BY+month",
         "Taraval": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27SIT%2FLIE+ENFORCEMENT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%2710%27+GROUP+BY+month+ORDER+BY+month"
       },
-      "records_pulled": 29061
+      "records_pulled": 29159
     },
     "cfs_homeless": {
       "dataset_id": "2zdj-bwza",
@@ -245,7 +245,7 @@
         "Ingleside": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27HOMELESS+COMPLAINT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%279%27+GROUP+BY+month+ORDER+BY+month",
         "Taraval": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+call_type_final_desc+%3D+%27HOMELESS+COMPLAINT%27+AND+onview_flag+IN+%28%27N%27%2C%27HSOC%27%29+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%2710%27+GROUP+BY+month+ORDER+BY+month"
       },
-      "records_pulled": 17126
+      "records_pulled": 17157
     },
     "hsoc": {
       "dataset_id": "2zdj-bwza",
@@ -264,7 +264,7 @@
         "Ingleside": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+onview_flag%3D%27HSOC%27+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%279%27+GROUP+BY+month+ORDER+BY+month",
         "Taraval": "https://data.sf.gov/resource/2zdj-bwza.json?%24query=SELECT+date_trunc_ym%28received_datetime%29+AS+month%2C+count%28%2A%29+AS+reports+WHERE+onview_flag%3D%27HSOC%27+AND+dup_cad_number+IS+NULL+AND+received_datetime+%3E%3D+%272023-01-01T00%3A00%3A00%27+AND+%3A%40computed_region_qgnn_b9vv+%3D+%2710%27+GROUP+BY+month+ORDER+BY+month"
       },
-      "records_pulled": 58256
+      "records_pulled": 58470
     }
   },
   "groups": {
