@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-16",
+  "generated": "2026-11-23",
   "lurie_inauguration": "2025-01-08",
   "pre_window": [
     "2023-01",
@@ -1537,7 +1537,7 @@
         "persistent": 13,
         "cooled": 19
       },
-      "cells": 458,
+      "cells": 460,
       "classified_fixed_preset": 88
     }
   }
